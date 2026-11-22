@@ -49,15 +49,19 @@ import { PADS_PER_BANK, SP_BANKS, padKey, type SpBank } from '../sp404/samplePre
 import {
   SP_IMPORT_HINT,
   importDestinationLabel,
-  importRelativePath,
+  importWavFileName,
   sampleNameFromTake,
 } from '../sp404/spImportPath';
 import {
+  SP_VOLUME_BROWSER_HINT,
   encodeSpReadyWav,
-  ensureSpVolumeHandle,
+  ensureSpVolumeHandleDetailed,
   fileSystemAccessSupported,
+  formatSpWriteError,
   getCachedSpVolumeHandle,
-  pickSpVolumeDirectory,
+  pickSpVolumeDirectoryDetailed,
+  readWavFormat,
+  restorePersistedSpVolumeHandle,
   writeWavToImport,
 } from '../sp404/spVolumeHandle';
 
@@ -134,6 +138,7 @@ export function SessionsWorkspace() {
   const [spVolumeLabel, setSpVolumeLabel] = useState<string | null>(() =>
     getCachedSpVolumeHandle()?.name ?? null,
   );
+  const [spGrantWarning, setSpGrantWarning] = useState<string | null>(null);
   const [spBusy, setSpBusy] = useState(false);
   const playRef = useRef<AudioBufferSourceNode | null>(null);
   const waveRef = useRef<HTMLCanvasElement>(null);
@@ -166,6 +171,10 @@ export function SessionsWorkspace() {
         await refreshTakes();
         setSelectedId(recovered.meta.id);
       }
+    })();
+    void (async () => {
+      const restored = await restorePersistedSpVolumeHandle();
+      if (restored) setSpVolumeLabel(restored.name);
     })();
     try {
       void navigator.storage?.estimate?.().then((est) => {
@@ -445,28 +454,39 @@ export function SessionsWorkspace() {
 
   const openSpVolume = async () => {
     setMsg(null);
+    setSpGrantWarning(null);
     if (!fileSystemAccessSupported()) {
-      setMsg('SP volume write needs Chrome or Edge on this Mac.');
+      setMsg(SP_VOLUME_BROWSER_HINT);
       return;
     }
-    const handle = await pickSpVolumeDirectory({ mode: 'readwrite' });
-    if (!handle) {
-      setMsg('SP volume picker cancelled.');
+    const result = await pickSpVolumeDirectoryDetailed({ mode: 'readwrite' });
+    if (!result.ok) {
+      setMsg(result.message);
       return;
     }
-    setSpVolumeLabel(handle.name);
-    setMsg(`SP volume ready: “${handle.name}” — pick a pad, then Write to IMPORT.`);
+    setSpVolumeLabel(result.handle.name);
+    setSpGrantWarning(result.info.warning);
+    const where =
+      result.info.kind === 'import-folder'
+        ? 'IMPORT folder granted — WAVs write here directly'
+        : result.info.kind === 'sp-root'
+          ? 'SD card root granted — will write into IMPORT/'
+          : 'folder granted';
+    setMsg(`SP volume ready: “${result.handle.name}” (${where}). Pick a pad, then Write to IMPORT.`);
   };
 
   const runExportToSpPad = async () => {
     if (!selected || !audio) return;
     setMsg(null);
     if (!fileSystemAccessSupported()) {
-      setMsg('SP volume write needs Chrome or Edge on this Mac.');
+      setMsg(SP_VOLUME_BROWSER_HINT);
       return;
     }
     setSpBusy(true);
     setExportProgress({ ratio: 0.05, label: 'Preparing SP WAV…' });
+    const sampleName = sampleNameFromTake(selected.name);
+    const padFile = importWavFileName(spBank, spPad, sampleName);
+    let spWav: ArrayBuffer | null = null;
     try {
       const prepared = prepareForExport(audio, {
         startFrame: trimStart,
@@ -476,32 +496,50 @@ export function SessionsWorkspace() {
         snapToMarkers: snapMarkers,
       });
       setExportProgress({ ratio: 0.35, label: 'Encoding 48 kHz / 16-bit…' });
-      const buffer = await encodeSpReadyWav(prepared);
-      const sampleName = sampleNameFromTake(selected.name);
-      const blob = new Blob([buffer], { type: 'audio/wav' });
+      spWav = await encodeSpReadyWav(prepared);
+      const fmt = readWavFormat(spWav);
+      if (fmt.sampleRate !== 48000 || fmt.bitsPerSample !== 16) {
+        throw new Error(
+          `SP WAV must be 48 kHz / 16-bit (got ${fmt.sampleRate} Hz / ${fmt.bitsPerSample}-bit).`,
+        );
+      }
       setExportProgress({ ratio: 0.55, label: 'Opening SP volume…' });
-      const root = await ensureSpVolumeHandle();
-      if (!root) {
-        setMsg('Open the SP SD volume first (card in a Mac reader), then try again.');
+      // Reuses memory/IDB grant when writable; otherwise opens the picker (readwrite).
+      const rootResult = await ensureSpVolumeHandleDetailed();
+      if (!rootResult.ok) {
+        downloadBlob(new Blob([spWav], { type: 'audio/wav' }), padFile);
+        setMsg(
+          `${rootResult.message} Downloaded ${padFile} as fallback — copy it into the card’s IMPORT/ folder, then ${SP_IMPORT_HINT}.`,
+        );
         return;
       }
-      setSpVolumeLabel(root.name);
+      setSpVolumeLabel(rootResult.handle.name);
+      setSpGrantWarning(rootResult.info.warning);
       setExportProgress({
         ratio: 0.8,
-        label: `Writing ${importRelativePath(spBank, spPad, sampleName)}…`,
+        label: `Writing ${padFile}…`,
       });
       const written = await writeWavToImport(
-        root,
+        rootResult.handle,
         { bank: spBank, pad: spPad },
         sampleName,
-        blob,
+        spWav,
       );
+      const warn = rootResult.info.warning ? ` Note: ${rootResult.info.warning}` : '';
       setMsg(
-        `Wrote ${written.relativePath} on “${written.volumeName}”. ${SP_IMPORT_HINT}. Eject the card safely, put it back in the SP, then Import onto pad ${padKey(spBank, spPad)}.`,
+        `Wrote ${written.relativePath} (${written.bytesWritten} bytes) on “${written.volumeName}”. ${SP_IMPORT_HINT}. Eject the card safely, put it back in the SP, then Import onto pad ${padKey(spBank, spPad)}.${warn}`,
       );
       setExportProgress({ ratio: 1, label: 'Done' });
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : String(e));
+      const err = formatSpWriteError(e);
+      if (spWav) {
+        downloadBlob(new Blob([spWav], { type: 'audio/wav' }), padFile);
+        setMsg(
+          `${err} Downloaded ${padFile} as fallback — copy it into the card’s IMPORT/ folder, then ${SP_IMPORT_HINT}.`,
+        );
+      } else {
+        setMsg(err);
+      }
     } finally {
       setSpBusy(false);
       setExportProgress(null);
@@ -865,9 +903,11 @@ export function SessionsWorkspace() {
                   <span className="rec-sp-hw mono">SP-404MKII · IMPORT</span>
                 </div>
                 <p className="muted small">
-                  Writes a trimmed 48 kHz / 16-bit WAV into the mounted SD card&apos;s{' '}
-                  <span className="mono">IMPORT/</span> folder. USB alone cannot push pads — put
-                  the card in a Mac reader, grant the volume, then Import on the unit.
+                  Writes a trimmed 48 kHz / 16-bit WAV named like{' '}
+                  <span className="mono">A01 take.wav</span> into the mounted SD card&apos;s{' '}
+                  <span className="mono">IMPORT/</span> folder. Grant the <b>card root</b> (Finder
+                  shows IMPORT / EXPORT / BKUP) or the IMPORT folder itself — not a PROJECT folder.
+                  USB alone cannot push pads. Chrome or Edge only.
                 </p>
                 <div className="bank-tabs" role="tablist" aria-label="SP banks">
                   {SP_BANKS.map((b) => (
@@ -914,6 +954,7 @@ export function SessionsWorkspace() {
                   )}
                 </div>
                 <p className="rec-sp-hint mono">{SP_IMPORT_HINT}</p>
+                {spGrantWarning ? <p className="warn small">{spGrantWarning}</p> : null}
                 <div className="row wrap">
                   <button
                     type="button"
@@ -933,8 +974,13 @@ export function SessionsWorkspace() {
                   </button>
                 </div>
                 {!canPickSpVolume ? (
-                  <p className="muted small">Folder access needs Chrome or Edge.</p>
-                ) : null}
+                  <p className="warn small">{SP_VOLUME_BROWSER_HINT}</p>
+                ) : (
+                  <p className="muted small">
+                    If the SD write fails, the same pad WAV downloads automatically so you can copy
+                    it into IMPORT/ by hand.
+                  </p>
+                )}
               </div>
             </>
           )}
