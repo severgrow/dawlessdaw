@@ -636,8 +636,8 @@ export class FlipEngine {
     }
     if (this.playCtx.state === 'suspended') await this.playCtx.resume();
     const buffer = this.playCtx.createBuffer(2, audio.left.length, audio.sampleRate);
-    buffer.copyToChannel(audio.left, 0);
-    buffer.copyToChannel(audio.right, 1);
+    buffer.copyToChannel(Float32Array.from(audio.left), 0);
+    buffer.copyToChannel(Float32Array.from(audio.right), 1);
     const src = this.playCtx.createBufferSource();
     src.buffer = buffer;
     src.loop = true;
