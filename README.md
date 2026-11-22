@@ -37,11 +37,11 @@ Routing lives on the **Controller** tab (see [docs/circuit-controller.md](docs/c
 - MIDI clock: **hardware** Circuit Out → thru → SP. The MPC (Scarlett DIN — [docs/mpc-via-scarlett.md](docs/mpc-via-scarlett.md)) gets clock only when Rig → Tempo → **→ MPC** is on. App clock switches default OFF.
 - MPC mute MIDI Learn: **CC 20 on channel 15** (control channel — not 16).
 
-ZED-10FX: USB **audio only** — no MIDI.
+ZED-10FX: USB **audio only** — no MIDI. Use the **Sessions** tab to record stereo from ZED / Scarlett / SP / any input (local takes only). See [docs/session-recorder.md](docs/session-recorder.md).
 
 ## Docs
 
-See `/docs` — start with **[docs/live-run-guide.md](docs/live-run-guide.md)**, then [circuit-controller.md](docs/circuit-controller.md), architecture, setup, limitations. Agent context: [docs/HANDOVER.md](docs/HANDOVER.md).
+See `/docs` — start with **[docs/live-run-guide.md](docs/live-run-guide.md)**, then [circuit-controller.md](docs/circuit-controller.md), [session-recorder.md](docs/session-recorder.md), architecture, setup, limitations. Agent context: [docs/HANDOVER.md](docs/HANDOVER.md).
 
 ## Honesty
 

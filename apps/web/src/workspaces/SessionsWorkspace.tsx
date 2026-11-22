@@ -1,0 +1,786 @@
+/**
+ * Sessions — Studio JSON + Session Recorder (local audio takes).
+ * Plain-language UI; terminal × hardware look. No upload, no AI in the audio path.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useStudioActions, useStudioStore } from '../store/useStudioStore';
+import {
+  formatInputLabel,
+  listAudioInputs,
+  loadPersistedInputId,
+  persistInputId,
+} from '../recorder/devices';
+import {
+  getCaptureEngine,
+  type CaptureStatus,
+} from '../recorder/captureEngine';
+import {
+  deleteTake,
+  listTakes,
+  loadTakeAudio,
+  recoverUnsavedTake,
+  updateTakeMeta,
+  type TakeMeta,
+} from '../recorder/takeStore';
+import {
+  clampTrim,
+  prepareForExport,
+  snapFrameToMarkers,
+  stereoPeaks,
+} from '../recorder/pcmMath';
+import type { StereoAudio } from '../recorder/types';
+import {
+  DEFAULT_FILENAME_PATTERN,
+  downloadBlob,
+  exportTake,
+  saveBlobsToFolder,
+} from '../recorder/exportTake';
+import {
+  CLIP_LINEAR,
+  DEFAULT_FADE_MS,
+  MP3_LICENCE_NOTICE,
+  RECORDER_MIDI_ARM_KEY,
+  type AudioInputDevice,
+  type Mp3Mode,
+  type WavBitDepth,
+} from '../recorder/types';
+import { minutesRemaining } from '../recorder/stitch';
+
+function formatTime(sec: number): string {
+  const s = Math.max(0, sec);
+  const m = Math.floor(s / 60);
+  const r = s - m * 60;
+  return `${m}:${r.toFixed(1).padStart(4, '0')}`;
+}
+
+function Meter({
+  label,
+  level,
+  clip,
+}: {
+  label: string;
+  level: number;
+  clip: boolean;
+}) {
+  const pct = Math.min(100, Math.max(0, (level / CLIP_LINEAR) * 100));
+  return (
+    <div className={`rec-meter${clip ? ' clip' : ''}`}>
+      <span className="rec-meter-label mono">{label}</span>
+      <div className="rec-meter-track" aria-hidden="true">
+        <i style={{ width: `${pct}%` }} />
+      </div>
+      {clip ? <span className="rec-clip">CLIP</span> : null}
+    </div>
+  );
+}
+
+export function SessionsWorkspace() {
+  const snap = useStudioStore();
+  const { exportSession, importSession, getRuntime } = useStudioActions();
+  const [raw, setRaw] = useState('');
+  const [jsonError, setJsonError] = useState<string | null>(null);
+
+  const [inputs, setInputs] = useState<AudioInputDevice[]>([]);
+  const [deviceId, setDeviceId] = useState<string | null>(loadPersistedInputId());
+  const [midiArm, setMidiArm] = useState(() => {
+    try {
+      return localStorage.getItem(RECORDER_MIDI_ARM_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [status, setStatus] = useState<CaptureStatus>(() => getCaptureEngine().status());
+  const [takes, setTakes] = useState<TakeMeta[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [audio, setAudio] = useState<StereoAudio | null>(null);
+  const [spaceHint, setSpaceHint] = useState<string>('…');
+  const [recoverNote, setRecoverNote] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  // Edit / export
+  const [trimStart, setTrimStart] = useState(0);
+  const [trimEnd, setTrimEnd] = useState(0);
+  const [fadeOn, setFadeOn] = useState(true);
+  const [normalize, setNormalize] = useState(false);
+  const [snapMarkers, setSnapMarkers] = useState(true);
+  const [zoom, setZoom] = useState(1);
+  const [wavBits, setWavBits] = useState<WavBitDepth>(24);
+  const [mp3Mode, setMp3Mode] = useState<Mp3Mode>('cbr320');
+  const [splitMarkers, setSplitMarkers] = useState(false);
+  const [filenamePattern, setFilenamePattern] = useState(DEFAULT_FILENAME_PATTERN);
+  const [exportProgress, setExportProgress] = useState<{ ratio: number; label: string } | null>(
+    null,
+  );
+  const playRef = useRef<AudioBufferSourceNode | null>(null);
+  const waveRef = useRef<HTMLCanvasElement>(null);
+  const selectedInputRef = useRef<AudioInputDevice | null>(null);
+  const startRecordRef = useRef<() => Promise<void>>(async () => undefined);
+  const stopRecordRef = useRef<() => Promise<void>>(async () => undefined);
+
+  const selected = takes.find((t) => t.id === selectedId) ?? null;
+  const selectedInput = inputs.find((d) => d.deviceId === deviceId) ?? inputs[0] ?? null;
+  selectedInputRef.current = selectedInput;
+
+  const refreshTakes = useCallback(async () => {
+    const list = await listTakes();
+    setTakes(list);
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      const list = await listAudioInputs();
+      setInputs(list);
+      const saved = loadPersistedInputId();
+      if (saved && list.some((d) => d.deviceId === saved)) setDeviceId(saved);
+      else if (list[0]) setDeviceId(list[0].deviceId);
+    })();
+    void refreshTakes();
+    void (async () => {
+      const recovered = await recoverUnsavedTake();
+      if (recovered) {
+        setRecoverNote(`Recovered unsaved take: ${recovered.meta.name}`);
+        await refreshTakes();
+        setSelectedId(recovered.meta.id);
+      }
+    })();
+    try {
+      void navigator.storage?.estimate?.().then((est) => {
+        const free = (est.quota ?? 0) - (est.usage ?? 0);
+        const mins = minutesRemaining(free * 0.8, 48000);
+        setSpaceHint(
+          `≈ ${Math.floor(mins)} min left at 48 kHz stereo (browser estimate)`,
+        );
+      });
+    } catch {
+      setSpaceHint('Storage estimate unavailable');
+    }
+  }, [refreshTakes]);
+
+  useEffect(() => getCaptureEngine().subscribe(setStatus), []);
+
+  // Load audio when selection changes
+  useEffect(() => {
+    if (!selectedId) {
+      setAudio(null);
+      return;
+    }
+    let cancelled = false;
+    void loadTakeAudio(selectedId).then((a) => {
+      if (cancelled) return;
+      setAudio(a);
+      if (a) {
+        setTrimStart(0);
+        setTrimEnd(a.left.length);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
+
+  // Circuit MIDI Start/Stop arm + Program Change markers
+  useEffect(() => {
+    if (!midiArm) return;
+    const runtime = getRuntime();
+    const unsub = runtime.bus.on('midi:clock', (ev) => {
+      if (ev.type !== 'midi:clock') return;
+      const engine = getCaptureEngine();
+      if (ev.message.kind === 'start' && engine.status().state === 'idle') {
+        void startRecordRef.current();
+      } else if (ev.message.kind === 'stop' && engine.status().state === 'recording') {
+        void stopRecordRef.current();
+      }
+    });
+    const unsubIn = runtime.bus.on('midi:in', (ev) => {
+      if (ev.type !== 'midi:in') return;
+      const m = ev.message;
+      if (m.kind !== 'program-change' || m.channel !== 16) return;
+      const engine = getCaptureEngine();
+      if (engine.status().state !== 'recording') return;
+      const prog = (m.value ?? 0) % 64;
+      engine.addMarker(`Project ${prog + 1}`, 'circuit-project');
+    });
+    return () => {
+      unsub();
+      unsubIn();
+    };
+  }, [midiArm, getRuntime]);
+
+  // M key = marker while recording or editing
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable))
+        return;
+      if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        const engine = getCaptureEngine();
+        if (engine.status().state === 'recording') {
+          engine.addMarker('Mark', 'manual');
+          setMsg('Marker added');
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Waveform draw
+  useEffect(() => {
+    const canvas = waveRef.current;
+    const g = canvas?.getContext('2d');
+    if (!canvas || !g || !audio || !selected) return;
+    const { width, height } = canvas;
+    const css = getComputedStyle(canvas);
+    const accent = css.getPropertyValue('--accent').trim() || '#9a2a45';
+    const alert = css.getPropertyValue('--alert-hi').trim() || '#b5ead3';
+    const dim = css.getPropertyValue('--line-hard').trim() || '#3a3a3a';
+    g.clearRect(0, 0, width, height);
+    g.fillStyle = '#121212';
+    g.fillRect(0, 0, width, height);
+
+    const viewFrames = Math.max(1, Math.floor(audio.left.length / zoom));
+    const startView = 0;
+    const slice: StereoAudio = {
+      sampleRate: audio.sampleRate,
+      left: audio.left.subarray(startView, startView + viewFrames),
+      right: audio.right.subarray(startView, startView + viewFrames),
+    };
+    const peaks = stereoPeaks(slice, width);
+    const mid = height / 2;
+    g.strokeStyle = accent;
+    g.beginPath();
+    for (let x = 0; x < peaks.length; x++) {
+      const h = peaks[x]! * (mid - 2);
+      g.moveTo(x, mid - h);
+      g.lineTo(x, mid + h);
+    }
+    g.stroke();
+
+    const x0 = (trimStart / audio.left.length) * width;
+    const x1 = (trimEnd / audio.left.length) * width;
+    g.fillStyle = 'rgba(0,0,0,0.55)';
+    g.fillRect(0, 0, x0, height);
+    g.fillRect(x1, 0, width - x1, height);
+    g.strokeStyle = alert;
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(x0, 0);
+    g.lineTo(x0, height);
+    g.moveTo(x1, 0);
+    g.lineTo(x1, height);
+    g.stroke();
+    g.lineWidth = 1;
+
+    for (const m of selected.markers) {
+      const x = (m.sample / audio.left.length) * width;
+      g.strokeStyle = m.source === 'circuit-project' ? alert : '#ecebe6';
+      g.beginPath();
+      g.moveTo(x, 0);
+      g.lineTo(x, height);
+      g.stroke();
+    }
+  }, [audio, selected, trimStart, trimEnd, zoom]);
+
+  const startRecord = useCallback(async () => {
+    setMsg(null);
+    const input = selectedInputRef.current;
+    const label = input ? formatInputLabel(input) : 'Default input';
+    const live = useStudioStore.getState();
+    const scene = live.scenes.find((s) => s.id === live.activeSceneId);
+    try {
+      await getCaptureEngine().start({
+        deviceId: input?.deviceId ?? null,
+        deviceLabel: label,
+        tags: {
+          tempoBpm: live.estimatedBpm,
+          circuitProject: live.lastProject?.index ?? null,
+          studioScene: scene?.name ?? null,
+          inputDeviceName: label,
+        },
+      });
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
+  const stopRecord = useCallback(async () => {
+    const meta = await getCaptureEngine().stop();
+    await refreshTakes();
+    if (meta) {
+      setSelectedId(meta.id);
+      setMsg(`Saved take · ${formatTime(meta.durationSec)}`);
+    }
+  }, [refreshTakes]);
+
+  startRecordRef.current = startRecord;
+  stopRecordRef.current = stopRecord;
+
+  const onPickDevice = (id: string) => {
+    setDeviceId(id);
+    persistInputId(id);
+  };
+
+  const toggleMidiArm = () => {
+    const next = !midiArm;
+    setMidiArm(next);
+    try {
+      localStorage.setItem(RECORDER_MIDI_ARM_KEY, next ? '1' : '0');
+    } catch {
+      // ignore
+    }
+  };
+
+  const playRegion = (from: number, to: number, loop = false) => {
+    if (!audio) return;
+    const ctx = new AudioContext({ sampleRate: audio.sampleRate });
+    void ctx.resume();
+    try {
+      playRef.current?.stop();
+    } catch {
+      // ignore
+    }
+    const edit = clampTrim(
+      {
+        startFrame: from,
+        endFrame: to,
+        fadeInOutMs: fadeOn ? DEFAULT_FADE_MS : 0,
+        normalize,
+        snapToMarkers: snapMarkers,
+      },
+      audio.left.length,
+    );
+    const prepared = prepareForExport(audio, edit);
+    const buf = ctx.createBuffer(2, prepared.left.length, prepared.sampleRate);
+    buf.copyToChannel(new Float32Array(prepared.left), 0);
+    buf.copyToChannel(new Float32Array(prepared.right), 1);
+    const node = ctx.createBufferSource();
+    node.buffer = buf;
+    node.loop = loop;
+    node.connect(ctx.destination);
+    node.start();
+    playRef.current = node;
+  };
+
+  const setTrimWithSnap = (which: 'start' | 'end', frame: number) => {
+    if (!audio || !selected) return;
+    let f = Math.max(0, Math.min(audio.left.length, Math.round(frame)));
+    if (snapMarkers) f = snapFrameToMarkers(f, selected.markers, audio.sampleRate);
+    if (which === 'start') setTrimStart(Math.min(f, trimEnd));
+    else setTrimEnd(Math.max(f, trimStart));
+  };
+
+  const runExport = async (format: 'wav' | 'mp3') => {
+    if (!selected || !audio) return;
+    setExportProgress({ ratio: 0, label: 'Starting…' });
+    try {
+      const results = await exportTake(
+        selected,
+        audio,
+        {
+          format,
+          wavBitDepth: wavBits,
+          mp3Mode,
+          filename: filenamePattern,
+          splitAtMarkers: splitMarkers,
+          trim: {
+            startFrame: trimStart,
+            endFrame: trimEnd,
+            fadeInOutMs: fadeOn ? DEFAULT_FADE_MS : 0,
+            normalize,
+            snapToMarkers: snapMarkers,
+          },
+        },
+        setExportProgress,
+      );
+      for (const r of results) downloadBlob(r.blob, r.filename);
+      const folder = await saveBlobsToFolder(results);
+      if (folder === 'saved') setMsg(`Exported ${results.length} file(s) + saved to folder`);
+      else setMsg(`Downloaded ${results.length} file(s)`);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExportProgress(null);
+    }
+  };
+
+  const recording = status.state === 'recording';
+  const elapsedSec = status.elapsedMs / 1000;
+
+  const tagLine = useMemo(() => {
+    if (!selected) return '';
+    const t = selected.tags;
+    return [
+      t.recordedAt.slice(0, 19).replace('T', ' '),
+      t.tempoBpm != null ? `${Math.round(t.tempoBpm)} bpm` : null,
+      t.circuitProject != null ? `Project ${t.circuitProject}` : null,
+      t.studioScene,
+      t.inputDeviceName,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }, [selected]);
+
+  return (
+    <div className="section-enter sessions-page">
+      <div className="page-head">
+        <h1>sessions</h1>
+        <span className="readout mono">{spaceHint}</span>
+      </div>
+      <p className="lead">
+        Record the stereo mix from any USB audio input the Mac shows Chrome — ZED-10FX, Scarlett,
+        SP-404MKII, or whatever else appears. Takes stay on this computer. Nothing is uploaded.
+      </p>
+
+      {recoverNote ? <p className="warn">{recoverNote}</p> : null}
+      {msg ? <p className="mono small">{msg}</p> : null}
+
+      <div className="panel rec-capture">
+        <h2>Record</h2>
+        <label className="field">
+          <span>Audio input</span>
+          <select
+            className="text-input"
+            value={selectedInput?.deviceId ?? ''}
+            onChange={(e) => onPickDevice(e.target.value)}
+            disabled={recording}
+          >
+            {inputs.length === 0 ? <option value="">No inputs yet — allow mic access</option> : null}
+            {inputs.map((d) => (
+              <option key={d.deviceId} value={d.deviceId}>
+                {formatInputLabel(d)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="muted small">
+          ZED over USB = 16-bit / 48 kHz max. For 24-bit, connect the ZED&apos;s main or Record
+          outputs to the Scarlett inputs and pick the Scarlett. SP-404MKII and other interfaces
+          appear in the same list when the Mac exposes them.
+        </p>
+        <div className="rec-transport">
+          <button
+            type="button"
+            className={`rec-big ${recording ? 'stop' : 'record'}`}
+            onClick={() => void (recording ? stopRecord() : startRecord())}
+          >
+            {recording ? 'Stop' : 'Record'}
+          </button>
+          <div className="rec-elapsed mono">{formatTime(elapsedSec)}</div>
+          <div className="rec-meters">
+            <Meter label="L" level={status.meters.left} clip={status.meters.clipLeft} />
+            <Meter label="R" level={status.meters.right} clip={status.meters.clipRight} />
+          </div>
+          <button
+            type="button"
+            className={midiArm ? 'active' : ''}
+            onClick={toggleMidiArm}
+            title="Start when Circuit sends MIDI Start; stop on MIDI Stop"
+          >
+            Follow Circuit Start/Stop {midiArm ? 'on' : 'off'}
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={!recording}
+            onClick={() => {
+              getCaptureEngine().addMarker('Mark', 'manual');
+              setMsg('Marker added (M)');
+            }}
+          >
+            Marker (M)
+          </button>
+        </div>
+        <p className="muted small">
+          Capture is raw PCM via AudioWorklet (not MediaRecorder). Echo cancel / noise suppress /
+          auto gain stay off. Clip lights at −0.3 dBFS and hold 2 s. Auto-markers on Circuit
+          channel-16 Program Change (project change).
+        </p>
+        {snap.estimatedBpm != null ? (
+          <p className="mono small">Circuit clock ≈ {snap.estimatedBpm} bpm</p>
+        ) : (
+          <p className="muted small">No Circuit clock heard yet — tempo tag stays empty until then.</p>
+        )}
+      </div>
+
+      <div className="grid-2">
+        <div className="panel">
+          <h2>Takes</h2>
+          {takes.length === 0 ? (
+            <p className="muted">No takes yet.</p>
+          ) : (
+            <ul className="rec-takes">
+              {takes.map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    className={t.id === selectedId ? 'active' : ''}
+                    onClick={() => setSelectedId(t.id)}
+                  >
+                    <strong>{t.name}</strong>
+                    <span className="mono small">
+                      {formatTime(t.durationSec)} · {new Date(t.createdAt).toLocaleString()}
+                      {t.incomplete ? ' · recovered' : ''}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {selected ? (
+            <div className="rec-take-actions">
+              <label className="field">
+                <span>Name</span>
+                <input
+                  className="text-input"
+                  value={selected.name}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    setTakes((prev) =>
+                      prev.map((t) => (t.id === selected.id ? { ...t, name } : t)),
+                    );
+                  }}
+                  onBlur={() => void updateTakeMeta(selected.id, { name: selected.name })}
+                />
+              </label>
+              <p className="muted small mono">{tagLine}</p>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  if (!confirm(`Delete “${selected.name}”? This cannot be undone.`)) return;
+                  void deleteTake(selected.id).then(() => {
+                    setSelectedId(null);
+                    void refreshTakes();
+                  });
+                }}
+              >
+                Delete take…
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="panel">
+          <h2>Edit & export</h2>
+          {!selected || !audio ? (
+            <p className="muted">Select a take to trim and export.</p>
+          ) : (
+            <>
+              <div className="rec-wave-wrap">
+                <canvas
+                  ref={waveRef}
+                  className="rec-wave"
+                  width={640}
+                  height={120}
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = (e.clientX - rect.left) / rect.width;
+                    const frame = Math.round(x * audio.left.length);
+                    if (e.shiftKey) setTrimWithSnap('end', frame);
+                    else setTrimWithSnap('start', frame);
+                  }}
+                />
+                <p className="muted small">
+                  Click = start handle · Shift-click = end · markers snap when enabled
+                </p>
+              </div>
+              <div className="row wrap">
+                <label className="field inline">
+                  Start
+                  <input
+                    className="num-input"
+                    type="number"
+                    step={0.01}
+                    min={0}
+                    max={audio.left.length / audio.sampleRate}
+                    value={(trimStart / audio.sampleRate).toFixed(2)}
+                    onChange={(e) =>
+                      setTrimWithSnap('start', Number(e.target.value) * audio.sampleRate)
+                    }
+                  />
+                </label>
+                <label className="field inline">
+                  End
+                  <input
+                    className="num-input"
+                    type="number"
+                    step={0.01}
+                    min={0}
+                    max={audio.left.length / audio.sampleRate}
+                    value={(trimEnd / audio.sampleRate).toFixed(2)}
+                    onChange={(e) =>
+                      setTrimWithSnap('end', Number(e.target.value) * audio.sampleRate)
+                    }
+                  />
+                </label>
+                <label className="field inline">
+                  Zoom
+                  <input
+                    type="range"
+                    min={1}
+                    max={8}
+                    step={0.5}
+                    value={zoom}
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+              <div className="row wrap">
+                <button
+                  type="button"
+                  onClick={() => playRegion(trimStart, trimEnd, false)}
+                >
+                  Play trim
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const last5 = Math.max(trimStart, trimEnd - audio.sampleRate * 5);
+                    playRegion(last5, trimEnd, false);
+                  }}
+                >
+                  Play last 5 s
+                </button>
+                <button type="button" onClick={() => playRegion(trimStart, trimEnd, true)}>
+                  Loop trim
+                </button>
+              </div>
+              <div className="row wrap">
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={fadeOn}
+                    onChange={(e) => setFadeOn(e.target.checked)}
+                  />
+                  10 ms fade in/out at trims (default on)
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={normalize}
+                    onChange={(e) => setNormalize(e.target.checked)}
+                  />
+                  Normalize to −1 dBFS
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={snapMarkers}
+                    onChange={(e) => setSnapMarkers(e.target.checked)}
+                  />
+                  Snap handles to markers
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={splitMarkers}
+                    onChange={(e) => setSplitMarkers(e.target.checked)}
+                  />
+                  Split export at markers
+                </label>
+              </div>
+              <p className="muted small">
+                Trim only affects the export. The original take is never rewritten.
+              </p>
+              <div className="row wrap">
+                <label className="field inline">
+                  WAV
+                  <select
+                    className="text-input"
+                    value={wavBits}
+                    onChange={(e) => setWavBits(Number(e.target.value) as WavBitDepth)}
+                  >
+                    <option value={24}>24-bit (default)</option>
+                    <option value={16}>16-bit</option>
+                    <option value={32}>32-bit float</option>
+                  </select>
+                </label>
+                <label className="field inline">
+                  MP3
+                  <select
+                    className="text-input"
+                    value={mp3Mode}
+                    onChange={(e) => setMp3Mode(e.target.value as Mp3Mode)}
+                  >
+                    <option value="cbr320">320 CBR (default)</option>
+                    <option value="v0">V0-ish (160 kbps CBR stand-in)</option>
+                  </select>
+                </label>
+              </div>
+              <label className="field">
+                <span>Filename pattern</span>
+                <input
+                  className="text-input"
+                  value={filenamePattern}
+                  onChange={(e) => setFilenamePattern(e.target.value)}
+                  spellCheck={false}
+                />
+              </label>
+              <p className="muted small mono">
+                Tokens: {'{date}'} {'{name}'} {'{bpm}'} {'{part}'} — e.g. 2026-11-22 jam 128bpm.wav
+              </p>
+              <div className="row wrap">
+                <button type="button" className="active" onClick={() => void runExport('wav')}>
+                  Export WAV
+                </button>
+                <button type="button" onClick={() => void runExport('mp3')}>
+                  Export MP3
+                </button>
+              </div>
+              {exportProgress ? (
+                <div className="rec-progress">
+                  <div className="rec-progress-bar">
+                    <i style={{ width: `${Math.round(exportProgress.ratio * 100)}%` }} />
+                  </div>
+                  <span className="mono small">{exportProgress.label}</span>
+                </div>
+              ) : null}
+              <p className="muted small">{MP3_LICENCE_NOTICE}</p>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="panel">
+        <h2>Studio session JSON</h2>
+        <p className="muted small">
+          Routes, scenes, and setup — separate from audio takes. Local import/export only.
+        </p>
+        <div className="row" style={{ marginBottom: '0.75rem' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setRaw(exportSession());
+              setJsonError(null);
+            }}
+          >
+            Export JSON
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                importSession(raw);
+                setJsonError(null);
+              } catch (e) {
+                setJsonError(e instanceof Error ? e.message : String(e));
+              }
+            }}
+          >
+            Import JSON
+          </button>
+        </div>
+        {jsonError ? <p style={{ color: 'var(--err)' }}>{jsonError}</p> : null}
+        <textarea
+          className="session-io"
+          value={raw}
+          onChange={(e) => setRaw(e.target.value)}
+          placeholder="Session JSON…"
+          spellCheck={false}
+        />
+      </div>
+    </div>
+  );
+}

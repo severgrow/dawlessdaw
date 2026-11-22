@@ -11,6 +11,7 @@ const ITEMS: { id: WorkspaceId; label: string; hint: string }[] = [
   { id: 'controller', label: 'Controller', hint: 'Circuit tracks and knobs → SP, FM1, MPC' },
   { id: 'samples', label: 'Samples', hint: 'SP-404 pads: load, trim, save WAVs' },
   { id: 'sections', label: 'Sections', hint: 'Circuit project → SP pattern / MPC sequence' },
+  { id: 'sessions', label: 'Sessions', hint: 'Record / trim / export audio takes' },
   { id: 'test', label: 'Test', hint: 'Bench tests with your gear' },
   { id: 'setup', label: 'Setup', hint: 'Ports and device options' },
 ];
@@ -71,7 +72,7 @@ export function Nav() {
         </button>
       ))}
       <div className="nav-hint">
-        keys 1–6 switch tabs
+        keys 1–7 switch tabs
         <br />
         no sysex · no firmware writes
       </div>
