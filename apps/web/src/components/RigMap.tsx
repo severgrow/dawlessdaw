@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { DeviceArt, DEVICE_ART_SIZE, type DeviceKind } from './DeviceArt';
+import { RigMixerBackdrop } from './RigMixerBackdrop';
+import { loadRigBackdropEnabled, saveRigBackdropEnabled } from './mixerOutBus';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 /**
@@ -75,6 +78,14 @@ function Cable({
 export function RigMap() {
   const snap = useStudioStore();
   const { setWorkspace } = useStudioActions();
+  const [backdrop, setBackdrop] = useState(loadRigBackdropEnabled);
+  const toggleBackdrop = () => {
+    setBackdrop((on) => {
+      const next = !on;
+      saveRigBackdropEnabled(next);
+      return next;
+    });
+  };
   const port = (role: string, which: 'in' | 'out') => {
     const a = snap.assignments.find((x) => x.roleId === role);
     return which === 'in' ? a?.inputPortId : a?.outputPortId;
@@ -105,8 +116,20 @@ export function RigMap() {
 
   return (
     <div className="panel rig-map-panel">
-      <h2>Your rig</h2>
-      <div className="rig-map" role="group" aria-label="Studio map">
+      <h2 className="rig-map-head">
+        <span>Your rig</span>
+        <button
+          type="button"
+          className={`rig-backdrop-toggle${backdrop ? ' active' : ''}`}
+          aria-pressed={backdrop}
+          title="Mixer-out motion behind the map (saved in this browser)"
+          onClick={toggleBackdrop}
+        >
+          Motion {backdrop ? 'on' : 'off'}
+        </button>
+      </h2>
+      <div className={`rig-map${backdrop ? ' with-backdrop' : ''}`} role="group" aria-label="Studio map">
+        <RigMixerBackdrop active={backdrop} />
         <svg className="rig-cables" viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
           {/* audio first, under the MIDI */}
           <Cable kind="audio" on d="M840 122 C 760 200, 640 250, 556 286" />

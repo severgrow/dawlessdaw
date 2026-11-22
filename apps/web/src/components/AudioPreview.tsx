@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { clearMixerOutLevels, publishMixerOutLevels } from './mixerOutBus';
 
 /**
  * Live picture (and optional monitor) of the rig's audio — normally the ZED-10FX's
  * USB stereo out, which macOS calls "USB Audio CODEC". Runs only in this browser:
- * nothing is recorded, saved or sent anywhere.
+ * nothing is recorded, saved or sent anywhere. Levels also drive the Rig map backdrop.
  */
 
 type Style = 'wave' | 'bars' | 'ring';
@@ -89,6 +90,7 @@ export function AudioPreview() {
       monitor.current.pause();
       monitor.current.srcObject = null;
     }
+    clearMixerOutLevels();
     setRunning(false);
     setLevels({ l: -Infinity, r: -Infinity, clip: false });
   }, []);
@@ -187,7 +189,7 @@ export function AudioPreview() {
     savePrefs(prefs.current);
   }, [style]);
 
-  // Drawing loop.
+  // Drawing loop — bouncy wave / spring bars / dual ring; publishes levels for Rig backdrop.
   useEffect(() => {
     if (!running) return;
     let raf = 0;
@@ -197,6 +199,12 @@ export function AudioPreview() {
     const lt = new Float32Array(1024);
     const rt = new Float32Array(1024);
     const caps = new Float32Array(48);
+    const barH = new Float32Array(48);
+    const barV = new Float32Array(48);
+    let ringScale = 1;
+    let ringVel = 0;
+    const mint = '#9fdcc2';
+    const bone = '#e8e1d2';
     const draw = (now: number) => {
       raf = requestAnimationFrame(draw);
       const e = engine.current;
@@ -224,7 +232,6 @@ export function AudioPreview() {
       const s = styleRef.current;
       if (s === 'wave') {
         e.mix.getByteTimeDomainData(time);
-        // Start at a rising zero crossing so the picture stands still.
         let start = 0;
         for (let i = 1; i < time.length / 2; i++) {
           if (time[i - 1]! < 128 && time[i]! >= 128) {
@@ -233,62 +240,113 @@ export function AudioPreview() {
           }
         }
         const n = time.length / 2;
+        const mid = h / 2;
+        // Soft fill under the wave (burgundy → mint wash).
+        const fill = g.createLinearGradient(0, 0, 0, h);
+        fill.addColorStop(0, 'rgba(154, 42, 69, 0.35)');
+        fill.addColorStop(0.55, 'rgba(159, 220, 194, 0.12)');
+        fill.addColorStop(1, 'rgba(10, 10, 10, 0)');
+        g.beginPath();
+        g.moveTo(0, mid);
+        for (let i = 0; i < n; i++) {
+          const v = (time[start + i]! - 128) / 128;
+          const x = (i / (n - 1)) * w;
+          const y = mid - v * mid * 0.95;
+          g.lineTo(x, y);
+        }
+        g.lineTo(w, mid);
+        g.closePath();
+        g.fillStyle = fill;
+        g.fill();
         g.strokeStyle = accent;
-        g.lineWidth = 2 * dpr;
+        g.lineWidth = 2.6 * dpr;
         g.shadowColor = accent;
-        g.shadowBlur = 8 * dpr;
+        g.shadowBlur = 14 * dpr;
+        g.lineJoin = 'round';
         g.beginPath();
         for (let i = 0; i < n; i++) {
           const v = (time[start + i]! - 128) / 128;
           const x = (i / (n - 1)) * w;
-          const y = h / 2 - v * (h / 2) * 0.92;
+          const y = mid - v * mid * 0.95;
           if (i === 0) g.moveTo(x, y);
           else g.lineTo(x, y);
         }
         g.stroke();
         g.shadowBlur = 0;
+        // Bone highlight stroke, thinner.
+        g.strokeStyle = bone;
+        g.globalAlpha = 0.35;
+        g.lineWidth = 1 * dpr;
+        g.stroke();
+        g.globalAlpha = 1;
       } else if (s === 'bars') {
         e.mix.getByteFrequencyData(freq);
         const bars = caps.length;
-        const gap = 3 * dpr;
+        const gap = 2.5 * dpr;
         const bw = (w - gap * (bars - 1)) / bars;
         const nyq = e.ctx.sampleRate / 2;
         for (let b = 0; b < bars; b++) {
-          // Log-spaced 30 Hz – 16 kHz
           const f0 = 30 * Math.pow(16000 / 30, b / bars);
           const f1 = 30 * Math.pow(16000 / 30, (b + 1) / bars);
           const i0 = Math.floor((f0 / nyq) * freq.length);
           const i1 = Math.max(i0 + 1, Math.floor((f1 / nyq) * freq.length));
           let peak = 0;
           for (let i = i0; i < i1 && i < freq.length; i++) peak = Math.max(peak, freq[i]!);
-          const v = peak / 255;
-          const bh = Math.max(2 * dpr, v * h * 0.95);
-          caps[b] = Math.max(v, (caps[b] ?? 0) - 0.012);
+          const target = peak / 255;
+          // Spring toward target — slight overshoot for bounce.
+          const force = (target - barH[b]!) * 0.32;
+          barV[b] = (barV[b]! + force) * 0.72;
+          barH[b] = Math.max(0, barH[b]! + barV[b]!);
+          caps[b] = Math.max(barH[b]!, (caps[b] ?? 0) - 0.01);
+          const bh = Math.max(2 * dpr, barH[b]! * h * 0.96);
           const x = b * (bw + gap);
-          g.fillStyle = accent;
-          g.globalAlpha = 0.35 + v * 0.65;
-          g.fillRect(x, h - bh, bw, bh);
+          const t = b / (bars - 1);
+          g.fillStyle = t < 0.55 ? accent : t < 0.82 ? mint : bone;
+          g.globalAlpha = 0.4 + Math.min(1, barH[b]!) * 0.6;
+          const radius = Math.min(bw / 2, 4 * dpr);
+          g.beginPath();
+          g.moveTo(x, h);
+          g.lineTo(x, h - bh + radius);
+          g.quadraticCurveTo(x, h - bh, x + radius, h - bh);
+          g.lineTo(x + bw - radius, h - bh);
+          g.quadraticCurveTo(x + bw, h - bh, x + bw, h - bh + radius);
+          g.lineTo(x + bw, h);
+          g.closePath();
+          g.fill();
           g.globalAlpha = 1;
-          g.fillRect(x, h - caps[b]! * h * 0.95 - 2 * dpr, bw, 2 * dpr);
+          g.fillStyle = bone;
+          g.fillRect(x, h - caps[b]! * h * 0.96 - 2.5 * dpr, bw, 2.5 * dpr);
         }
       } else {
         e.mix.getByteTimeDomainData(time);
         let sum = 0;
         for (let i = 0; i < time.length; i++) sum += ((time[i]! - 128) / 128) ** 2;
         const rms = Math.sqrt(sum / time.length);
+        const target = 1 + rms * 1.15;
+        ringVel += (target - ringScale) * 0.28;
+        ringVel *= 0.78;
+        ringScale += ringVel;
         const cx = w / 2;
         const cy = h / 2;
-        const base = Math.min(w, h) * 0.28 * (1 + rms * 0.9);
+        const base = Math.min(w, h) * 0.26 * ringScale;
+        // Outer mint wash ring.
+        g.strokeStyle = mint;
+        g.globalAlpha = 0.28 + rms * 0.4;
+        g.lineWidth = 3 * dpr;
+        g.beginPath();
+        g.arc(cx, cy, base * 1.18, 0, Math.PI * 2);
+        g.stroke();
+        g.globalAlpha = 1;
         g.strokeStyle = accent;
-        g.lineWidth = 2 * dpr;
+        g.lineWidth = 2.4 * dpr;
         g.shadowColor = accent;
-        g.shadowBlur = 10 * dpr;
+        g.shadowBlur = 16 * dpr;
         g.beginPath();
         const pts = 256;
         for (let i = 0; i <= pts; i++) {
           const v = (time[Math.floor((i % pts) * (time.length / pts))]! - 128) / 128;
           const a = (i / pts) * Math.PI * 2 - Math.PI / 2;
-          const r = base + v * Math.min(w, h) * 0.22;
+          const r = base + v * Math.min(w, h) * 0.24;
           const x = cx + Math.cos(a) * r;
           const y = cy + Math.sin(a) * r;
           if (i === 0) g.moveTo(x, y);
@@ -296,14 +354,16 @@ export function AudioPreview() {
         }
         g.stroke();
         g.shadowBlur = 0;
-        g.globalAlpha = 0.25;
+        g.strokeStyle = bone;
+        g.globalAlpha = 0.45;
+        g.lineWidth = 1.5 * dpr;
         g.beginPath();
-        g.arc(cx, cy, base * 0.55, 0, Math.PI * 2);
+        g.arc(cx, cy, base * 0.48, 0, Math.PI * 2);
         g.stroke();
         g.globalAlpha = 1;
       }
 
-      // Peak meters ~12×/s (React state).
+      // Peak meters ~12×/s + publish for Rig backdrop.
       if (now - lastMeter > 80) {
         lastMeter = now;
         e.left.getFloatTimeDomainData(lt);
@@ -314,6 +374,13 @@ export function AudioPreview() {
           pl = Math.max(pl, Math.abs(lt[i]!));
           pr = Math.max(pr, Math.abs(rt[i]!));
         }
+        const energy = Math.min(1, Math.sqrt(((pl * pl + pr * pr) / 2) * 2.2));
+        publishMixerOutLevels({
+          l: Math.min(1, pl),
+          r: Math.min(1, pr),
+          energy,
+          running: true,
+        });
         setLevels((prev) => ({
           l: dbfs(pl),
           r: dbfs(pr),
