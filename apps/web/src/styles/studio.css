@@ -4448,6 +4448,94 @@ button.send-add {
   gap: 0.45rem;
 }
 
+.flip-input-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  margin: 0.2rem 0 0.45rem;
+  min-height: 2.1rem;
+}
+
+.flip-input-preview.idle {
+  opacity: 0.75;
+}
+
+.flip-live-wave {
+  width: 140px;
+  height: 36px;
+  display: block;
+  border: 1px solid var(--line-hard);
+  background: rgba(0, 0, 0, 0.35);
+  flex: 0 0 auto;
+}
+
+.flip-live-meters {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 7.5rem;
+  flex: 1 1 7.5rem;
+  max-width: 14rem;
+}
+
+.flip-live-meter {
+  display: grid;
+  grid-template-columns: 0.9rem 1fr;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.flip-live-meter span {
+  font-size: 0.65rem;
+  color: var(--muted, #9a958c);
+  line-height: 1;
+}
+
+.flip-live-track {
+  height: 8px;
+  background: var(--bg-3, #1a1a1a);
+  border: 1px solid var(--line-hard);
+  overflow: hidden;
+}
+
+.flip-live-track i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--on, #9a2a45);
+}
+
+.flip-live-meter.clip .flip-live-track i {
+  background: var(--alert-hi, #b5ead3);
+}
+
+.flip-live-kind {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--line-hard);
+  color: var(--muted, #9a958c);
+}
+
+.flip-live-kind.kind-signal {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.flip-live-kind.kind-hot {
+  color: var(--alert-hi);
+  border-color: var(--alert-hi);
+}
+
+.flip-live-kind.kind-silence {
+  opacity: 0.8;
+}
+
+.flip-live-err {
+  flex: 1 1 100%;
+}
+
 .flip-handoff {
   display: flex;
   flex-direction: column;

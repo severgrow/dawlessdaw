@@ -3,6 +3,7 @@
  * IndexedDB / WAV). Quantised bar capture against sequencer transport.
  */
 import { getCaptureEngine, type CaptureStatus } from '../recorder/captureEngine';
+import { getInputPreviewEngine } from '../recorder/inputPreview';
 import { loadTakeAudio, type TakeMeta } from '../recorder/takeStore';
 import type { StereoAudio } from '../recorder/types';
 import {
@@ -582,6 +583,13 @@ export class FlipEngine {
       });
       this.notify();
       return;
+    }
+
+    // Free the silent analyser preview before CaptureEngine opens the same input.
+    try {
+      await getInputPreviewEngine().stop();
+    } catch {
+      // ignore
     }
 
     this.clearBoundaryWatch();

@@ -15,6 +15,7 @@ import { loadTakeAudio } from '../recorder/takeStore';
 import type { AudioInputDevice, StereoAudio } from '../recorder/types';
 import { PLAYBACK_REENGAGE_WARN } from './feedback';
 import { downloadFlipWav, exportChopWavs } from './exportFlip';
+import { FlipInputPreview } from './FlipInputPreview';
 import { getFlipEngine, type FlipEngineStatus } from './flipEngine';
 import {
   FLIP_HANDOFF_TRACKS,
@@ -307,6 +308,14 @@ export function FlipLane({
           </button>
         ) : null}
       </div>
+
+      <FlipInputPreview
+        deviceId={status.deviceId}
+        enabled={status.phase !== 'processing'}
+        captureMeters={
+          status.phase === 'recording' ? status.capture.meters : null
+        }
+      />
 
       {status.phase === 'recording' ? (
         <p className="flip-progress mono small" role="status">
