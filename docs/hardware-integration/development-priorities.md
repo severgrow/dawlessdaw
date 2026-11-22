@@ -19,7 +19,8 @@
 
 ## Phase 3 — Firmware-aware FM1 + optional librarians
 
-- Prefer **FM1 Open V14+** for deep CC panel (document stock vs Open divergence).
+- This studio runs **H-1** today: keep notes + documented CC 20–23 only until Bench Pass.
+- Optional later: **FM1 Open V14+** deep CC panel only if the user chooses to flash Open (document H-1 vs stock vs Open divergence).
 - Offline Circuit pack builder (original code; SD layout from Novation docs).
 - Optional open404/Sparky **read-only** backup sidecar (native), never in core router.
 - Revisit MPC Plugin SDK only for on-device FX/instruments — **not** as Dawlessdaw IPC.

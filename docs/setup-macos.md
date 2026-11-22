@@ -4,7 +4,7 @@
 
 - macOS with Node.js 20+ (22 recommended)
 - Google Chrome (Web MIDI)
-- USB: Circuit Rhythm, MPC One, SP-404MKII, M-VAVE FM1
+- USB: Circuit Rhythm, MPC One, SP-404MKII, M-VAVE FM1 (**H-1** firmware — not Open)
 - ZED-10FX on USB for audio only
 - Hardware MIDI: Circuit MIDI Out → MIDI thru → MPC MIDI In + SP MIDI In (FM1 gets notes only, no clock)
 
@@ -39,6 +39,8 @@ npm run build
 1. **Circuit:** Note Tx ON, Program Change Tx ON, Clock Tx ON (for the thru box). USB to Mac.
 2. **MPC:** USB to Mac; MIDI In from thru box; in MIDI/Sync enable the Mac/Dawlessdaw port for **Control** if testing mute Learn.
 3. **SP-404MKII:** USB to Mac; MIDI In from thru box; ready to watch pattern changes.
-4. **FM1:** USB to Mac; no clock expected.
+4. **FM1 (H-1):** USB to Mac; no clock expected. Profile should be **h-1**. Do not flash firmware or send SysEx from the app.
 5. **ZED:** USB audio only — ignore for MIDI benches.
 6. Do **not** enable app clock forwarding in Settings unless you intentionally want a second clock path.
+
+For the numbered Live + Bench walkthrough, see [live-run-guide.md](./live-run-guide.md).

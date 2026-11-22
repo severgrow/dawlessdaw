@@ -14,8 +14,9 @@
 | [iare-digital/open404](https://github.com/iare-digital/open404) | SP-404MKII USB | Check repo LICENSE | Early; PCAP-tested | Optional USB librarian sidecar | Reverse-engineered CDC-ACM; FW-sensitive |
 | [TuscanPL/SparkyMK2](https://github.com/TuscanPL/SparkyMK2) | SP-404MKII | Check repo LICENSE | Usable day-to-day (author) | Librarian UX reference | Linux-first; FW 5.52 |
 | [klangfeld-labs/doom-os](https://github.com/klangfeld-labs/doom-os) | SP-404MKII | Custom / proprietary base | Active community FW | **Do not depend** | Modified Roland firmware — high risk |
-| [m-vave/fm1_open releases](https://github.com/m-vave/fm1_open/releases) | FM1 | Check release LICENSE | Official Open V14 (2026-10) | Preferred deep FM1 path | Different instrument personality vs stock |
-| [midi.guide FM1 community CCs](https://midi.guide/d/m-vave/fm1-community/) | FM1 Open | Community from maker docs | V14+ | Reactive panel CC map | Not yet hardware-attested by all aggregators |
+| [m-vave/fm1_open releases](https://github.com/m-vave/fm1_open/releases) | FM1 | Check release LICENSE | Official Open V14 (2026-10) | Deep FM1 path **only if Open is installed** | Different instrument personality vs stock / H-1 |
+| [jakehandy/h1](https://github.com/jakehandy/h1) | FM1 | Check repo LICENSE | Community H-1 (2026) | **This studio’s firmware** — notes + CC 20–23 docs | Not M-VAVE official; not Open; do not invent extra CCs |
+| [midi.guide FM1 community CCs](https://midi.guide/d/m-vave/fm1-community/) | FM1 Open | Community from maker docs | V14+ | Reactive panel **for Open only** | Must not be applied to H-1 |
 | [MidiHax/fm1-midi-processor](https://github.com/MidiHax/fm1-midi-processor) | FM1 | Unofficial | Experimental | Out of scope for Dawlessdaw core | Replaces musical FW with MIDI processor |
 | [Allen & Heath ZED-10FX User Guide AP7763](https://www.allen-heath.com/content/uploads/2023/06/AP7763_3-ZED10FX_UserGuide_A5.pdf) | ZED-10FX | Official | Stable | Audio capture / AUX plan | No MIDI |
 

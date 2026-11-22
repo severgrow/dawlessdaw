@@ -25,7 +25,7 @@ npm run build
 | Circuit track | MIDI ch | Destination |
 |---------------|---------|-------------|
 | 1–4 | 1–4 | MPC One |
-| 5 | 5 | M-VAVE FM1 (notes only, no clock) |
+| 5 | 5 | M-VAVE FM1 **H-1** (notes; no clock; not Open) |
 | 6 | 6 | SP-404MKII |
 | 7–8 | 7–8 | Internal Circuit only |
 | Project | 16 | Section Bridge (optional SP/MPC PC + Scene) |
@@ -36,7 +36,7 @@ ZED-10FX: USB **audio only** — no MIDI.
 
 ## Docs
 
-See `/docs` in this repo (architecture, setup, hardware-integration research, limitations).
+See `/docs` in this repo — start with **[docs/live-run-guide.md](docs/live-run-guide.md)** for the Live + Bench checklist, then architecture, setup, hardware-integration research, limitations.
 
 ## Honesty
 

@@ -10,7 +10,7 @@
 
 ## Hardware you should set before Bench
 
-See the Mac runbook at the end of the PR description / README.
+See **[live-run-guide.md](./live-run-guide.md)** (FM1 = **H-1**, not Open) and [setup-macos.md](./setup-macos.md).
 
 ## Tests
 

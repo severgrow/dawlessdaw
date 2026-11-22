@@ -110,24 +110,34 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
   },
   'm-vave-fm1': {
     kind: 'm-vave-fm1',
-    displayName: 'M-VAVE FM1',
+    displayName: 'M-VAVE FM1 (H-1)',
     manufacturer: 'M-VAVE',
     portNameHints: ['fm1', 'm-vave', 'mvave'],
     hasMidi: true,
     hasAudioCapture: false,
-    firmwareProfiles: ['generic', 'firmware-aware'],
-    defaultFirmwareProfile: 'generic',
+    // User studio runs community H-1 (jakehandy/h1), not FM1 Open / stock.
+    firmwareProfiles: ['h-1', 'stock', 'open', 'generic'],
+    defaultFirmwareProfile: 'h-1',
     capabilities: [
       {
         id: 'generic-midi',
-        label: 'Generic MIDI',
+        label: 'Generic MIDI notes (any channel)',
         status: 'untested',
+        notes: 'H-1 docs: notes play current instrument at velocity; live bench required',
+      },
+      {
+        id: 'h1-knob-cc',
+        label: 'H-1 knob CC 20–23',
+        status: 'untested',
+        notes:
+          'Documented by jakehandy/h1 only — not inventing a fuller CC map; CC 123 = all notes off',
       },
       {
         id: 'firmware-map',
-        label: 'Firmware-aware feature map',
-        status: 'experimental',
-        notes: 'Adapter shell present; feature map incomplete',
+        label: 'Deep firmware CC / SysEx map',
+        status: 'unavailable',
+        notes:
+          'H-1 ≠ Open ≠ stock. Open V14 maps must not be assumed on H-1. No invented CC tables.',
       },
     ],
   },

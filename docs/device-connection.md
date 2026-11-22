@@ -29,9 +29,20 @@ Use **Replay groove fixture** or per-device **Tap note** to exercise routing and
 | SP-404MKII stock | Notes/CC untested; pad remote **unavailable** |
 | SP-404MKII DOOM | Experimental profile flag; DOOM features **unknown** |
 | Circuit Rhythm | Track→role logical map; hardware Scene Sync **unavailable** |
-| M-VAVE FM1 | Generic MIDI untested; firmware map **experimental** |
+| M-VAVE FM1 (**H-1** default) | Notes untested; H-1 knob CC 20–23 untested; deep CC/SysEx map **unavailable** (not Open) |
 | ZED-10FX | USB audio only — **no** fake mixer MIDI |
 
 ## Profiles
 
-SP-404 firmware profile (stock / doom) and FM1 mode (generic / firmware-aware) are adapter metadata — they do not invent control protocols.
+SP-404 firmware profile (stock / doom) and FM1 profile (`h-1` / `stock` / `open` / `generic`) are adapter metadata — they do not invent control protocols.
+
+### FM1 firmware lines (do not mix maps)
+
+| Profile | What it is | Dawlessdaw stance |
+|---------|------------|-------------------|
+| **h-1** (this studio) | Community [jakehandy/h1](https://github.com/jakehandy/h1) | Default. Docs claim notes + CC 20–23 (+ CC 123). No fuller map encoded. Untested until Bench Pass. |
+| stock | Official M-VAVE line (e.g. V16) | Generic MIDI only here; vendor PDF not transcribed into fake CCs |
+| open | Official [FM1 Open](https://github.com/m-vave/fm1_open) | Deep CC panel only if the unit actually runs Open — **not** this studio |
+| generic | Unknown / unspecified | Notes/CC passthrough; no firmware claims |
+
+**Never** apply Open V14 CC tables to an H-1 unit.

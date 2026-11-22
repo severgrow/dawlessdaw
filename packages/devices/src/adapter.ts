@@ -113,25 +113,88 @@ export class CircuitRhythmAdapter extends BaseAdapter {
   }
 }
 
+export type Fm1FirmwareProfile = 'h-1' | 'stock' | 'open' | 'generic';
+
 export class MVaveFm1Adapter extends BaseAdapter {
   readonly kind = 'm-vave-fm1' as const;
   constructor(public readonly profile: DP) {
     super();
   }
 
-  setFirmwareMode(device: StudioDevice, mode: 'generic' | 'firmware-aware'): StudioDevice {
+  /** Legacy alias — prefer setFirmwareProfile. */
+  setFirmwareMode(
+    device: StudioDevice,
+    mode: 'generic' | 'firmware-aware' | Fm1FirmwareProfile,
+  ): StudioDevice {
+    const mapped: Fm1FirmwareProfile =
+      mode === 'firmware-aware' ? 'open' : mode === 'generic' ? 'generic' : mode;
+    return this.setFirmwareProfile(device, mapped);
+  }
+
+  setFirmwareProfile(device: StudioDevice, profile: Fm1FirmwareProfile): StudioDevice {
+    const labels: Record<Fm1FirmwareProfile, string> = {
+      'h-1': 'M-VAVE FM1 (H-1)',
+      stock: 'M-VAVE FM1 (stock)',
+      open: 'M-VAVE FM1 (Open)',
+      generic: 'M-VAVE FM1',
+    };
+    const caps: DeviceCapability[] =
+      profile === 'h-1'
+        ? [
+            {
+              id: 'generic-midi',
+              label: 'Generic MIDI notes (any channel)',
+              status: 'untested',
+              notes: 'H-1 docs: notes + velocity; live bench required',
+            },
+            {
+              id: 'h1-knob-cc',
+              label: 'H-1 knob CC 20–23',
+              status: 'untested',
+              notes: 'Documented by jakehandy/h1; CC 123 all-notes-off; no fuller map claimed',
+            },
+            {
+              id: 'firmware-map',
+              label: 'Deep firmware CC / SysEx map',
+              status: 'unavailable',
+              notes: 'Do not apply Open/stock CC tables to H-1',
+            },
+          ]
+        : profile === 'open'
+          ? [
+              {
+                id: 'generic-midi',
+                label: 'Generic MIDI',
+                status: 'untested',
+              },
+              {
+                id: 'firmware-map',
+                label: 'Open V14+ per-track CC map',
+                status: 'experimental',
+                notes: 'Use only when unit actually runs FM1 Open — not this studio’s H-1',
+              },
+            ]
+          : [
+              {
+                id: 'generic-midi',
+                label: 'Generic MIDI',
+                status: 'untested',
+              },
+              {
+                id: 'firmware-map',
+                label: 'Firmware-aware feature map',
+                status: 'unavailable',
+                notes:
+                  profile === 'stock'
+                    ? 'Stock MIDI CONTROL PDF exists; exact CC table not encoded here'
+                    : 'No firmware profile assumed',
+              },
+            ];
     return {
       ...device,
-      firmwareProfile: mode,
-      capabilities: [
-        { id: 'generic-midi', label: 'Generic MIDI', status: 'untested' },
-        {
-          id: 'firmware-map',
-          label: 'Firmware-aware feature map',
-          status: mode === 'firmware-aware' ? 'experimental' : 'unavailable',
-          notes: 'Incomplete map — do not assume pedal-specific CC layout',
-        },
-      ],
+      firmwareProfile: profile,
+      displayName: labels[profile],
+      capabilities: caps,
     };
   }
 }
