@@ -115,6 +115,136 @@ export type MpcNoteMode = 'usb' | 'din-only';
 /** Where Circuit tracks 1–4 go. */
 export type CircuitT1to4Target = 'mpc' | 'sp' | 'both';
 
+/** Circuit Rhythm tracks 1–8 send on MIDI channels 1–8 (Circuit default). */
+export const CIRCUIT_TRACKS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+
+/** Devices a Circuit track can be sent to. */
+export type TrackDestId = 'mpc' | 'sp' | 'fm1';
+export const TRACK_DESTS: readonly TrackDestId[] = ['mpc', 'sp', 'fm1'];
+
+/** One send: this Circuit track plays `dest` on `channel`. */
+export interface TrackSend {
+  dest: TrackDestId;
+  channel: number;
+}
+
+/** Circuit track (1–8) → its sends (at most one per device). */
+export type TrackPlan = Record<number, TrackSend[]>;
+
+/** Channels each device can take. SP Mode A: banks A–J = ch1–10. */
+export const TRACK_DEST_CHANNELS: Readonly<Record<TrackDestId, readonly number[]>> = {
+  mpc: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+  sp: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  fm1: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+};
+
+export function spBankLetter(channel: number): string {
+  return 'ABCDEFGHIJ'[channel - 1] ?? '?';
+}
+
+/** Sensible channel when a track is first sent to a device. */
+export function defaultSendChannel(dest: TrackDestId, track: number): number {
+  if (dest === 'mpc') return track <= 4 ? track + 8 : ([13, 14, 16, 16] as const)[track - 5] ?? 16;
+  return track; // SP bank = track (A–H), FM1 = same channel (Skiff T1–T4 on 5–8)
+}
+
+/** The plan the older settings described (T1–T4 target + FM1 firmware). */
+export function legacyTrackPlan(t1to4: CircuitT1to4Target, fm1Firmware: Fm1Firmware): TrackPlan {
+  const plan: TrackPlan = {};
+  for (const t of CIRCUIT_TRACKS) plan[t] = [];
+  for (const t of [1, 2, 3, 4]) {
+    if (t1to4 === 'mpc' || t1to4 === 'both') plan[t]!.push({ dest: 'mpc', channel: t + 8 });
+    if (t1to4 === 'sp' || t1to4 === 'both') plan[t]!.push({ dest: 'sp', channel: t });
+  }
+  for (const t of FM1_TRACKS_BY_FIRMWARE[fm1Firmware]) plan[t]!.push({ dest: 'fm1', channel: t });
+  return plan;
+}
+
+export type TrackPresetId = 'mpc-fm1' | 'sp-fm1' | 'both-fm1' | 'none';
+export const TRACK_PRESETS: readonly { id: TrackPresetId; label: string; hint: string }[] = [
+  { id: 'mpc-fm1', label: 'MPC + FM1', hint: 'T1–4 → MPC ch9–12 · T5–8 → FM1 ch5–8' },
+  { id: 'sp-fm1', label: 'SP + FM1', hint: 'T1–4 → SP banks A–D · T5–8 → FM1 ch5–8' },
+  { id: 'both-fm1', label: 'MPC & SP + FM1', hint: 'T1–4 → MPC and SP · T5–8 → FM1' },
+  { id: 'none', label: 'Nothing', hint: 'App sends no notes' },
+];
+
+export function trackPreset(id: TrackPresetId): TrackPlan {
+  if (id === 'none') return Object.fromEntries(CIRCUIT_TRACKS.map((t) => [t, []]));
+  return legacyTrackPlan(id === 'sp-fm1' ? 'sp' : id === 'both-fm1' ? 'both' : 'mpc', 'skiff');
+}
+
+/** Set, change or remove (channel = null) one track's send to one device. */
+export function setTrackSend(
+  plan: TrackPlan,
+  track: number,
+  dest: TrackDestId,
+  channel: number | null,
+): TrackPlan {
+  const next: TrackPlan = {};
+  for (const t of CIRCUIT_TRACKS) next[t] = (plan[t] ?? []).map((s) => ({ ...s }));
+  const others = (next[track] ?? []).filter((s) => s.dest !== dest);
+  next[track] = channel == null ? others : [...others, { dest, channel }].sort(
+    (a, b) => TRACK_DESTS.indexOf(a.dest) - TRACK_DESTS.indexOf(b.dest),
+  );
+  return next;
+}
+
+/** Keep only valid sends (known device, allowed channel, one per device per track). */
+export function sanitizeTrackPlan(raw: unknown): TrackPlan | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const plan: TrackPlan = {};
+  for (const t of CIRCUIT_TRACKS) {
+    const list = (raw as Record<string, unknown>)[t];
+    const sends: TrackSend[] = [];
+    if (Array.isArray(list)) {
+      for (const s of list) {
+        const dest = (s as TrackSend)?.dest;
+        const channel = Number((s as TrackSend)?.channel);
+        if (!TRACK_DESTS.includes(dest)) continue;
+        if (!TRACK_DEST_CHANNELS[dest].includes(channel)) continue;
+        if (sends.some((x) => x.dest === dest)) continue;
+        sends.push({ dest, channel });
+      }
+    }
+    plan[t] = sends;
+  }
+  return plan;
+}
+
+/** Plain-English warnings about a plan (doubles, control-channel clashes). */
+export function trackPlanWarnings(
+  plan: TrackPlan,
+  opts: { spNoteOffset: number; mpcNoteMode: MpcNoteMode },
+): string[] {
+  const out: string[] = [];
+  const byKey = new Map<string, number[]>();
+  for (const t of CIRCUIT_TRACKS) {
+    for (const s of plan[t] ?? []) {
+      const k = `${s.dest}:${s.channel}`;
+      byKey.set(k, [...(byKey.get(k) ?? []), t]);
+      if (s.dest === 'mpc' && s.channel === 15) {
+        out.push(`T${t} → MPC ch15 shares the Section Bridge control channel (program change + mute CC).`);
+      }
+      if (s.dest === 'sp' && s.channel === t && opts.spNoteOffset === 0) {
+        out.push(
+          `T${t} → SP bank ${spBankLetter(s.channel)}: the thru-box cable already plays this with offset 0, so every note plays twice.`,
+        );
+      }
+    }
+  }
+  for (const [k, tracks] of byKey) {
+    if (tracks.length > 1) {
+      const [dest, ch] = k.split(':');
+      const name = dest === 'mpc' ? 'MPC' : dest === 'sp' ? 'SP' : 'FM1';
+      out.push(`${tracks.map((t) => `T${t}`).join(' and ')} both play ${name} ch${ch} (layered).`);
+    }
+  }
+  if (opts.mpcNoteMode === 'din-only' && CIRCUIT_TRACKS.some((t) => (plan[t] ?? []).some((s) => s.dest === 'mpc'))) {
+    out.push('MPC sends are ignored while MPC connection is "MIDI cable from thru box only".');
+  }
+  return out;
+}
+
 /**
  * SP-404MKII MIDI Mode A (Roland): bank A–J = MIDI ch1–10, pads 1–16 = notes 36–51.
  * Circuit T1–T4 (ch1–4) therefore map straight to banks A–D.
@@ -197,6 +327,10 @@ export interface PersistedStudioSetup {
   circuitT1to4Target?: CircuitT1to4Target;
   /** Semitones added to Circuit T1–T4 notes before they reach the SP (default -24). */
   spNoteOffset?: number;
+  /** Per-track sends (Rig grid). When absent, built from circuitT1to4Target + fm1Firmware. */
+  trackPlan?: TrackPlan;
+  /** Section Bridge on/off and rows (Sections tab). */
+  sectionBridge?: { enabled: boolean; rows: unknown[] };
 }
 
 export const STORAGE_KEY_STUDIO_SETUP = 'dawlessdaw.studioSetup.v1';
@@ -262,63 +396,42 @@ export function buildMyStudioRoutes(ports: {
   circuitT1to4Target?: CircuitT1to4Target;
   /** default DEFAULT_SP_NOTE_OFFSET */
   spNoteOffset?: number;
+  /** Per-track sends. When absent, built from circuitT1to4Target + fm1Firmware (legacy). */
+  trackPlan?: TrackPlan;
 }): MidiRoute[] {
-  const t1to4: CircuitT1to4Target = ports.circuitT1to4Target ?? 'mpc';
   const spNoteOffset = ports.spNoteOffset ?? DEFAULT_SP_NOTE_OFFSET;
   const fm1Firmware: Fm1Firmware = ports.fm1Firmware ?? 'skiff';
   const mpcNoteMode: MpcNoteMode = ports.mpcNoteMode ?? 'usb';
-  const routes: MidiRoute[] = [
-    {
-      id: 'mystudio-t1-mpc',
-      name: 'Circuit T1 → MPC ch9',
-      enabled: true,
-      sourcePortId: ports.circuitIn,
-      destinations: [{ portId: ports.mpcOut }],
-      channel: { allow: [1], remap: { 1: 9 } },
-      forwardClock: false,
-      blockKinds: ['program-change'],
-    },
-    {
-      id: 'mystudio-t2-mpc',
-      name: 'Circuit T2 → MPC ch10',
-      enabled: true,
-      sourcePortId: ports.circuitIn,
-      destinations: [{ portId: ports.mpcOut }],
-      channel: { allow: [2], remap: { 2: 10 } },
-      forwardClock: false,
-      blockKinds: ['program-change'],
-    },
-    {
-      id: 'mystudio-t3-mpc',
-      name: 'Circuit T3 → MPC ch11',
-      enabled: true,
-      sourcePortId: ports.circuitIn,
-      destinations: [{ portId: ports.mpcOut }],
-      channel: { allow: [3], remap: { 3: 11 } },
-      forwardClock: false,
-      blockKinds: ['program-change'],
-    },
-    {
-      id: 'mystudio-t4-mpc',
-      name: 'Circuit T4 → MPC ch12',
-      enabled: true,
-      sourcePortId: ports.circuitIn,
-      destinations: [{ portId: ports.mpcOut }],
-      channel: { allow: [4], remap: { 4: 12 } },
-      forwardClock: false,
-      blockKinds: ['program-change'],
-    },
-  ];
+  const plan: TrackPlan =
+    ports.trackPlan ?? legacyTrackPlan(ports.circuitT1to4Target ?? 'mpc', fm1Firmware);
+  const routes: MidiRoute[] = [];
+  const sendsFor = (dest: TrackDestId) =>
+    CIRCUIT_TRACKS.flatMap((track) =>
+      (plan[track] ?? []).filter((s) => s.dest === dest).map((s) => ({ track, channel: s.channel })),
+    );
 
-  for (const track of FM1_TRACKS_BY_FIRMWARE[fm1Firmware]) {
+  for (const { track, channel } of sendsFor('mpc')) {
+    routes.push({
+      id: `mystudio-t${track}-mpc`,
+      name: `Circuit T${track} → MPC ch${channel}`,
+      enabled: true,
+      sourcePortId: ports.circuitIn,
+      destinations: [{ portId: ports.mpcOut }],
+      channel: { allow: [track], remap: { [track]: channel } },
+      forwardClock: false,
+      blockKinds: ['program-change'],
+    });
+  }
+
+  for (const { track, channel } of sendsFor('fm1')) {
     if (fm1Firmware === 'skiff') {
       routes.push({
         id: `mystudio-t${track}-fm1`,
-        name: `Circuit T${track} → FM1 (Skiff) ch${track}`,
+        name: `Circuit T${track} → FM1 (Skiff) ch${channel}`,
         enabled: true,
         sourcePortId: ports.circuitIn,
         destinations: [{ portId: ports.fm1Out }],
-        channel: { allow: [track], remap: { [track]: track } },
+        channel: { allow: [track], remap: { [track]: channel } },
         // Only translated macro knobs reach Skiff; every other CC is dropped.
         // Macro 8 steps through the track's Skiff sounds via Program Change.
         cc: {
@@ -333,46 +446,37 @@ export function buildMyStudioRoutes(ports: {
       // h1 plays every channel: notes only, no CCs.
       routes.push({
         id: `mystudio-t${track}-fm1`,
-        name: `Circuit T${track} → FM1 ch${track}`,
+        name: `Circuit T${track} → FM1 ch${channel}`,
         enabled: true,
         sourcePortId: ports.circuitIn,
         destinations: [{ portId: ports.fm1Out }],
-        channel: { allow: [track], remap: { [track]: track } },
+        channel: { allow: [track], remap: { [track]: channel } },
         forwardClock: false,
         blockKinds: ['program-change', 'cc'],
       });
     }
   }
 
-  if (t1to4 === 'sp' || t1to4 === 'both') {
-    const banks = ['A', 'B', 'C', 'D'];
-    for (const track of [1, 2, 3, 4]) {
-      routes.push({
-        id: `mystudio-t${track}-sp`,
-        name: `Circuit T${track} → SP bank ${banks[track - 1]} (ch${track})`,
-        enabled: true,
-        sourcePortId: ports.circuitIn,
-        destinations: [{ portId: ports.spOut }],
-        // SP MIDI Mode A: bank A–D listen on ch1–4, so the channel stays the same.
-        channel: { allow: [track], remap: { [track]: track } },
-        note: { transpose: spNoteOffset },
-        forwardClock: false,
-        // SP reads CC 20–27 as DJ/Looper controls and PC as pattern select — block both.
-        blockKinds: ['program-change', 'cc', 'pitch-bend'],
-      });
-    }
-  }
-
-  if (t1to4 === 'sp') {
-    for (let i = routes.length - 1; i >= 0; i--) {
-      if (/^mystudio-t[1-4]-mpc$/.test(routes[i]!.id)) routes.splice(i, 1);
-    }
+  for (const { track, channel } of sendsFor('sp')) {
+    routes.push({
+      id: `mystudio-t${track}-sp`,
+      name: `Circuit T${track} → SP bank ${spBankLetter(channel)} (ch${channel})`,
+      enabled: true,
+      sourcePortId: ports.circuitIn,
+      destinations: [{ portId: ports.spOut }],
+      // SP MIDI Mode A: bank A–J listen on ch1–10.
+      channel: { allow: [track], remap: { [track]: channel } },
+      note: { transpose: spNoteOffset },
+      forwardClock: false,
+      // SP reads CC 20–27 as DJ/Looper controls and PC as pattern select — block both.
+      blockKinds: ['program-change', 'cc', 'pitch-bend'],
+    });
   }
 
   if (mpcNoteMode === 'din-only') {
     // MPC hears the Circuit directly over the thru-box cable — app sends it nothing.
     for (let i = routes.length - 1; i >= 0; i--) {
-      if (/^mystudio-t[1-4]-mpc$/.test(routes[i]!.id)) routes.splice(i, 1);
+      if (/^mystudio-t[1-8]-mpc$/.test(routes[i]!.id)) routes.splice(i, 1);
     }
   }
 

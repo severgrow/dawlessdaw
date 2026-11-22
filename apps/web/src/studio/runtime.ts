@@ -32,6 +32,10 @@ import {
   emptyBenchResults,
   latencyVerdict,
   matchPortsToRoles,
+  legacyTrackPlan,
+  sanitizeTrackPlan,
+  setTrackSend as withTrackSend,
+  trackPreset,
   migrateClockForwarding,
   MY_STUDIO_CHANNEL_REMAP,
   normalizePortId,
@@ -45,6 +49,9 @@ import {
   type Fm1Firmware,
   type MpcNoteMode,
   type PersistedStudioSetup,
+  type TrackDestId,
+  type TrackPlan,
+  type TrackPresetId,
   type PortAssignment,
   type SectionBridgeConfig,
   type StudioRoleId,
@@ -64,16 +71,8 @@ import {
 } from '@dawlessdaw/sessions';
 import { MemoryRepository } from '@dawlessdaw/storage';
 
-export type WorkspaceId =
-  | 'studio'
-  | 'patchbay'
-  | 'performance'
-  | 'library'
-  | 'sessions'
-  | 'settings'
-  | 'bench'
-  | 'bridge'
-  | 'sp-samples';
+/** Rig = track routing home · Samples = SP-404 pads · Sections = Section Bridge · Test = bench · Setup = ports. */
+export type WorkspaceId = 'rig' | 'samples' | 'sections' | 'test' | 'setup';
 
 export interface StudioRuntimeSnapshot {
   /** True once Chrome granted Web MIDI access. */
@@ -106,9 +105,18 @@ export interface StudioRuntimeSnapshot {
   mpcNoteMode: MpcNoteMode;
   forwardClockToFm1: boolean;
   circuitT1to4Target: CircuitT1to4Target;
+  /** Effective per-track sends (Rig grid). */
+  trackPlan: TrackPlan;
+  /** performance.now() of the last note-on per Circuit track (index = track 1–8). */
+  trackActivity: number[];
+  /** performance.now() of the last note sent to each device. */
+  destActivity: Record<TrackDestId, number>;
+  activeBenchId: string | null;
   spNoteOffset: number;
   learningSpPadOffset: boolean;
   sectionBridge: SectionBridgeConfig;
+  /** Last Circuit Project change heard (Program Change ch16). */
+  lastProject: { index: number; kind: string; matched: boolean; at: number } | null;
   benchResults: BenchTestResult[];
   benchDetections: string[];
   latencyStats: { samples: number; meanMs: number; jitterMs: number; message: string } | null;
@@ -136,6 +144,30 @@ export interface StudioRuntimeSnapshot {
 }
 
 type Listener = () => void;
+
+/** Accept saved Section Bridge rows only if they look right. */
+function sanitizeSectionBridge(raw: unknown): SectionBridgeConfig | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as { enabled?: unknown; rows?: unknown };
+  if (!Array.isArray(r.rows)) return null;
+  const num = (v: unknown, lo: number, hi: number): number | null =>
+    typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : null;
+  const rows = r.rows.flatMap((x) => {
+    const row = x as Record<string, unknown>;
+    const projectIndex = num(row.projectIndex, 1, 64);
+    if (projectIndex == null) return [];
+    return [
+      {
+        projectIndex,
+        spProgramChange: num(row.spProgramChange, 0, 127),
+        mpcProgramChange: num(row.mpcProgramChange, 0, 127),
+        sceneId: typeof row.sceneId === 'string' ? row.sceneId : null,
+        label: typeof row.label === 'string' ? row.label.slice(0, 40) : undefined,
+      },
+    ];
+  });
+  return { enabled: Boolean(r.enabled), rows };
+}
 
 /** MPC channel (9–12) → Circuit track channel (1–4), from the My Studio remap. */
 const MPC_CHANNEL_TO_CIRCUIT: Readonly<Record<number, number>> = Object.fromEntries(
@@ -182,7 +214,7 @@ export class StudioRuntime {
   private midiReady = false;
   private midiError: string | null = null;
   private session: DawlessdawSession = createEmptySession('My Studio', false);
-  private workspace: WorkspaceId = 'studio';
+  private workspace: WorkspaceId = 'rig';
   private statusLine = 'Starting Web MIDI…';
   private recentUiEvents: StudioRuntimeSnapshot['recentUiEvents'] = [];
   private lastCircuitGesture: CircuitInterpretation | null = null;
@@ -199,6 +231,11 @@ export class StudioRuntime {
   private mpcNoteMode: MpcNoteMode = 'usb';
   private forwardClockToFm1 = false;
   private circuitT1to4Target: CircuitT1to4Target = 'mpc';
+  /** null = follow the older settings (circuitT1to4Target + fm1Firmware). */
+  private trackPlan: TrackPlan | null = null;
+  private trackActivity: number[] = Array(9).fill(0);
+  private lastProject: StudioRuntimeSnapshot['lastProject'] = null;
+  private destActivity: Record<TrackDestId, number> = { mpc: 0, sp: 0, fm1: 0 };
   private spNoteOffset = DEFAULT_SP_NOTE_OFFSET;
   private learningSpPadOffset = false;
   private sectionBridge: SectionBridgeConfig = {
@@ -255,6 +292,9 @@ export class StudioRuntime {
       this.forwardClockToFm1 = clock.fm1;
       const t = saved.circuitT1to4Target;
       this.circuitT1to4Target = t === 'sp' || t === 'both' ? t : 'mpc';
+      this.trackPlan = sanitizeTrackPlan(saved.trackPlan);
+      const bridge = sanitizeSectionBridge(saved.sectionBridge);
+      if (bridge) this.sectionBridge = bridge;
       if (typeof saved.spNoteOffset === 'number' && Number.isFinite(saved.spNoteOffset)) {
         this.spNoteOffset = Math.max(-127, Math.min(127, Math.round(saved.spNoteOffset)));
       }
@@ -294,8 +334,13 @@ export class StudioRuntime {
       mpcNoteMode: this.mpcNoteMode,
       forwardClockToFm1: this.forwardClockToFm1,
       circuitT1to4Target: this.circuitT1to4Target,
+      trackPlan: this.effectiveTrackPlan(),
+      trackActivity: [...this.trackActivity],
+      destActivity: { ...this.destActivity },
+      activeBenchId: this.activeBenchId,
       spNoteOffset: this.spNoteOffset,
       learningSpPadOffset: this.learningSpPadOffset,
+      lastProject: this.lastProject ? { ...this.lastProject } : null,
       sectionBridge: {
         enabled: this.sectionBridge.enabled,
         rows: this.sectionBridge.rows.map((r) => ({ ...r })),
@@ -528,6 +573,40 @@ export class StudioRuntime {
     this.notify();
   }
 
+  /** The plan in use: the Rig grid's own, or the one the older settings describe. */
+  private effectiveTrackPlan(): TrackPlan {
+    return this.trackPlan ?? legacyTrackPlan(this.circuitT1to4Target, this.fm1Firmware);
+  }
+
+  /** Rig grid: send Circuit `track` to `dest` on `channel` (null = stop sending). */
+  setTrackSend(track: number, dest: TrackDestId, channel: number | null): void {
+    this.trackPlan = withTrackSend(this.effectiveTrackPlan(), track, dest, channel);
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    const name = dest === 'mpc' ? 'MPC' : dest === 'sp' ? 'SP' : 'FM1';
+    this.setStatus(
+      channel == null ? `Circuit T${track} no longer plays the ${name}` : `Circuit T${track} → ${name} ch${channel}`,
+    );
+    this.notify();
+  }
+
+  applyTrackPreset(id: TrackPresetId): void {
+    this.trackPlan = trackPreset(id);
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    this.setStatus(`Track routing preset applied`);
+    this.notify();
+  }
+
+  /** Called for every note the app sends: lights the device's activity LED. */
+  recordOutActivity(portId: string): void {
+    const p = portsForRoles(this.assignments);
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (portId === p.mpcOut) this.destActivity.mpc = now;
+    else if (portId === p.spOut) this.destActivity.sp = now;
+    else if (portId === p.fm1Out) this.destActivity.fm1 = now;
+  }
+
   setCircuitT1to4Target(target: CircuitT1to4Target): void {
     this.circuitT1to4Target = target;
     this.applyMyStudioRoutes();
@@ -604,7 +683,7 @@ export class StudioRuntime {
       fm1Firmware: this.fm1Firmware,
       mpcNoteMode: this.mpcNoteMode,
       forwardClockToFm1: this.forwardClockToFm1,
-      circuitT1to4Target: this.circuitT1to4Target,
+      trackPlan: this.effectiveTrackPlan(),
       spNoteOffset: this.spNoteOffset,
     }).map((r) => ({
       ...r,
@@ -716,6 +795,7 @@ export class StudioRuntime {
       enabled: config.enabled,
       rows: config.rows.map((r) => ({ ...r })),
     };
+    this.persistSetup();
     this.notify();
   }
 
@@ -724,6 +804,7 @@ export class StudioRuntime {
       i === index ? { ...r, ...patch } : r,
     );
     this.sectionBridge = { ...this.sectionBridge, rows };
+    this.persistSetup();
     this.notify();
   }
 
@@ -919,6 +1000,8 @@ export class StudioRuntime {
       forwardClockToFm1: this.forwardClockToFm1,
       circuitT1to4Target: this.circuitT1to4Target,
       spNoteOffset: this.spNoteOffset,
+      ...(this.trackPlan ? { trackPlan: this.trackPlan } : {}),
+      sectionBridge: this.sectionBridge,
     });
   }
 
@@ -956,6 +1039,10 @@ export class StudioRuntime {
       }
 
       if (message.kind === 'note-on' && (message.velocity ?? 0) > 0 && message.channel) {
+        if (message.channel >= 1 && message.channel <= 8) {
+          this.trackActivity[message.channel] =
+            typeof performance !== 'undefined' ? performance.now() : Date.now();
+        }
         this.pushBenchDetection(
           'circuit-notes-1-8',
           `note ch${message.channel} n${message.note}`,
@@ -981,6 +1068,12 @@ export class StudioRuntime {
 
   private runSectionBridge(program: number): void {
     const action = resolveSectionBridge(program, this.sectionBridge);
+    this.lastProject = {
+      index: (program % 64) + 1,
+      kind: program >= 64 ? 'queued' : 'instant',
+      matched: Boolean(action),
+      at: Date.now(),
+    };
     if (!action) {
       this.setStatus(`Circuit Project PGM ${program} — no Section Bridge row`);
       return;
@@ -1244,6 +1337,7 @@ export function getStudioRuntime(): StudioRuntime {
       if (!data.length) return;
       const status = data[0]!;
       if ((status & 0xf0) === 0x90 && (data[2] ?? 0) > 0) {
+        singleton?.recordOutActivity(ev.message.portId);
         const channel = (status & 0x0f) + 1;
         const note = data[1] ?? 0;
         singleton?.recordOutboundLatency(note, channel, ev.message.portId);

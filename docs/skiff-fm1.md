@@ -15,8 +15,8 @@ Everything below is **untested on this studio** until Bench Test h, h2 and h3 ar
 2. Setup view: Note Tx and CC Tx on.
 
 ### In Dawlessdaw
-1. Settings → FM1 firmware → **Skiff** (default).
-2. Optional: Settings → App clock forwarding → **Circuit clock → FM1** ON (with Skiff CLOCK = USB).
+1. Setup tab → FM1 firmware → **Skiff** (default). Rig tab: T5–T8 → FM1 ch5–8 (the default).
+2. Optional: Rig tab → Tempo → **→ FM1** on (with Skiff CLOCK = USB).
 3. Keep the FM1 **off the thru box**. It should only get what the app sends it over USB.
 
 ## What gets sent
@@ -51,8 +51,8 @@ Circuit tracks play one note at a time, so each Skiff track gets single-note lin
 
 ## MPC
 
-The MPC now gets its notes and clock through the Scarlett 2i4 — see [mpc-via-scarlett.md](./mpc-via-scarlett.md). If it goes back on the thru box, choose Settings → MPC connection → **MIDI cable from thru box only**: the app then sends the MPC nothing, and MPC tracks 1–4 listen on channels 1–4.
+The MPC now gets its notes and clock through the Scarlett 2i4 — see [mpc-via-scarlett.md](./mpc-via-scarlett.md). If it goes back on the thru box, choose Setup → MPC connection → **MIDI cable from thru box only**: the app then sends the MPC nothing, and MPC tracks 1–4 listen on channels 1–4.
 
 ## Switching back to h1
 
-Settings → FM1 firmware → **h1** restores the older path: tracks 5–6 only, notes only. h1 plays every channel, so never put it on the thru box.
+Setup → FM1 firmware → **h1** restores the older path: tracks 5–6 only, notes only. h1 plays every channel, so never put it on the thru box.

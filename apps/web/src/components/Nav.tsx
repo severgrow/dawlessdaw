@@ -1,17 +1,19 @@
 import { useEffect } from 'react';
-import { useStudioActions, useStudioStore, type WorkspaceId } from '../store/useStudioStore';
+import {
+  LAST_TAB_KEY,
+  useStudioActions,
+  useStudioStore,
+  type WorkspaceId,
+} from '../store/useStudioStore';
 
-const ITEMS: { id: WorkspaceId; label: string }[] = [
-  { id: 'studio', label: 'Studio' },
-  { id: 'patchbay', label: 'Patchbay' },
-  { id: 'bridge', label: 'Section Bridge' },
-  { id: 'bench', label: 'Bench Test' },
-  { id: 'sp-samples', label: 'SP-404 Samples' },
-  { id: 'performance', label: 'Performance' },
-  { id: 'library', label: 'Library' },
-  { id: 'sessions', label: 'Sessions' },
-  { id: 'settings', label: 'Settings' },
+const ITEMS: { id: WorkspaceId; label: string; hint: string }[] = [
+  { id: 'rig', label: 'Rig', hint: 'Where each Circuit track plays · tempo' },
+  { id: 'samples', label: 'Samples', hint: 'SP-404 pads: load, trim, save WAVs' },
+  { id: 'sections', label: 'Sections', hint: 'Circuit project → SP pattern / MPC sequence' },
+  { id: 'test', label: 'Test', hint: 'Bench tests with your gear' },
+  { id: 'setup', label: 'Setup', hint: 'Ports and device options' },
 ];
+
 
 function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -23,7 +25,15 @@ export function Nav() {
   const workspace = useStudioStore((s) => s.workspace);
   const { setWorkspace } = useStudioActions();
 
-  // Number keys 1–9 jump between workspaces, like a pad row.
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAST_TAB_KEY, workspace);
+    } catch {
+      // storage unavailable
+    }
+  }, [workspace]);
+
+  // Number keys 1–5 switch tabs, like a pad row.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
@@ -36,27 +46,31 @@ export function Nav() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setWorkspace]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <nav className="nav" aria-label="Workspaces">
-      <div className="nav-label">workspaces</div>
+    <nav className="nav" aria-label="Tabs">
       {ITEMS.map((item, i) => (
         <button
           key={item.id}
           type="button"
           className={workspace === item.id ? 'active' : ''}
           aria-current={workspace === item.id ? 'page' : undefined}
+          title={item.hint}
           onClick={() => setWorkspace(item.id)}
         >
           <span className="key" aria-hidden="true">
             {i + 1}
           </span>
-          {item.label}
+          <span className="nav-text">
+            {item.label}
+            <span className="nav-sub">{item.hint}</span>
+          </span>
         </button>
       ))}
       <div className="nav-hint">
-        press 1–9 to switch
+        keys 1–5 switch tabs
         <br />
         no sysex · no firmware writes
       </div>

@@ -9,9 +9,21 @@ import type {
   BenchVerdict,
   SectionBridgeConfig,
   StudioRoleId,
+  TrackDestId,
+  TrackPresetId,
 } from '@dawlessdaw/devices';
 
 const runtime = getStudioRuntime();
+
+/** Browser-local memory of the last open tab (a convenience; ignored if storage is blocked). */
+export const LAST_TAB_KEY = 'dawlessdaw.lastTab';
+const TABS: readonly WorkspaceId[] = ['rig', 'samples', 'sections', 'test', 'setup'];
+try {
+  const last = localStorage.getItem(LAST_TAB_KEY) as WorkspaceId | null;
+  if (last && TABS.includes(last)) runtime.setWorkspace(last);
+} catch {
+  // storage unavailable
+}
 
 interface StudioZustandState extends StudioRuntimeSnapshot {
   hydrate: () => void;
@@ -37,8 +49,6 @@ export function useStudioActions() {
     start: () => runtime.start(),
     rescanMidiPorts: () => runtime.rescanMidiPorts(),
     setWorkspace: (w: WorkspaceId) => runtime.setWorkspace(w),
-    setFocusMode: (m: 'follow' | 'smart' | 'manual') => runtime.setFocusMode(m),
-    pinDevice: (id: string | null) => runtime.pinDevice(id),
     selectDevice: (id: string) => runtime.selectDevice(id),
     saveScene: (name: string) => runtime.saveScene(name),
     recallScene: (id: string) => runtime.recallScene(id),
@@ -56,7 +66,9 @@ export function useStudioActions() {
     setFm1Firmware: (firmware: 'skiff' | 'h1') => runtime.setFm1Firmware(firmware),
     setMpcNoteMode: (mode: 'usb' | 'din-only') => runtime.setMpcNoteMode(mode),
     setForwardClockToFm1: (on: boolean) => runtime.setForwardClockToFm1(on),
-    setCircuitT1to4Target: (t: 'mpc' | 'sp' | 'both') => runtime.setCircuitT1to4Target(t),
+    setTrackSend: (track: number, dest: TrackDestId, channel: number | null) =>
+      runtime.setTrackSend(track, dest, channel),
+    applyTrackPreset: (id: TrackPresetId) => runtime.applyTrackPreset(id),
     setSpNoteOffset: (n: number) => runtime.setSpNoteOffset(n),
     learnSpPadOffset: () => runtime.learnSpPadOffset(),
     assignStudioPort: (
