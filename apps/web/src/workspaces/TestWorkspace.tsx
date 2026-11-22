@@ -5,6 +5,7 @@ import {
   MPC_MUTE_LEARN_CHANNEL,
   type BenchVerdict,
 } from '@dawlessdaw/devices';
+import { CircuitDeepSyncBench } from '../circuit-deep-sync/CircuitDeepSyncBench';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 const VERDICT_LABEL: Record<BenchVerdict, string> = {
@@ -36,6 +37,8 @@ export function TestWorkspace() {
         </div>
       </div>
       <p className="lead">Open a card · follow steps · mark pass / fail. App only shows MIDI it heard.</p>
+
+      <CircuitDeepSyncBench />
 
       {BENCH_GROUPS.map((g) => {
         const tests = BENCH_TESTS.filter((t) => t.group === g.id);

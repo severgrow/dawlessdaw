@@ -17,6 +17,7 @@ Use Circuit as an optional physical arranger for MPC One, SP-404MKII, and FM1 wh
 | From FW 2.0.1, Project changes **transmit** matching PGM | Sync KB |
 | Scenes can store mute states; Mute Recall Mode optional | [FW 2.0 addendum](https://fael-downloads-prod.focusrite.com/customer/prod/downloads/circuit_rhythm_2.0_firmware_update_addendum_v1_english_en.pdf) |
 | No official SysEx in Programmer’s Reference | PRG / subsystem “not recorded” |
+| Internal pattern / unsaved RAM dump over stock MIDI | **Unsupported** — Remix reads saved `.ncs` (SD or Components-style file protocol). See [circuit-deep-sync.md](../circuit-deep-sync.md) |
 
 ## Arrangement approaches
 
