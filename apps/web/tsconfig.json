@@ -13,6 +13,7 @@
       "@dawlessdaw/devices": ["../../packages/devices/src"],
       "@dawlessdaw/scenes": ["../../packages/scenes/src"],
       "@dawlessdaw/sessions": ["../../packages/sessions/src"],
+      "@dawlessdaw/sequencer": ["../../packages/sequencer/src"],
       "@dawlessdaw/storage": ["../../packages/storage/src"]
     }
   },

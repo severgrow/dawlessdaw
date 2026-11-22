@@ -1,9 +1,18 @@
 import {
   AssistantToolRegistry,
+  buildNoteOff,
+  buildNoteOn,
   isClockLike,
   parseMidiMessage,
   type MidiMessage,
 } from '@dawlessdaw/core';
+import {
+  SequencerEngine,
+  type SeqClockSource,
+  type SeqEngineSnapshot,
+  type SeqScheduledNote,
+  type SeqStep,
+} from '@dawlessdaw/sequencer';
 import { StudioEventBus } from '@dawlessdaw/events';
 import {
   NativeBridgeTransport,
@@ -108,10 +117,11 @@ import {
 } from '@dawlessdaw/sessions';
 import { MemoryRepository } from '@dawlessdaw/storage';
 
-/** Rig · Controller · Samples · Sections · Sessions (audio) · Test · Setup. */
+/** Rig · Controller · Sequencer · Samples · Sections · Sessions (audio) · Test · Setup. */
 export type WorkspaceId =
   | 'rig'
   | 'controller'
+  | 'sequencer'
   | 'samples'
   | 'sections'
   | 'sessions'
@@ -228,6 +238,9 @@ export interface StudioRuntimeSnapshot {
   genericLearn: { profileId: string; controlId: string } | null;
   /** Connect → Identify → Assign → Play guidance. */
   onboarding: { step: OnboardingStep; message: string };
+  /** Dawlessdaw 8×16 sequencer (not Circuit's internal patterns). */
+  sequencer: SeqEngineSnapshot;
+  sequencerSelected: { track: number; step: number };
 }
 
 type Listener = () => void;
@@ -375,10 +388,17 @@ export class StudioRuntime {
   private listeners = new Set<Listener>();
   private unsubs: Array<() => void> = [];
   private started = false;
+  private sequencer: SequencerEngine;
+  private seqUnsub: (() => void) | null = null;
 
   constructor() {
     this.transport = new WebMidiTransport();
     this.routing = new MidiRoutingEngine(this.transport, this.bus);
+    this.sequencer = new SequencerEngine({
+      onNote: (note) => this.fireSequencerNote(note),
+      onAllNotesOff: () => this.routing.allNotesOff(),
+    });
+    this.seqUnsub = this.sequencer.subscribe(() => this.notify());
     const saved = loadSetup();
     if (saved?.assignments?.length) {
       // Strip mock / dash sentinels so Live sync can auto-bind Felucca → FM1.
@@ -525,6 +545,8 @@ export class StudioRuntime {
       customBindings: { ...this.customBindings },
       genericLearn: this.genericLearn ? { ...this.genericLearn } : null,
       onboarding: this.computeOnboarding(),
+      sequencer: this.sequencer.getSnapshot(),
+      sequencerSelected: this.sequencer.getSelected(),
     };
   }
 
@@ -591,6 +613,11 @@ export class StudioRuntime {
       this.bus.on('midi:clock', (event) => {
         if (event.type !== 'midi:clock') return;
         this.recordClockActivity(event.message);
+        const circuitIn = portsForRoles(this.assignments).circuitIn;
+        // Follow Circuit in only — never the forwarded OUT clock (no second competing clock).
+        if (circuitIn && event.message.portId === circuitIn) {
+          this.sequencer.onMidiClockMessage(event.message.kind, event.message.timestamp);
+        }
       }),
     );
 
@@ -817,6 +844,122 @@ export class StudioRuntime {
     );
     this.applyMyStudioRoutes();
     this.persistSetup();
+    this.notify();
+  }
+
+  // —— Dawlessdaw Sequencer (8×16) ——
+
+  /**
+   * Route a scheduled note through existing Controller destinations via the
+   * routing engine (Circuit track channel as source). Does not emit MIDI clock.
+   */
+  private fireSequencerNote(note: SeqScheduledNote): void {
+    const circuitIn = portsForRoles(this.assignments).circuitIn;
+    if (!circuitIn) return;
+    const onData = buildNoteOn(note.track, note.pitch, note.velocity);
+    this.routing.inject(parseMidiMessage(onData, note.time, circuitIn));
+    const offData = buildNoteOff(note.track, note.pitch, 0);
+    this.routing.inject(parseMidiMessage(offData, note.time + note.durationMs, circuitIn));
+  }
+
+  seqPlay(): void {
+    this.sequencer.play();
+    const src = this.sequencer.getSnapshot().bank.clockSource;
+    this.setStatus(
+      src === 'circuit'
+        ? 'Sequencer Play — following Circuit clock (Start/Stop/Continue forwarded as usual)'
+        : 'Sequencer Play — internal BPM (no MIDI clock out)',
+    );
+    this.notify();
+  }
+
+  seqStop(): void {
+    this.sequencer.stop();
+    this.setStatus('Sequencer Stop');
+    this.notify();
+  }
+
+  seqToggleRecord(): void {
+    this.sequencer.toggleRecording();
+    const on = this.sequencer.getSnapshot().recording;
+    this.setStatus(
+      on
+        ? 'Record ON — Circuit notes land on the current step (Live MIDI Activity)'
+        : 'Record OFF',
+    );
+    this.notify();
+  }
+
+  seqSetClockSource(source: SeqClockSource): void {
+    this.sequencer.setClockSource(source);
+    this.setStatus(
+      source === 'circuit'
+        ? 'Sequencer clock: Circuit (default master)'
+        : 'Sequencer clock: internal BPM — does not emit MIDI clock',
+    );
+    this.notify();
+  }
+
+  seqSetActivePattern(index: number): void {
+    this.sequencer.setActivePattern(index);
+    this.notify();
+  }
+
+  seqSetLength(length: number): void {
+    this.sequencer.setLength(length);
+    this.notify();
+  }
+
+  seqSetBpm(bpm: number): void {
+    this.sequencer.setBpm(bpm);
+    this.notify();
+  }
+
+  seqClickToggle(track: number, step: number): void {
+    this.sequencer.clickToggle(track, step);
+    this.notify();
+  }
+
+  seqSetStep(
+    track: number,
+    step: number,
+    patch: Partial<Pick<SeqStep, 'pitch' | 'velocity' | 'gate' | 'on'>>,
+  ): void {
+    this.sequencer.setStep(track, step, patch);
+    this.notify();
+  }
+
+  seqSelectCell(track: number, step: number): void {
+    this.sequencer.selectCell(track, step);
+    this.notify();
+  }
+
+  seqSetTrackMute(track: number, muted: boolean): void {
+    this.sequencer.setTrackMute(track, muted);
+    this.notify();
+  }
+
+  seqSetTrackSolo(track: number, solo: boolean): void {
+    this.sequencer.setTrackSolo(track, solo);
+    this.notify();
+  }
+
+  seqSetTrackDefaults(
+    track: number,
+    patch: Partial<{ defaultPitch: number; defaultVelocity: number; defaultGate: number }>,
+  ): void {
+    this.sequencer.setTrackDefaults(track, patch);
+    this.notify();
+  }
+
+  seqUndo(): void {
+    this.sequencer.undo();
+    this.setStatus('Sequencer undo');
+    this.notify();
+  }
+
+  seqRedo(): void {
+    this.sequencer.redo();
     this.notify();
   }
 
@@ -1677,6 +1820,14 @@ export class StudioRuntime {
         if (message.channel >= 1 && message.channel <= 8) {
           this.trackActivity[message.channel] =
             typeof performance !== 'undefined' ? performance.now() : Date.now();
+          if (message.note !== undefined) {
+            // Live MIDI Activity monitor / optional record — not Circuit pattern dump.
+            this.sequencer.observeCircuitNote(
+              message.channel,
+              message.note,
+              message.velocity ?? 0,
+            );
+          }
         }
         this.pushBenchDetection(
           'circuit-notes-1-8',

@@ -5,6 +5,7 @@ import { Nav } from './components/Nav';
 import { useBindStudio, useStudioActions, useStudioStore } from './store/useStudioStore';
 import { RigWorkspace } from './workspaces/RigWorkspace';
 import { ControllerWorkspace } from './workspaces/ControllerWorkspace';
+import { SequencerWorkspace } from './workspaces/SequencerWorkspace';
 import { SamplesWorkspace } from './workspaces/SamplesWorkspace';
 import { SectionsWorkspace } from './workspaces/SectionsWorkspace';
 import { SessionsWorkspace } from './workspaces/SessionsWorkspace';
@@ -34,6 +35,7 @@ export function App() {
         <main className="main">
           {workspace === 'rig' && <RigWorkspace />}
           {workspace === 'controller' && <ControllerWorkspace />}
+          {workspace === 'sequencer' && <SequencerWorkspace />}
           {workspace === 'samples' && <SamplesWorkspace />}
           {workspace === 'sections' && <SectionsWorkspace />}
           {workspace === 'sessions' && <SessionsWorkspace />}

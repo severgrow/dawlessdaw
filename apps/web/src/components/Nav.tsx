@@ -9,6 +9,7 @@ import {
 const ITEMS: { id: WorkspaceId; label: string; hint: string }[] = [
   { id: 'rig', label: 'Rig', hint: 'Map of the studio · listen · tempo' },
   { id: 'controller', label: 'Controller', hint: 'Circuit tracks and knobs → SP, FM1, MPC' },
+  { id: 'sequencer', label: 'Sequencer', hint: 'Dawlessdaw 8×16 patterns → same destinations' },
   { id: 'samples', label: 'Samples', hint: 'SP-404 pads: load, trim, save WAVs' },
   { id: 'sections', label: 'Sections', hint: 'Circuit project → SP pattern / MPC sequence' },
   { id: 'sessions', label: 'Sessions', hint: 'Record / trim / export audio takes' },
@@ -71,7 +72,7 @@ export function Nav() {
           </span>
         </button>
       ))}
-      <div className="nav-hint">keys 1–7</div>
+      <div className="nav-hint">keys 1–8</div>
     </nav>
   );
 }
