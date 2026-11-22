@@ -35,15 +35,11 @@ export function bindStudioStore(): () => void {
 export function useStudioActions() {
   return {
     start: () => runtime.start(),
-    setSimulation: (on: boolean) => runtime.setSimulation(on),
     rescanMidiPorts: () => runtime.rescanMidiPorts(),
     setWorkspace: (w: WorkspaceId) => runtime.setWorkspace(w),
     setFocusMode: (m: 'follow' | 'smart' | 'manual') => runtime.setFocusMode(m),
     pinDevice: (id: string | null) => runtime.pinDevice(id),
     selectDevice: (id: string) => runtime.selectDevice(id),
-    playFixture: () => runtime.playFixture(),
-    playProjectChangeFixture: () => runtime.playProjectChangeFixture(),
-    injectNote: (portId: string, note?: number) => runtime.injectNote(portId, note),
     saveScene: (name: string) => runtime.saveScene(name),
     recallScene: (id: string) => runtime.recallScene(id),
     exportSession: () => runtime.exportSession(),

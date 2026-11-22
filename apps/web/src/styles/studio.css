@@ -328,6 +328,16 @@ label {
   color: var(--ok);
 }
 
+.error-badge {
+  border-color: var(--err);
+  color: var(--err);
+}
+
+.error-badge .dot {
+  background: var(--err);
+  box-shadow: 0 0 8px rgba(255, 77, 77, 0.6);
+}
+
 .live-badge .dot {
   background: var(--ok);
   box-shadow: 0 0 8px var(--ok-glow);
@@ -946,8 +956,8 @@ textarea.session-io {
   color: var(--ok);
 }
 
-.footer-bar .sim {
-  color: var(--warn);
+.footer-bar .err {
+  color: var(--err);
 }
 
 /* ─── Motion ───────────────────────────────────────────── */

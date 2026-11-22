@@ -39,9 +39,11 @@ export function DeviceStrip() {
         const isSoft = device && softId === device.id && !isFocus;
         const status = role.midi
           ? midiStripStatus(connected, hasUnmatchedPorts)
-          : connected
-            ? { label: 'connected', title: 'Audio member registered' }
-            : { label: 'not connected', title: 'Audio member not registered' };
+          : {
+              label: 'not checked',
+              title:
+                'USB audio only — the app cannot see it over MIDI. Check it in System Information or Audio MIDI Setup.',
+            };
         const portTitle = connected
           ? `${assignment?.inputPortName ?? ''} / ${assignment?.outputPortName ?? ''}`
           : status.title;
@@ -51,7 +53,7 @@ export function DeviceStrip() {
             type="button"
             role="listitem"
             className={`device-chip ${isFocus ? 'focus' : ''} ${isSoft ? 'soft' : ''} ${
-              connected ? '' : 'disconnected'
+              role.midi && connected ? '' : 'disconnected'
             }`}
             onClick={() => device && selectDevice(device.id)}
             title={portTitle}

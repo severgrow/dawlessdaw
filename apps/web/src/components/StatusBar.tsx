@@ -2,7 +2,8 @@ import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 export function StatusBar() {
   const snap = useStudioStore();
-  const { setSimulation } = useStudioActions();
+  const { rescanMidiPorts } = useStudioActions();
+  const connected = snap.ports.filter((p) => p.state === 'connected').length;
 
   return (
     <header className="status-bar">
@@ -10,12 +11,12 @@ export function StatusBar() {
         dawless<span className="brand-slash">/</span>daw
         <span className="cursor" aria-hidden="true" />
       </div>
-      <div className={snap.simulation ? 'sim-badge' : 'sim-badge live-badge'}>
+      <div className={snap.midiReady ? 'sim-badge live-badge' : 'sim-badge error-badge'}>
         <span className="dot" />
-        {snap.simulation ? 'sim' : 'live'}
+        {snap.midiReady ? 'midi' : 'no midi'}
       </div>
       <span className="readout">
-        io <b>{snap.transportKind}</b>
+        ports <b>{connected}</b>
       </span>
       {snap.routeClockThroughApp ? (
         <span className="readout" title={snap.clockActivity.hint}>
@@ -26,10 +27,10 @@ export function StatusBar() {
       <span className="spacer" />
       <button
         type="button"
-        onClick={() => void setSimulation(!snap.simulation)}
-        title="Toggle between simulated ports and real Web MIDI"
+        onClick={() => void rescanMidiPorts()}
+        title="Ask Chrome for the MIDI port list again"
       >
-        {snap.simulation ? 'go live' : 'go sim'}
+        rescan
       </button>
     </header>
   );

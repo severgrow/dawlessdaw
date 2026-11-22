@@ -19,7 +19,6 @@ function portOptionLabel(p: {
 export function SettingsWorkspace() {
   const snap = useStudioStore();
   const {
-    setSimulation,
     rescanMidiPorts,
     setRouteClockThroughApp,
     setFm1Firmware,
@@ -48,15 +47,10 @@ export function SettingsWorkspace() {
       <div className="panel">
         <h2>Transport</h2>
         <p className="mono">
-          Active: {snap.transportKind} · simulation={String(snap.simulation)}
+          Active: {snap.transportKind} · {snap.midiReady ? 'MIDI ready' : 'no MIDI access'}
         </p>
+        {snap.midiError ? <p className="warn">{snap.midiError}</p> : null}
         <div className="row">
-          <button type="button" onClick={() => void setSimulation(true)}>
-            MockMidiTransport
-          </button>
-          <button type="button" onClick={() => void setSimulation(false)}>
-            WebMidiTransport (Live)
-          </button>
           <button type="button" onClick={() => void rescanMidiPorts()}>
             Rescan MIDI ports
           </button>
