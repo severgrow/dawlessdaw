@@ -23,10 +23,10 @@ The Akai USB-B port ignores MIDI Clock from a computer. The Scarlett reaches the
 ## On the Mac
 
 1. Open **Audio MIDI Setup** (Applications › Utilities). Choose **Window › Show MIDI Studio**. The Scarlett should appear as **Scarlett 2i4 USB**.
-2. In Dawlessdaw: **Settings › Port assignments › Akai MPC One › Out** = the Scarlett port. This choice is remembered by name, survives reloads and unplugging, and is never replaced automatically. The app never assigns the Scarlett to the MPC by itself, because the Scarlett is also your audio interface and may later drive other gear.
-3. **Settings › MPC connection** = **App sends notes (USB or Scarlett)**.
-4. **Settings › Circuit tracks 1–4** = **MPC** (or **Both**).
-5. To make the MPC follow the Circuit's tempo: **Settings › App clock forwarding › Circuit clock → MPC** = **ON**. This sends only clock, start and stop to the MPC Out port, never notes or knobs.
+2. In Dawlessdaw: **Setup tab › Ports › Akai MPC One › MIDI out** = the Scarlett port. This choice is remembered by name, survives reloads and unplugging, and is never replaced automatically. The app never assigns the Scarlett to the MPC by itself, because the Scarlett is also your audio interface and may later drive other gear.
+3. **Setup tab › MPC connection** = **App sends notes (USB or Scarlett)**.
+4. **Rig tab**: tracks T1–T4 → **MPC** ch9–12 (preset **MPC + FM1**, or set each track yourself).
+5. To make the MPC follow the Circuit's tempo: **Rig tab › Tempo › → MPC** = **on**. This sends only clock, start and stop to the MPC Out port, never notes or knobs.
 6. Leave **Circuit clock → SP** **OFF**. The SP already gets clock from the thru box. Turn it on only if you take the SP off the thru box, because otherwise the SP may get double clock.
 
 ## On the MPC One (MPC 3)
@@ -37,8 +37,8 @@ Menu names may differ slightly between MPC firmware versions.
    - In the list of MIDI inputs, turn **on** the row for the MPC's **MIDI In** (the DIN/3.5 mm port).
    - **Sync › Receive** = **MIDI Clock**. If there's an input choice, pick the **MIDI In** port.
    - **Send MIDI Clock** = **off**, and **MTC** send off. The MPC must not send clock back.
-2. For each of **tracks 1–4**: set the track's **MIDI input** to the **MIDI In** port and its channel to **9, 10, 11, 12** (track 1 = ch9 … track 4 = ch12).
-3. Arm the tracks (or enable MIDI monitoring) so incoming notes play the track's sounds.
+2. For each of **tracks 1–4**: set the track's **MIDI input** to the **MIDI In** port and its channel to **9, 10, 11, 12** (track 1 = ch9 … track 4 = ch12). Not "All": a track on All plays every channel.
+3. Set each of those tracks' **monitoring to always on (In)** rather than **Auto**. On Auto the MPC only plays incoming notes on the *selected* track, so you'd hear just one Circuit track at a time. With In, every track plays its own channel at once (e.g. drums on track 1 and a synth on track 2).
 
 ## On the Circuit Rhythm
 

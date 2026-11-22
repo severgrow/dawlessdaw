@@ -5,7 +5,8 @@
  * WAV files you copy to the SD card and import on the SP yourself.
  */
 
-export const SP_BANKS = ['A', 'B', 'C', 'D'] as const;
+/** SP-404MKII: 10 banks × 16 pads = 160 pads. */
+export const SP_BANKS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] as const;
 export type SpBank = (typeof SP_BANKS)[number];
 export const PADS_PER_BANK = 16;
 /** Export format: 48 kHz, 16-bit PCM WAV (the SP-404MKII's native rate). */

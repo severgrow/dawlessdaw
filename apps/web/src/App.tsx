@@ -2,17 +2,12 @@ import { useEffect } from 'react';
 import { StatusBar } from './components/StatusBar';
 import { DeviceStrip } from './components/DeviceStrip';
 import { Nav } from './components/Nav';
-import { ActiveContext } from './components/ActiveContext';
 import { useBindStudio, useStudioActions, useStudioStore } from './store/useStudioStore';
-import { StudioWorkspace } from './workspaces/StudioWorkspace';
-import { PatchbayWorkspace } from './workspaces/PatchbayWorkspace';
-import { PerformanceWorkspace } from './workspaces/PerformanceWorkspace';
-import { LibraryWorkspace } from './workspaces/LibraryWorkspace';
-import { SessionsWorkspace } from './workspaces/SessionsWorkspace';
-import { SettingsWorkspace } from './workspaces/SettingsWorkspace';
-import { BenchWorkspace } from './workspaces/BenchWorkspace';
-import { BridgeWorkspace } from './workspaces/BridgeWorkspace';
-import { SpSamplesWorkspace } from './workspaces/SpSamplesWorkspace';
+import { RigWorkspace } from './workspaces/RigWorkspace';
+import { SamplesWorkspace } from './workspaces/SamplesWorkspace';
+import { SectionsWorkspace } from './workspaces/SectionsWorkspace';
+import { TestWorkspace } from './workspaces/TestWorkspace';
+import { SetupWorkspace } from './workspaces/SetupWorkspace';
 
 export function App() {
   useBindStudio();
@@ -20,9 +15,12 @@ export function App() {
   const midiReady = useStudioStore((s) => s.midiReady);
   const { start } = useStudioActions();
 
+  // Start Web MIDI once. (`start` is a new function each render; as a dependency
+  // it re-ran on every update and, after a refused MIDI request, retried forever.)
   useEffect(() => {
     void start();
-  }, [start]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="app">
@@ -31,17 +29,12 @@ export function App() {
       <div className="shell">
         <Nav />
         <main className="main">
-          {workspace === 'studio' && <StudioWorkspace />}
-          {workspace === 'patchbay' && <PatchbayWorkspace />}
-          {workspace === 'bridge' && <BridgeWorkspace />}
-          {workspace === 'bench' && <BenchWorkspace />}
-          {workspace === 'sp-samples' && <SpSamplesWorkspace />}
-          {workspace === 'performance' && <PerformanceWorkspace />}
-          {workspace === 'library' && <LibraryWorkspace />}
-          {workspace === 'sessions' && <SessionsWorkspace />}
-          {workspace === 'settings' && <SettingsWorkspace />}
+          {workspace === 'rig' && <RigWorkspace />}
+          {workspace === 'samples' && <SamplesWorkspace />}
+          {workspace === 'sections' && <SectionsWorkspace />}
+          {workspace === 'test' && <TestWorkspace />}
+          {workspace === 'setup' && <SetupWorkspace />}
         </main>
-        <ActiveContext />
       </div>
       <footer className="footer-bar">
         <span>dawlessdaw · local-first hardware studio · no sysex · no firmware writes</span>
