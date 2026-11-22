@@ -32,6 +32,8 @@ import {
   emptyBenchResults,
   latencyVerdict,
   matchPortsToRoles,
+  migrateClockForwarding,
+  MY_STUDIO_CHANNEL_REMAP,
   normalizePortId,
   portsForRoles,
   resolveSectionBridge,
@@ -94,7 +96,12 @@ export interface StudioRuntimeSnapshot {
   recentUiEvents: { type: string; summary: string; at: number }[];
   lastCircuitGesture: CircuitInterpretation | null;
   assignments: PortAssignment[];
-  routeClockThroughApp: boolean;
+  /** App forwards Circuit clock/start/stop to the MPC's output (e.g. Scarlett → MPC DIN In). */
+  clockToMpc: boolean;
+  /** App forwards Circuit clock/start/stop to the SP (normally off: SP uses the thru box). */
+  clockToSp: boolean;
+  /** True when any device gets app clock (Circuit input is then the clock authority). */
+  anyClockForwarding: boolean;
   fm1Firmware: Fm1Firmware;
   mpcNoteMode: MpcNoteMode;
   forwardClockToFm1: boolean;
@@ -129,6 +136,13 @@ export interface StudioRuntimeSnapshot {
 }
 
 type Listener = () => void;
+
+/** MPC channel (9–12) → Circuit track channel (1–4), from the My Studio remap. */
+const MPC_CHANNEL_TO_CIRCUIT: Readonly<Record<number, number>> = Object.fromEntries(
+  Object.entries(MY_STUDIO_CHANNEL_REMAP)
+    .filter(([from]) => Number(from) >= 1 && Number(from) <= 4)
+    .map(([from, to]) => [to, Number(from)]),
+);
 
 function loadSetup(): PersistedStudioSetup | null {
   try {
@@ -179,7 +193,8 @@ export class StudioRuntime {
     outputPortId: null,
     connected: r.id === 'zed',
   }));
-  private routeClockThroughApp = false;
+  private clockToMpc = false;
+  private clockToSp = false;
   private fm1Firmware: Fm1Firmware = 'skiff';
   private mpcNoteMode: MpcNoteMode = 'usb';
   private forwardClockToFm1 = false;
@@ -231,10 +246,13 @@ export class StudioRuntime {
       });
     }
     if (saved) {
-      this.routeClockThroughApp = Boolean(saved.routeClockThroughApp);
+      // Version-1 saves had one switch for MPC + SP: ON becomes MPC ON, SP OFF.
+      const clock = migrateClockForwarding(saved);
+      this.clockToMpc = clock.mpc;
+      this.clockToSp = clock.sp;
       this.fm1Firmware = saved.fm1Firmware === 'h1' ? 'h1' : 'skiff';
       this.mpcNoteMode = saved.mpcNoteMode === 'din-only' ? 'din-only' : 'usb';
-      this.forwardClockToFm1 = Boolean(saved.forwardClockToFm1);
+      this.forwardClockToFm1 = clock.fm1;
       const t = saved.circuitT1to4Target;
       this.circuitT1to4Target = t === 'sp' || t === 'both' ? t : 'mpc';
       if (typeof saved.spNoteOffset === 'number' && Number.isFinite(saved.spNoteOffset)) {
@@ -269,7 +287,9 @@ export class StudioRuntime {
       recentUiEvents: [...this.recentUiEvents],
       lastCircuitGesture: this.lastCircuitGesture,
       assignments: this.assignments.map((a) => ({ ...a })),
-      routeClockThroughApp: this.routeClockThroughApp,
+      clockToMpc: this.clockToMpc,
+      clockToSp: this.clockToSp,
+      anyClockForwarding: this.anyClockForwarding(),
       fm1Firmware: this.fm1Firmware,
       mpcNoteMode: this.mpcNoteMode,
       forwardClockToFm1: this.forwardClockToFm1,
@@ -302,7 +322,7 @@ export class StudioRuntime {
         outStart: this.clockOutByKind.start,
         outStop: this.clockOutByKind.stop,
         outContinue: this.clockOutByKind.continue,
-        forwarding: this.routeClockThroughApp,
+        forwarding: this.anyClockForwarding(),
         hint: this.clockHint(),
       },
     };
@@ -421,9 +441,9 @@ export class StudioRuntime {
   }
 
   setClockAuthority(portId: string | null): void {
-    if (this.routeClockThroughApp) {
+    if (this.anyClockForwarding()) {
       const circuitIn = portsForRoles(this.assignments).circuitIn;
-      // USB-only forwarding always locks authority to Circuit in
+      // Any app clock forwarding always locks authority to Circuit in
       this.routing.setClockAuthority(circuitIn);
       this.setStatus(
         circuitIn
@@ -437,17 +457,38 @@ export class StudioRuntime {
     this.notify();
   }
 
-  setRouteClockThroughApp(on: boolean): void {
-    this.routeClockThroughApp = on;
+  /** Circuit clock/start/stop → MPC output (via the Scarlett this is DIN, so the MPC accepts it). */
+  setClockToMpc(on: boolean): void {
+    this.clockToMpc = on;
     this.resetClockActivity();
     this.applyMyStudioRoutes();
     this.persistSetup();
     this.setStatus(
       on
-        ? 'App clock forwarding ON — USB path; Akai MPC may ignore USB clock (prefer DIN thru)'
-        : 'App clock forwarding OFF — hardware thru box is clock path',
+        ? this.mpcNoteMode === 'din-only'
+          ? 'Circuit clock → MPC is ON but has no effect: MPC is set to "MIDI cable from thru box only"'
+          : 'Circuit clock → MPC ON (MPC: Receive = MIDI Clock on its MIDI In)'
+        : 'Circuit clock → MPC OFF',
     );
     this.notify();
+  }
+
+  /** Circuit clock/start/stop → SP output. Off by default: the SP gets clock from the thru box. */
+  setClockToSp(on: boolean): void {
+    this.clockToSp = on;
+    this.resetClockActivity();
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    this.setStatus(
+      on
+        ? 'Circuit clock → SP ON — SP may get double clock if it is still on the thru box'
+        : 'Circuit clock → SP OFF (SP follows the thru box)',
+    );
+    this.notify();
+  }
+
+  private anyClockForwarding(): boolean {
+    return this.clockToMpc || this.clockToSp || this.forwardClockToFm1;
   }
 
   setFm1Firmware(firmware: Fm1Firmware): void {
@@ -468,8 +509,8 @@ export class StudioRuntime {
     this.persistSetup();
     this.setStatus(
       mode === 'din-only'
-        ? 'MPC via MIDI cable only — app sends the MPC nothing (set MPC tracks to ch1–4 on the DIN port)'
-        : 'MPC via USB — Circuit T1–T4 → MPC ch9–12',
+        ? 'MPC: MIDI cable from thru box only — the app sends the MPC nothing (notes or clock)'
+        : 'App sends notes to the MPC — Circuit T1–T4 → MPC ch9–12 via the MPC Out port',
     );
     this.notify();
   }
@@ -558,7 +599,8 @@ export class StudioRuntime {
       mpcOut: p.mpcOut || '__missing_mpc__',
       spOut: p.spOut || '__missing_sp__',
       fm1Out: p.fm1Out || '__missing_fm1__',
-      forwardClock: this.routeClockThroughApp,
+      clockToMpc: this.clockToMpc,
+      clockToSp: this.clockToSp,
       fm1Firmware: this.fm1Firmware,
       mpcNoteMode: this.mpcNoteMode,
       forwardClockToFm1: this.forwardClockToFm1,
@@ -571,7 +613,7 @@ export class StudioRuntime {
 
     this.routing.setRoutes(routes.filter((r) => r.destinations.length > 0));
     this.routing.setClockAuthority(
-      this.routeClockThroughApp || this.forwardClockToFm1 ? p.circuitIn : null,
+      this.anyClockForwarding() ? p.circuitIn : null,
     );
     this.arranger.configure({
       kind: 'circuit-rhythm',
@@ -807,7 +849,7 @@ export class StudioRuntime {
       this.setStatus('MPC output port not assigned');
       return;
     }
-    this.activeBenchId = 'usb-app-clock';
+    this.activeBenchId = 'mpc-scarlett-clock';
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const msgs: Uint8Array[] = [
       new Uint8Array([0xfa]),
@@ -825,11 +867,11 @@ export class StudioRuntime {
     }
     void now;
     this.pushBenchDetection(
-      'usb-app-clock',
-      'sent test FA + 24×F8 + FC → MPC USB out (direct, not via Circuit)',
+      'mpc-scarlett-clock',
+      'sent test FA + 24×F8 + FC → MPC Out (direct, not via Circuit)',
     );
     this.setStatus(
-      'Sent test Start/Clock/Stop → MPC USB — if Patchbay OUT rises but MPC silent, use DIN thru',
+      'Sent test Start / 24 clocks / Stop → MPC Out. The MPC should start and stop once.',
     );
     this.notify();
   }
@@ -867,9 +909,10 @@ export class StudioRuntime {
 
   private persistSetup(): void {
     saveSetup({
-      version: 1,
+      version: 2,
       assignments: this.assignments,
-      routeClockThroughApp: this.routeClockThroughApp,
+      clockToMpc: this.clockToMpc,
+      clockToSp: this.clockToSp,
       lastRoutingPresetId: 'my-studio',
       fm1Firmware: this.fm1Firmware,
       mpcNoteMode: this.mpcNoteMode,
@@ -917,6 +960,7 @@ export class StudioRuntime {
           'circuit-notes-1-8',
           `note ch${message.channel} n${message.note}`,
         );
+        if (this.pendingNoteIns.size > 256) this.pendingNoteIns.clear();
         this.pendingNoteIns.set(
           `${message.channel}:${message.note}`,
           typeof performance !== 'undefined' ? performance.now() : Date.now(),
@@ -989,18 +1033,23 @@ export class StudioRuntime {
 
   private clockHint(): string {
     const p = portsForRoles(this.assignments);
-    if (!this.routeClockThroughApp) {
-      return 'Forwarding OFF — use DIN thru for MPC clock, or turn App clock forwarding ON for USB-only.';
+    if (!this.anyClockForwarding()) {
+      return 'App clock OFF — the SP follows the thru box; turn on Circuit clock → MPC for the MPC via the Scarlett.';
     }
     if (!p.circuitIn) return 'Assign Circuit input in Settings (receive-none until then).';
-    if (!p.mpcOut && !p.spOut) return 'Assign MPC (and/or SP) output — nothing to forward to.';
+    const targets = [
+      this.clockToMpc && !p.mpcOut ? 'MPC' : null,
+      this.clockToSp && !p.spOut ? 'SP' : null,
+      this.forwardClockToFm1 && !p.fm1Out ? 'FM1' : null,
+    ].filter(Boolean);
+    if (targets.length) return `Assign an output for ${targets.join(' + ')} — nothing to forward to.`;
     if (this.clockInTicks === 0) {
-      return 'receive-none: no F8/FA from Circuit yet — Live MIDI? Clock Tx pad 32 bright? Circuit playing? Correct Circuit In port?';
+      return 'receive-none: no F8/FA from Circuit yet — Clock Tx (pad 32) bright? Circuit playing? Correct Circuit In port?';
     }
     if (this.clockOutTicks === 0) {
-      return 'receive-but-not-forwarded: IN alive, OUT dead — enable mystudio-clock route / Re-apply My Studio routes.';
+      return 'receive-but-not-forwarded: IN alive, OUT dead — press Re-apply My Studio routes.';
     }
-    return 'receive-and-forwarded: OUT ticks mean Mac→device USB send ran. If MPC still silent, Akai USB-B typically does not accept MIDI Clock — use DIN thru (Circuit Out → thru → MPC In); turn app forwarding OFF.';
+    return 'receive-and-forwarded: the app is sending clock. If the MPC does not follow, check MPC Preferences → MIDI/Sync: its MIDI In row on, Receive = MIDI Clock.';
   }
 
   private recordClockActivity(message: MidiMessage): void {
@@ -1008,10 +1057,12 @@ export class StudioRuntime {
     const circuitIn = portsForRoles(this.assignments).circuitIn;
     const mpcOut = portsForRoles(this.assignments).mpcOut;
     const spOut = portsForRoles(this.assignments).spOut;
+    const fm1Out = portsForRoles(this.assignments).fm1Out;
     const isIn = circuitIn != null && message.portId === circuitIn;
     const isOut =
       (mpcOut != null && message.portId === mpcOut) ||
-      (spOut != null && message.portId === spOut);
+      (spOut != null && message.portId === spOut) ||
+      (fm1Out != null && message.portId === fm1Out);
     const transport =
       message.kind === 'start' ||
       message.kind === 'stop' ||
@@ -1030,6 +1081,12 @@ export class StudioRuntime {
           `IN ${message.kind} 0x${hex} (tick #${this.clockInTicks})`,
         );
       }
+    }
+    if (isOut && mpcOut != null && message.portId === mpcOut && transport) {
+      this.pushBenchDetection('mpc-scarlett-clock', `OUT ${message.kind} → MPC output`);
+    }
+    if (isIn && transport && this.clockToMpc) {
+      this.pushBenchDetection('mpc-scarlett-clock', `IN ${message.kind} from Circuit`);
     }
     if (isOut) {
       this.clockOutTicks += 1;
@@ -1094,9 +1151,19 @@ export class StudioRuntime {
     }
   }
 
-  /** Hook used after routing sends — call from bus midi:out */
-  recordOutboundLatency(note: number, channel: number): void {
-    const key = `${channel}:${note}`;
+  /**
+   * Timing Circuit → app → MPC output. Called for every note-on the app sends.
+   * Only notes sent to the MPC's output port count, and the MPC's channel (9–12)
+   * is mapped back to the Circuit track channel (1–4) to find the matching note-in.
+   * This measures the Mac side only (USB in → Web MIDI send); the Scarlett's
+   * USB → DIN hop and the MPC itself are not included.
+   */
+  recordOutboundLatency(note: number, channel: number, portId: string): void {
+    const mpcOut = portsForRoles(this.assignments).mpcOut;
+    if (!mpcOut || portId !== mpcOut) return;
+    const sourceChannel = MPC_CHANNEL_TO_CIRCUIT[channel];
+    if (sourceChannel === undefined) return;
+    const key = `${sourceChannel}:${note}`;
     const t0 = this.pendingNoteIns.get(key);
     if (t0 === undefined) return;
     this.pendingNoteIns.delete(key);
@@ -1179,7 +1246,7 @@ export function getStudioRuntime(): StudioRuntime {
       if ((status & 0xf0) === 0x90 && (data[2] ?? 0) > 0) {
         const channel = (status & 0x0f) + 1;
         const note = data[1] ?? 0;
-        singleton?.recordOutboundLatency(note, channel);
+        singleton?.recordOutboundLatency(note, channel, ev.message.portId);
       }
     });
   }

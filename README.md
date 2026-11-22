@@ -36,7 +36,7 @@ npm run build
 
 - If FM1 only listens on one channel, remap both tracks to **ch5** (default is 5→5 / 6→6).
 - SP: Circuit T6 is **not** USB-routed in this preset; Bridge/Bench PC still use SP **ch13**.
-- MIDI clock: **hardware** Circuit Out → thru → MPC + SP when thru is used. App clock forwarding OFF by default.
+- MIDI clock: **hardware** Circuit Out → thru → SP. The MPC (now behind the Scarlett 2i4, see [docs/mpc-via-scarlett.md](docs/mpc-via-scarlett.md)) gets clock only when Settings → **Circuit clock → MPC** is on. Every app clock switch (MPC / SP / FM1) is OFF by default.
 - MPC mute MIDI Learn: **CC 20 on channel 15** (control channel — not 16).
 
 ZED-10FX: USB **audio only** — no MIDI.

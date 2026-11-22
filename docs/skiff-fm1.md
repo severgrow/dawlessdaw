@@ -16,7 +16,7 @@ Everything below is **untested on this studio** until Bench Test h, h2 and h3 ar
 
 ### In Dawlessdaw
 1. Settings → FM1 firmware → **Skiff** (default).
-2. Optional: Settings → **Circuit clock → FM1 over USB** ON (with Skiff CLOCK = USB).
+2. Optional: Settings → App clock forwarding → **Circuit clock → FM1** ON (with Skiff CLOCK = USB).
 3. Keep the FM1 **off the thru box**. It should only get what the app sends it over USB.
 
 ## What gets sent
@@ -49,9 +49,9 @@ Skiff 1.3+ loads "the track's nth preset of its engine" when it gets Program Cha
 
 Circuit tracks play one note at a time, so each Skiff track gets single-note lines. Skiff shares 8 voices across its tracks (12 with its second-core beta).
 
-## MPC "MIDI cable only" mode
+## MPC
 
-If the Mac can't see the MPC over USB, choose Settings → MPC connection → **MIDI cable only**. The app then sends the MPC nothing. On the MPC, set tracks 1–4 to listen to the MIDI (DIN) port on channels 1–4: they hear the Circuit through the thru box, with no Mac involved.
+The MPC now gets its notes and clock through the Scarlett 2i4 — see [mpc-via-scarlett.md](./mpc-via-scarlett.md). If it goes back on the thru box, choose Settings → MPC connection → **MIDI cable from thru box only**: the app then sends the MPC nothing, and MPC tracks 1–4 listen on channels 1–4.
 
 ## Switching back to h1
 

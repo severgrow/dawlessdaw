@@ -33,6 +33,19 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
         label: 'MIDI clock send/receive',
         status: 'untested',
       },
+      {
+        id: 'din-notes-via-interface',
+        label: 'Notes in on the MIDI (DIN) In from a USB MIDI interface (e.g. Scarlett 2i4)',
+        status: 'untested',
+        notes: 'Circuit T1–T4 → app → MPC ch9–12 through the assigned MPC Out port. Bench g2.',
+      },
+      {
+        id: 'din-clock-via-interface',
+        label: 'Follows MIDI Clock / Start / Stop on the MIDI (DIN) In',
+        status: 'untested',
+        notes:
+          'DIN In accepts clock (the Akai USB-B clock limit is USB only). App forwards Circuit clock when "Circuit clock → MPC" is on. Bench g3.',
+      },
     ],
   },
   'sp404mkii-stock': {

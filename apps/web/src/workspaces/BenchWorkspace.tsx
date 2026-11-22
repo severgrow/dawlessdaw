@@ -22,8 +22,14 @@ export function BenchWorkspace() {
 
       {snap.latencyStats ? (
         <p className="mono">
-          Timing: {snap.latencyStats.meanMs} ms mean · {snap.latencyStats.jitterMs} ms jitter ·{' '}
+          Timing Circuit → app → MPC Out ({snap.latencyStats.samples} notes):{' '}
+          {snap.latencyStats.meanMs} ms mean · {snap.latencyStats.jitterMs} ms jitter ·{' '}
           {snap.latencyStats.message}
+          <br />
+          <span className="muted">
+            Mac side only — the Scarlett&apos;s USB → DIN hop (~1 ms per note) and the MPC are not
+            included. Trust your ears too.
+          </span>
         </p>
       ) : null}
 
@@ -62,9 +68,9 @@ export function BenchWorkspace() {
                   Send mute CC {MPC_MUTE_LEARN_CC} ch{MPC_MUTE_LEARN_CHANNEL}
                 </button>
               ) : null}
-              {t.id === 'usb-app-clock' ? (
+              {t.id === 'mpc-scarlett-clock' ? (
                 <button type="button" onClick={() => actions.sendBenchMpcClockBurst()}>
-                  Send test Start/Clock → MPC
+                  Send test Start/Clock/Stop → MPC
                 </button>
               ) : null}
             </div>

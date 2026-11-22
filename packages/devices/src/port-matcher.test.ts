@@ -276,7 +276,7 @@ describe('My Studio routing restore', () => {
     // Skiff default: T1–T4 → MPC, T5–T8 → FM1
     expect(routes).toHaveLength(8);
     expect(routes.every((r) => r.forwardClock !== true)).toBe(true);
-    expect(routes.some((r) => r.id === 'mystudio-clock')).toBe(false);
+    expect(routes.some((r) => r.id.startsWith('mystudio-clock'))).toBe(false);
     expect(routes.find((r) => r.id === 'mystudio-t1-mpc')?.channel).toEqual({
       allow: [1],
       remap: { 1: 9 },
@@ -366,24 +366,6 @@ describe('My Studio routing restore', () => {
     });
     expect(rebound[0]!.sourcePortId).toBe('c-in');
     expect(portsForRoles(matchPortsToRoles(ports)).circuitIn).toBe('c-in');
-  });
-
-  it('adds Circuit→MPC+SP clock route when forwardClock is on', () => {
-    const routes = buildMyStudioRoutes({
-      circuitIn: 'c-in',
-      mpcOut: 'm-out',
-      spOut: 's-out',
-      fm1Out: 'f-out',
-      forwardClock: true,
-    });
-    const clock = routes.find((r) => r.id === 'mystudio-clock');
-    expect(clock).toBeTruthy();
-    expect(clock!.forwardClock).toBe(true);
-    expect(clock!.sourcePortId).toBe('c-in');
-    expect(clock!.destinations.map((d) => d.portId).sort()).toEqual(['m-out', 's-out']);
-    expect(clock!.blockKinds).toEqual(
-      expect.arrayContaining(['note-on', 'note-off', 'cc', 'program-change']),
-    );
   });
 });
 

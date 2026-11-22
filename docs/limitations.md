@@ -12,7 +12,7 @@ Capability statuses used throughout the app: **verified** | **untested** | **exp
 
 ## USB app clock → MPC One
 
-App clock forwarding (Circuit USB → Mac → MPC USB) can show **OUT ticks** while the MPC stays silent. Akai documents that the MPC **USB-B port does not support receiving MIDI Clock from a DAW**; use **5-pin DIN** (or a USB-MIDI interface into DIN In). Prefer hardware thru for MPC start/tempo; keep app forwarding for diagnostics / SP USB experiments only.
+Akai documents that the MPC **USB-B port does not support receiving MIDI Clock from a DAW**. App clock sent to the MPC's USB port can show **OUT ticks** while the MPC stays silent. This studio now reaches the MPC through a **USB-MIDI interface into its DIN In** (Scarlett 2i4), where clock does work: see [mpc-via-scarlett.md](./mpc-via-scarlett.md). Not yet confirmed on this studio's hardware (bench g3).
 
 ## Device adapters
 

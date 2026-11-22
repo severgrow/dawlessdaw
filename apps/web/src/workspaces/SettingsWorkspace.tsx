@@ -20,7 +20,8 @@ export function SettingsWorkspace() {
   const snap = useStudioStore();
   const {
     rescanMidiPorts,
-    setRouteClockThroughApp,
+    setClockToMpc,
+    setClockToSp,
     setFm1Firmware,
     setMpcNoteMode,
     setForwardClockToFm1,
@@ -38,13 +39,14 @@ export function SettingsWorkspace() {
   const outputs = snap.ports.filter((p) => p.type === 'output');
   const unmatched = unmatchedConnectedPorts(snap.ports, snap.assignments);
   const allConnected = snap.ports.filter((p) => p.state === 'connected');
+  const mpcAssignment = snap.assignments.find((a) => a.roleId === 'mpc');
 
   return (
     <div className="section-enter">
       <h1>Settings</h1>
       <p className="lead">
-        Live port matching for your studio. Clock stays on the hardware thru box by default;
-        enable app clock forwarding only for USB-only sync (no DIN thru).
+        Live port matching for your studio. App clock is off by default for every device; turn it
+        on per device below (the MPC via the Scarlett needs it, the SP normally does not).
       </p>
 
       <div className="panel">
@@ -116,16 +118,9 @@ export function SettingsWorkspace() {
             h1
           </button>
         </div>
-        <button
-          type="button"
-          style={{ marginTop: '0.5rem' }}
-          className={snap.forwardClockToFm1 ? 'active' : ''}
-          onClick={() => setForwardClockToFm1(!snap.forwardClockToFm1)}
-        >
-          Circuit clock → FM1 over USB: {snap.forwardClockToFm1 ? 'ON' : 'OFF'}
-        </button>
         <p className="muted" style={{ marginTop: '0.5rem' }}>
-          Turn ON with Skiff CLOCK = USB so the FM1 follows the Circuit&apos;s tempo and play/stop.
+          FM1 tempo: see <strong>Circuit clock → FM1</strong> under App clock forwarding below
+          (needs Skiff CLOCK = USB).
         </p>
       </div>
 
@@ -193,52 +188,100 @@ export function SettingsWorkspace() {
       <div className="panel">
         <h2>MPC connection</h2>
         <p className="lead">
-          <strong>USB</strong>: app sends Circuit tracks 1–4 to the MPC on channels 9–12.{' '}
-          <strong>MIDI cable only</strong>: the app sends the MPC nothing; set MPC tracks 1–4 to
-          listen to the MIDI (DIN) port on channels 1–4 — they hear the Circuit through the thru box.
-          Use this when the Mac can&apos;t see the MPC over USB.
+          <strong>App sends notes (USB or Scarlett)</strong>: Circuit tracks 1–4 go to the MPC on
+          channels 9–12 through whatever port is set as <strong>MPC Out</strong> below — now the
+          Scarlett 2i4, whose MIDI Out is cabled to the MPC&apos;s MIDI In. Set MPC tracks 1–4 to
+          listen on channels 9–12. <strong>MIDI cable from thru box only</strong>: the app sends the
+          MPC nothing (notes or clock); use it only if the MPC is back on the thru box, with MPC
+          tracks 1–4 on channels 1–4.
         </p>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="row">
           <button
             type="button"
             className={snap.mpcNoteMode === 'usb' ? 'active' : ''}
             onClick={() => setMpcNoteMode('usb')}
           >
-            USB
+            App sends notes (USB or Scarlett)
           </button>
           <button
             type="button"
             className={snap.mpcNoteMode === 'din-only' ? 'active' : ''}
             onClick={() => setMpcNoteMode('din-only')}
           >
-            MIDI cable only
+            MIDI cable from thru box only
           </button>
         </div>
+        <p className="muted mono" style={{ marginTop: '0.6rem' }}>
+          MPC Out now: {mpcAssignment?.outputPortName ?? 'not assigned'}
+          {mpcAssignment?.outputManual ? ' (picked by hand)' : ''}
+          {mpcAssignment?.outputManual && !mpcAssignment.outputPortId ? ' — unplugged' : ''}
+        </p>
       </div>
 
       <div className="panel">
-        <h2>MIDI clock through app</h2>
+        <h2>App clock forwarding</h2>
         <p className="lead">
-          Default <strong>OFF</strong> — clock stays on hardware (Circuit MIDI Out → thru → MPC +
-          SP). Turn <strong>ON</strong> only to forward Circuit clock / start / stop over USB to
-          MPC + SP. Circuit Setup <strong>Clock Tx</strong> (pad 32) must be bright. Watch Patchbay
-          F8/FA counters. <strong>Akai MPC USB-B typically does not accept MIDI Clock from a
-          computer</strong> — if OUT ticks but MPC is silent, use DIN thru and leave this OFF. If
-          you add DIN thru later, turn this OFF to avoid double clock.
+          Each switch sends only Circuit <strong>clock / start / stop</strong> to that one device —
+          never notes, knobs or program changes. Circuit Setup <strong>Clock Tx</strong> (pad 32)
+          must be bright. While any switch is on, the Circuit is the only clock source.
         </p>
-        <button
-          type="button"
-          className={snap.routeClockThroughApp ? 'active' : ''}
-          onClick={() => setRouteClockThroughApp(!snap.routeClockThroughApp)}
-        >
-          App clock forwarding: {snap.routeClockThroughApp ? 'ON' : 'OFF'}
-        </button>
-        {snap.routeClockThroughApp ? (
-          <p className="muted" style={{ marginTop: '0.5rem' }}>
-            Forwarding is ON. For FM1-only note routing this does not matter much — turn OFF unless
-            you are intentionally sending USB clock to MPC/SP (and prefer DIN thru for MPC).
+        <div className="list-row" style={{ gridTemplateColumns: '1fr auto' }}>
+          <div>
+            <strong>Circuit clock → MPC</strong>
+            <div className="path">
+              Through the MPC Out port. Via the Scarlett this is a DIN cable, so the MPC accepts
+              clock (the Akai USB-B clock limit does not apply). MPC: Receive = MIDI Clock.
+            </div>
+          </div>
+          <button
+            type="button"
+            className={snap.clockToMpc ? 'active' : ''}
+            onClick={() => setClockToMpc(!snap.clockToMpc)}
+          >
+            {snap.clockToMpc ? 'ON' : 'OFF'}
+          </button>
+        </div>
+        {snap.clockToMpc && snap.mpcNoteMode === 'din-only' ? (
+          <p className="warn">
+            No effect while MPC connection is &quot;MIDI cable from thru box only&quot; — the app
+            sends the MPC nothing in that mode.
           </p>
         ) : null}
+        <div className="list-row" style={{ gridTemplateColumns: '1fr auto' }}>
+          <div>
+            <strong>Circuit clock → SP</strong>
+            <div className="path">
+              Leave OFF: the SP already gets clock from the thru box. Only turn on if the SP is taken
+              off the thru box.
+            </div>
+          </div>
+          <button
+            type="button"
+            className={snap.clockToSp ? 'active' : ''}
+            onClick={() => setClockToSp(!snap.clockToSp)}
+          >
+            {snap.clockToSp ? 'ON' : 'OFF'}
+          </button>
+        </div>
+        {snap.clockToSp ? (
+          <p className="warn">SP may get double clock if it&apos;s still on the thru box.</p>
+        ) : null}
+        <div className="list-row" style={{ gridTemplateColumns: '1fr auto' }}>
+          <div>
+            <strong>Circuit clock → FM1</strong>
+            <div className="path">Over USB. On the FM1: Skiff MENU › CLOCK = USB.</div>
+          </div>
+          <button
+            type="button"
+            className={snap.forwardClockToFm1 ? 'active' : ''}
+            onClick={() => setForwardClockToFm1(!snap.forwardClockToFm1)}
+          >
+            {snap.forwardClockToFm1 ? 'ON' : 'OFF'}
+          </button>
+        </div>
+        <p className="muted mono" style={{ marginTop: '0.6rem' }}>
+          {snap.clockActivity.hint}
+        </p>
       </div>
 
       <div className="panel">
@@ -282,8 +325,9 @@ export function SettingsWorkspace() {
       <div className="panel">
         <h2>Port assignments (saved on this Mac)</h2>
         <p className="muted">
-          Wrong or missing match? Pick the correct port manually (dropdown lists every raw name).
-          Survives reload.
+          Wrong or missing match? Pick the correct port by hand (the list shows every port Chrome
+          sees). A hand-picked port is remembered by name, survives reloads and unplugging, and is
+          never replaced automatically. Pick &quot;—&quot; to go back to automatic matching.
         </p>
         {MY_STUDIO_ROLES.filter((r) => r.midi).map((role) => {
           const a = snap.assignments.find((x) => x.roleId === role.id);
@@ -293,6 +337,7 @@ export function SettingsWorkspace() {
                 {role.label}{' '}
                 <span className="muted mono">
                   {a?.connected ? 'connected' : 'not connected'}
+                  {a?.inputManual || a?.outputManual ? ' · picked by hand' : ''}
                 </span>
               </strong>
               <div className="row" style={{ marginTop: 4 }}>
@@ -300,12 +345,17 @@ export function SettingsWorkspace() {
                   In{' '}
                   <select
                     className="select-inline"
-                    value={a?.inputPortId ?? ''}
+                    value={a?.inputPortId ?? (a?.inputManual ? '__remembered__' : '')}
                     onChange={(e) =>
                       assignStudioPort(role.id, 'input', e.target.value || null)
                     }
                   >
-                    <option value="">—</option>
+                    <option value="">— auto</option>
+                    {a?.inputManual && !a.inputPortId ? (
+                      <option value="__remembered__" disabled>
+                        {a.inputPortName ?? 'remembered port'} (unplugged)
+                      </option>
+                    ) : null}
                     {inputs.map((p) => (
                       <option key={p.id} value={p.id}>
                         {portOptionLabel(p)}
@@ -317,12 +367,17 @@ export function SettingsWorkspace() {
                   Out{' '}
                   <select
                     className="select-inline"
-                    value={a?.outputPortId ?? ''}
+                    value={a?.outputPortId ?? (a?.outputManual ? '__remembered__' : '')}
                     onChange={(e) =>
                       assignStudioPort(role.id, 'output', e.target.value || null)
                     }
                   >
-                    <option value="">—</option>
+                    <option value="">— auto</option>
+                    {a?.outputManual && !a.outputPortId ? (
+                      <option value="__remembered__" disabled>
+                        {a.outputPortName ?? 'remembered port'} (unplugged)
+                      </option>
+                    ) : null}
                     {outputs.map((p) => (
                       <option key={p.id} value={p.id}>
                         {portOptionLabel(p)}
