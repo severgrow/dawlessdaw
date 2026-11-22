@@ -24,6 +24,8 @@ npm run build
 
 **FM1 jam focus:** Circuit T5–T8 → FM1 running **Skiff** over USB (port often named Felucca); Circuit macro knobs are translated to Skiff's CCs. MPC can take notes over USB or straight from the thru-box cable (Settings → MPC connection). See [docs/skiff-fm1.md](docs/skiff-fm1.md).
 
+**SP-404:** Circuit tracks 1–4 can play SP banks A–D (SP MIDI Mode A), and the **SP-404 Samples** page prepares pad-named WAVs for banks A–D. See [docs/sp404-banks-and-samples.md](docs/sp404-banks-and-samples.md).
+
 | Circuit track | Circuit ch | USB dest channel | Destination |
 |---------------|------------|------------------|-------------|
 | 5 | 5 | 5 | M-VAVE FM1 **H-1** / Felucca (USB; generic MIDI until bench) |

@@ -24,6 +24,9 @@ export function SettingsWorkspace() {
     setFm1Firmware,
     setMpcNoteMode,
     setForwardClockToFm1,
+    setCircuitT1to4Target,
+    setSpNoteOffset,
+    learnSpPadOffset,
     assignStudioPort,
     applyMyStudioRoutes,
     getAssistantTools,
@@ -70,9 +73,12 @@ export function SettingsWorkspace() {
         </p>
         <ul className="cap-list mono" style={{ fontSize: 12 }}>
           <li>
-            {snap.mpcNoteMode === 'din-only'
-              ? 'MPC: MIDI cable only — MPC tracks 1–4 listen to the DIN port on ch1–4; app sends nothing'
-              : 'Circuit ch1–4 → MPC ch9–12 over USB (no-op if MPC absent)'}
+            {snap.circuitT1to4Target === 'sp'
+              ? 'Circuit ch1–4 → SP banks A–D over USB (SP MIDI Mode A, pads = notes 36–51)'
+              : snap.mpcNoteMode === 'din-only'
+                ? 'MPC: MIDI cable only — MPC tracks 1–4 listen to the DIN port on ch1–4; app sends nothing'
+                : 'Circuit ch1–4 → MPC ch9–12 over USB (no-op if MPC absent)'}
+            {snap.circuitT1to4Target === 'both' ? ' · and → SP banks A–D' : ''}
           </li>
           <li>
             {snap.fm1Firmware === 'skiff'
@@ -121,6 +127,67 @@ export function SettingsWorkspace() {
         <p className="muted" style={{ marginTop: '0.5rem' }}>
           Turn ON with Skiff CLOCK = USB so the FM1 follows the Circuit&apos;s tempo and play/stop.
         </p>
+      </div>
+
+      <div className="panel">
+        <h2>Circuit tracks 1–4</h2>
+        <p className="lead">
+          <strong>SP banks A–D</strong>: track 1 plays bank A, track 2 bank B, track 3 bank C,
+          track 4 bank D. On the SP: MIDI settings → <strong>MIDI Mode A</strong> (bank A–J = MIDI
+          channels 1–10, pads 1–16 = notes 36–51). Knob and Program Change messages are not sent to
+          the SP. In Mode A, Section Bridge pattern changes on ch13 will not work.
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {(
+            [
+              ['mpc', 'MPC'],
+              ['sp', 'SP banks A–D'],
+              ['both', 'Both'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={snap.circuitT1to4Target === id ? 'active' : ''}
+              onClick={() => setCircuitT1to4Target(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {snap.circuitT1to4Target !== 'mpc' ? (
+          <>
+            <p className="muted" style={{ marginTop: '0.75rem' }}>
+              Which Circuit note hits SP pad 1? Press <strong>Learn pad 1</strong>, then play that
+              note on Circuit track 1–4 (Circuit connected). The next 15 notes up play pads 2–16.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                type="button"
+                className={snap.learningSpPadOffset ? 'active' : ''}
+                onClick={() => learnSpPadOffset()}
+              >
+                {snap.learningSpPadOffset ? 'Listening… play a note' : 'Learn pad 1'}
+              </button>
+              <button type="button" onClick={() => setSpNoteOffset(snap.spNoteOffset - 1)}>
+                −1
+              </button>
+              <span className="mono">
+                offset {snap.spNoteOffset >= 0 ? '+' : ''}
+                {snap.spNoteOffset} · Circuit note {36 - snap.spNoteOffset} = pad 1
+              </span>
+              <button type="button" onClick={() => setSpNoteOffset(snap.spNoteOffset + 1)}>
+                +1
+              </button>
+            </div>
+            {snap.spNoteOffset === 0 ? (
+              <p className="warn" style={{ marginTop: '0.5rem' }}>
+                Offset 0 means the Circuit already sends SP pad notes, so the thru-box cable plays
+                the SP by itself. Choose <strong>MPC</strong> here to avoid every note playing twice.
+              </p>
+            ) : null}
+          </>
+        ) : null}
       </div>
 
       <div className="panel">

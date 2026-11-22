@@ -12,6 +12,7 @@ import { SessionsWorkspace } from './workspaces/SessionsWorkspace';
 import { SettingsWorkspace } from './workspaces/SettingsWorkspace';
 import { BenchWorkspace } from './workspaces/BenchWorkspace';
 import { BridgeWorkspace } from './workspaces/BridgeWorkspace';
+import { SpSamplesWorkspace } from './workspaces/SpSamplesWorkspace';
 
 export function App() {
   useBindStudio();
@@ -34,6 +35,7 @@ export function App() {
           {workspace === 'patchbay' && <PatchbayWorkspace />}
           {workspace === 'bridge' && <BridgeWorkspace />}
           {workspace === 'bench' && <BenchWorkspace />}
+          {workspace === 'sp-samples' && <SpSamplesWorkspace />}
           {workspace === 'performance' && <PerformanceWorkspace />}
           {workspace === 'library' && <LibraryWorkspace />}
           {workspace === 'sessions' && <SessionsWorkspace />}
