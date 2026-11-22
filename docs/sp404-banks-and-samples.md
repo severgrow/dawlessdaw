@@ -13,7 +13,7 @@ In **Mode A**, Circuit tracks 1–4 (channels 1–4) match banks A–D one to on
 1. On the SP: MIDI settings → **MIDI Mode A**.
 2. Dawlessdaw: Settings → **Circuit tracks 1–4** → **SP banks A–D** (or **Both** to play the MPC as well).
 3. Press **Learn pad 1** and play the note on Circuit track 1–4 that should hit pad 1. The 15 notes above it play pads 2–16. The default assumes the Circuit sends note 60 (offset −24), which is untested.
-4. Run Bench Test h4.
+4. Run Bench Test h5.
 
 ### What gets sent
 - Notes only, on the same channel (= bank), shifted by the offset.
