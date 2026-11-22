@@ -41,7 +41,7 @@ ZED-10FX: USB **audio only** — no MIDI. Use the **Sessions** tab to record ste
 
 ## Docs
 
-See `/docs` — start with **[docs/live-run-guide.md](docs/live-run-guide.md)**, then [circuit-controller.md](docs/circuit-controller.md), [session-recorder.md](docs/session-recorder.md), [universal-ux-slice.md](docs/universal-ux-slice.md) (generic profiles / first-run), architecture, setup, limitations. Agent context: [docs/HANDOVER.md](docs/HANDOVER.md).
+See `/docs` — start with **[docs/live-run-guide.md](docs/live-run-guide.md)**, then [circuit-controller.md](docs/circuit-controller.md), [session-recorder.md](docs/session-recorder.md), [circuit-deep-sync.md](docs/circuit-deep-sync.md) (stock MIDI vs saved patterns research), [universal-ux-slice.md](docs/universal-ux-slice.md) (generic profiles / first-run), architecture, setup, limitations. Agent context: [docs/HANDOVER.md](docs/HANDOVER.md).
 
 ## Honesty
 

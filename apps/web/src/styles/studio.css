@@ -4203,3 +4203,86 @@ button.send-add {
     display: none;
   }
 }
+
+/* ─── Circuit Deep Sync (isolated research bench) ───────── */
+
+.circuit-deep-sync .tag {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.deep-sync-panel {
+  margin-top: 0.6rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px dashed var(--line-hard);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+}
+
+.deep-sync-panel h3 {
+  margin: 0.85rem 0 0.35rem;
+  font-size: 13px;
+}
+
+.deep-sync-panel .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 8rem;
+}
+
+.deep-sync-panel .row.wrap {
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.deep-steps {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 2px;
+  margin: 0.25rem 0 0.55rem;
+  max-width: 28rem;
+}
+
+.deep-step {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+}
+
+.deep-step.on {
+  background: var(--ok);
+  border-color: var(--ok);
+  box-shadow: 0 0 6px -2px var(--ok-glow);
+}
+
+.deep-cap-table {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.deep-cap {
+  padding: 0.45rem 0.55rem;
+  border-left: 3px solid var(--line-hard);
+  background: var(--bg-3);
+}
+
+.deep-cap.tier-proven { border-left-color: var(--ok); }
+.deep-cap.tier-documented-unverified { border-left-color: #c9a227; }
+.deep-cap.tier-theoretical { border-left-color: #6b8cae; }
+.deep-cap.tier-unsupported { border-left-color: var(--err); }
+
+.deep-log {
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.err {
+  color: var(--err);
+}
