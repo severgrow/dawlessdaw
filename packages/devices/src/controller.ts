@@ -431,12 +431,21 @@ export function buildControllerRoutes(
 
 // ─── Plain-English helpers ───────────────────────────────────────
 
+/**
+ * Why drums on Circuit T1 suddenly play the program you just loaded on MPC track 3:
+ * the app already isolates channels (T1→ch9 … T4→ch12 on one USB/DIN out). The MPC
+ * must filter them — "All" or Auto monitoring makes every Circuit track hit the
+ * selected / omni track.
+ */
+export const MPC_CHANNEL_ISOLATION_HINT =
+  'App map: Circuit T1–T4 → MPC ch9–12 on one Out port (filtered per channel, not omni). On each MPC track: MIDI In = that channel (not All), monitoring = In (not Auto). Section Bridge PC stays on ch15 only.';
+
 /** "on the MPC, set this track's MIDI input to channel X" and friends. */
 export function destHowTo(dest: CtrlDest, preset: ControllerPreset): string {
   const ch = destChannel(dest, preset);
   if (dest.device === 'sp') return `Needs the SP in MIDI Mode A (bank ${'ABCDEFGHIJ'[dest.slot - 1]} listens on channel ${ch}).`;
   if (dest.device === 'mpc')
-    return `On the MPC, set track ${dest.slot}'s MIDI input to channel ${ch} (MIDI In port) and its monitoring to In.`;
+    return `On the MPC, set track ${dest.slot}'s MIDI input to channel ${ch} (MIDI In port) — not All — and monitoring to In (not Auto).`;
   return `On the FM1: Skiff MENU › MIDI › T${dest.slot} CHANNEL = ${ch}.`;
 }
 
