@@ -1150,6 +1150,70 @@ textarea.session-io {
   border-bottom: 1px solid var(--line);
 }
 
+.sp-usb-panel .sp-usb-warn,
+.sp-usb-experimental .sp-usb-warn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.6rem 0 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line-hard);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-2));
+}
+
+.sp-usb-panel .warn,
+.sp-usb-experimental .sp-usb-fw-warn {
+  color: var(--accent);
+  margin: 0.4rem 0 0.6rem;
+}
+
+.sp-usb-panel .tag {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  border: 1px solid var(--line-hard);
+  padding: 0.1rem 0.35rem;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+.sp-usb-banks {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.sp-usb-bank h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+.sp-usb-pad-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 0.3rem;
+}
+
+.sp-usb-pad {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  padding: 0.35rem 0.2rem;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--text-mute);
+}
+
+.sp-usb-pad.occupied {
+  color: var(--text);
+  border-color: var(--line-hard);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-2));
+}
+
+.sp-usb-pad:disabled:not(.occupied) {
+  opacity: 0.55;
+}
+
 .callout {
   padding: 0.6rem 0.8rem;
   border: 1px solid var(--line-hard);
@@ -1741,6 +1805,73 @@ button.sp-pad:active:not(:disabled) {
 
 button.sp-pad.selected .sp-pad-num {
   color: var(--accent);
+}
+
+
+.sp-usb-panel .tag {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--line-hard);
+  color: var(--text-mute);
+  vertical-align: middle;
+}
+
+.sp-usb-panel .warn {
+  color: var(--warn, #c47a3a);
+}
+
+.sp-usb-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.sp-usb-banks {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sp-usb-bank h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+.sp-usb-pad-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+button.sp-usb-pad {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.7rem;
+  padding: 0.35rem 0.15rem;
+  border: 1px solid var(--line-hard);
+  background: transparent;
+  color: var(--text-mute);
+  cursor: default;
+}
+
+button.sp-usb-pad.occupied {
+  color: var(--text);
+  border-color: var(--accent);
+  cursor: pointer;
+}
+
+button.sp-usb-pad.occupied:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+@media (max-width: 720px) {
+  .sp-usb-pad-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .sp-on-sd-mark {
