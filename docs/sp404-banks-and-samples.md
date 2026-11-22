@@ -35,8 +35,28 @@ A pad editor for building SP banks before they go onto the SP:
 - Per pad: name, trim start and end (the waveform dims the cut parts), normalise, play.
 - **Pads are kept in this browser** (IndexedDB) and come back after a reload. They stay on this Mac only.
 - **Save bank** or **Save all** writes one 48 kHz, 16-bit WAV per pad, named like `A01 kick.wav`. Chrome asks which folder to save to; other browsers download the files one by one.
-- Then put them on the SP: copy them to the SD card and use the SP's Import (Roland SP-404MKII Reference Manual, "Importing samples"), or drag them onto pads in Roland's SP-404MKII App. The exact on-device import steps aren't written here yet because Roland's site wasn't reachable when this was written.
+- Then put them on the SP: copy them to the SD card and use the SP's Import (Roland SP-404MKII Reference Manual, "Importing samples"), or drag them onto pads in Roland's SP-404MKII App.
 
-It never reads or writes the SP's own project files and never talks to the SP, so it can't corrupt a project.
+### See which pads are already on the SP (SD card)
 
-Code: `apps/web/src/sp404/samplePrep.ts` (tested helpers), `apps/web/src/sp404/padStore.ts` (browser storage) and `apps/web/src/workspaces/SamplesWorkspace.tsx`.
+Stock USB is **audio + MIDI only** — there is no mass-storage mount of the live library, and no Web MIDI pad dump.
+
+To list occupied pads in Chrome:
+
+1. On the SP: **SHIFT + pad 14 → EXPORT to SD-CARD → PROJECT** (exports `EXPORT/PROJECT/PROJECT_xx/` with `PADCONF.BIN` + `SMPL/BANK*-*.SMP`).
+2. Eject the SD card and put it in a **Mac card reader** (Finder shows `IMPORT` / `EXPORT` / `BKUP`).
+3. Samples tab → **Open SP volume…** → grant the SD volume (or a single `PROJECT_*` folder).
+4. **Refresh** after you re-export.
+
+What you get:
+
+| Visible | Not visible |
+|---------|-------------|
+| Occupied vs empty for A01–J16 from `PADCONF.BIN` / `SMPL/` | Live pads over USB without exporting |
+| Pad names from `PADCONF.BIN` | Full-system `BKUP/*.bin` contents |
+| `.SMP` filename + length/channels from RFWV header when present | Reliable audio preview / play-from-card |
+| Import-staged `IMPORT/PROJECT_*` kits the same way | Writing or changing anything on the card |
+
+Read-only File System Access only. USB cable alone will not expose the library.
+
+Code: `apps/web/src/sp404/samplePrep.ts` (tested helpers), `apps/web/src/sp404/padStore.ts` (browser storage), `apps/web/src/sp404/sdPadScan.ts` / `sdVolume.ts` (SD project scan), and `apps/web/src/workspaces/SamplesWorkspace.tsx`.

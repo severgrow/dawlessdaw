@@ -1581,6 +1581,10 @@ button.bank-tab {
   opacity: 0.75;
 }
 
+.bank-count-sd {
+  opacity: 0.85;
+}
+
 .sp-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1611,6 +1615,16 @@ button.sp-pad.filled {
   box-shadow: inset 0 -2px 0 var(--accent-dim);
 }
 
+button.sp-pad.on-sd:not(.filled) {
+  background: var(--bg-2);
+  border-color: var(--line-hard);
+}
+
+button.sp-pad.sd-only .sp-pad-name {
+  color: var(--text);
+  font-size: 12px;
+}
+
 button.sp-pad.selected {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent), 0 0 16px -4px var(--accent-glow);
@@ -1625,12 +1639,34 @@ button.sp-pad:active:not(:disabled) {
 }
 
 .sp-pad-num {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 10px;
   color: var(--text-mute);
+  width: 100%;
 }
 
 button.sp-pad.selected .sp-pad-num {
   color: var(--accent);
+}
+
+.sp-on-sd-mark {
+  display: inline-block;
+  margin-left: auto;
+  padding: 0 0.28rem;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  color: var(--bg-0);
+  background: var(--text-mute);
+  border-radius: 2px;
+}
+
+button.sp-pad.on-sd .sp-on-sd-mark {
+  background: var(--accent);
+  color: var(--bg-0);
 }
 
 .sp-pad-name {
@@ -1641,9 +1677,32 @@ button.sp-pad.selected .sp-pad-num {
   color: var(--text);
 }
 
-button.sp-pad:not(.filled) .sp-pad-name {
+button.sp-pad:not(.filled):not(.sd-only) .sp-pad-name {
   color: var(--text-mute);
   font-size: 10.5px;
+}
+
+.sp-pad-sd-meta {
+  font-size: 9px;
+  color: var(--text-mute);
+}
+
+.sd-project-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 12px;
+  color: var(--text-mute);
+}
+
+.sd-project-pick select {
+  max-width: min(420px, 55vw);
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.25rem 0.4rem;
 }
 
 .sp-wave {
