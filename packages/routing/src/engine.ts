@@ -94,6 +94,9 @@ export class MidiRoutingEngine {
       return;
     }
 
+    // Studio rule: the app never sends SysEx (or unparsed bytes) to any device.
+    if (message.kind === 'sysex' || message.kind === 'unknown') return;
+
     const clockLike = isClockLike(message.kind);
 
     for (const route of this.routes) {
@@ -113,12 +116,10 @@ export class MidiRoutingEngine {
 
       if (route.blockKinds?.includes(message.kind)) continue;
 
-      // Channel filter — never apply to system realtime / song-position (no channel)
-      if (
-        !clockLike &&
-        message.channel !== undefined &&
-        route.channel?.allow?.length
-      ) {
+      // Channel filter — never apply to system realtime / song-position (no channel).
+      // A channel-filtered route only carries channel messages.
+      if (!clockLike && route.channel?.allow?.length) {
+        if (message.channel === undefined) continue;
         if (!route.channel.allow.includes(message.channel)) continue;
       }
 
@@ -149,7 +150,7 @@ export class MidiRoutingEngine {
     route: MidiRoute,
     destPortId: PortId,
   ): Uint8Array | null {
-    if (isClockLike(message.kind) || message.kind === 'sysex' || message.kind === 'unknown') {
+    if (isClockLike(message.kind)) {
       return cloneMidiData(message.data);
     }
 
