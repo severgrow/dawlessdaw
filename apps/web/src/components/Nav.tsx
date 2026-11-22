@@ -23,7 +23,7 @@ export function Nav() {
   const workspace = useStudioStore((s) => s.workspace);
   const { setWorkspace } = useStudioActions();
 
-  // Number keys 1–8 jump between workspaces, like a pad row.
+  // Number keys 1–9 jump between workspaces, like a pad row.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
@@ -56,7 +56,7 @@ export function Nav() {
         </button>
       ))}
       <div className="nav-hint">
-        press 1–8 to switch
+        press 1–9 to switch
         <br />
         no sysex · no firmware writes
       </div>

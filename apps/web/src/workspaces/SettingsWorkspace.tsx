@@ -159,7 +159,7 @@ export function SettingsWorkspace() {
           <>
             <p className="muted" style={{ marginTop: '0.75rem' }}>
               Which Circuit note hits SP pad 1? Press <strong>Learn pad 1</strong>, then play that
-              note on Circuit track 1–4 (Live mode). The next 15 notes up play pads 2–16.
+              note on Circuit track 1–4 (Circuit connected). The next 15 notes up play pads 2–16.
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <button

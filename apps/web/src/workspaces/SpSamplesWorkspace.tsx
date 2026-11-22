@@ -87,7 +87,8 @@ function Waveform({ audio }: { audio: PadAudio }) {
     if (!g) return;
     const { width, height } = canvas;
     g.clearRect(0, 0, width, height);
-    g.fillStyle = '#d4a017';
+    g.fillStyle =
+      getComputedStyle(canvas).getPropertyValue('--accent').trim() || '#ff5f1f';
     const peaks = waveformPeaks(audio, width);
     peaks.forEach((p, x) => {
       const h = Math.max(1, p * height);
@@ -298,6 +299,7 @@ export function SpSamplesWorkspace() {
                 Start: {slot.edit.trimStart.toFixed(2)} s
                 <input
                   type="range"
+                  className="sp-range"
                   min={0}
                   max={duration}
                   step={0.01}
@@ -313,6 +315,7 @@ export function SpSamplesWorkspace() {
                 End: {(slot.edit.trimEnd ?? duration).toFixed(2)} s
                 <input
                   type="range"
+                  className="sp-range"
                   min={0}
                   max={duration}
                   step={0.01}
