@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@nervos/core": ["../../packages/core/src"],
+      "@nervos/events": ["../../packages/events/src"],
+      "@nervos/midi": ["../../packages/midi/src"],
+      "@nervos/routing": ["../../packages/routing/src"],
+      "@nervos/focus": ["../../packages/focus/src"],
+      "@nervos/devices": ["../../packages/devices/src"],
+      "@nervos/scenes": ["../../packages/scenes/src"],
+      "@nervos/sessions": ["../../packages/sessions/src"],
+      "@nervos/storage": ["../../packages/storage/src"]
+    }
+  },
+  "include": ["src"]
+}
