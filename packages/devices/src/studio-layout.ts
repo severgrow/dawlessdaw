@@ -59,12 +59,13 @@ export const MY_STUDIO_ROLES: StudioRoleDef[] = [
     midi: true,
     // H-1 / stock USB may omit "fm1" — Felucca, CH345 / WCH CDC / bare M-VAVE are common.
     // Weak CDC hints are last; matcher refuses ports that already look like Circuit/MPC/SP.
-    // Prefer "h-1" over bare "h1" (too many false substring hits).
+    // Bare "h1" is allowed: scorer matches short hints as whole-token / exact compact only.
     portNameHints: [
       'fm1',
       'fm-1',
       'felucca',
       'h-1',
+      'h1',
       'm-vave',
       'm vave',
       'mvave',

@@ -19,7 +19,7 @@ Use **Replay groove fixture** or per-device **Tap note** to exercise routing and
 1. Switch to Live in the status bar.
 2. Grant MIDI permission.
 3. **Patchbay → Ports** is exactly what Chrome Web MIDI sees. If MPC One is missing there, it is a USB / macOS Audio MIDI Setup / power issue — not a Dawlessdaw bug.
-4. Ports are matched by name hints (see adapters). Odd CDC names still match when known: **Felucca**, `h-1`, `m-vave` / `mvave` / `CH345` → **FM1**. Unmatched ports stay available for manual assignment in Settings.
+4. Ports are matched by name hints (see adapters). Odd CDC names still match when known: **Felucca**, `h-1` / `h1`, `m-vave` / `mvave` / `CH345` → **FM1**. Unmatched ports stay available for manual assignment in Settings.
 5. ZED-10FX never appears as MIDI — register/ensure as audio-only studio member.
 
 ### Strip status (MIDI roles)

@@ -83,9 +83,31 @@ describe('Mac / Live hint matching', () => {
     expect(scorePortAgainstHints({ name: 'CH345' }, fm1Hints)).toBeGreaterThan(0);
     expect(scorePortAgainstHints({ name: 'Felucca' }, fm1Hints)).toBeGreaterThan(0);
     expect(scorePortAgainstHints({ name: 'H-1 MIDI' }, fm1Hints)).toBeGreaterThan(0);
+    expect(scorePortAgainstHints({ name: 'H1' }, fm1Hints)).toBeGreaterThan(0);
+    expect(scorePortAgainstHints({ name: 'h1' }, fm1Hints)).toBeGreaterThan(0);
     expect(
       scorePortAgainstHints({ name: 'USB-MIDI', manufacturer: 'wch.cn' }, fm1Hints),
     ).toBeGreaterThan(0);
+  });
+
+  it('auto-assigns Felucca in/out to FM1 without stealing Circuit/SP', () => {
+    const live: MidiPortInfo[] = [
+      { id: 'c-in', name: 'Circuit Rhythm MIDI', type: 'input', state: 'connected' },
+      { id: 'c-out', name: 'Circuit Rhythm MIDI', type: 'output', state: 'connected' },
+      { id: 's-in', name: 'SP-404MKII', type: 'input', state: 'connected' },
+      { id: 's-out', name: 'SP-404MKII', type: 'output', state: 'connected' },
+      { id: 'fel-in', name: 'Felucca', type: 'input', state: 'connected' },
+      { id: 'fel-out', name: 'Felucca', type: 'output', state: 'connected' },
+    ];
+    const a = matchPortsToRoles(live);
+    const fm1 = a.find((x) => x.roleId === 'fm1')!;
+    expect(fm1.inputPortId).toBe('fel-in');
+    expect(fm1.outputPortId).toBe('fel-out');
+    expect(fm1.connected).toBe(true);
+    expect(fm1.inputPortName).toBe('Felucca');
+    expect(a.find((x) => x.roleId === 'circuit')?.inputPortId).toBe('c-in');
+    expect(a.find((x) => x.roleId === 'sp404')?.outputPortId).toBe('s-out');
+    expect(a.find((x) => x.roleId === 'mpc')?.connected).toBe(false);
   });
 
   it('does not score Circuit/SP names against MPC or FM1 hints', () => {

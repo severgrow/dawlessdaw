@@ -124,6 +124,7 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
       'fm-1',
       'felucca',
       'h-1',
+      'h1',
       'm-vave',
       'm vave',
       'mvave',

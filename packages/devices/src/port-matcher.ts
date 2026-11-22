@@ -35,11 +35,24 @@ export function scorePortAgainstHints(
       if (!hl) continue;
       const hCompact = compact(hl);
       const hTokens = tokens(hl);
+      // Bare short alphanumerics (e.g. "h1"): exact compact / whole-token only.
+      // Hyphenated forms like "h-1" keep normal includes matching.
+      if (hl.length < 3 && /^[a-z0-9]+$/.test(hl)) {
+        if (nCompact === hCompact || nTokens.has(hl) || nTokens.has(hCompact)) {
+          best = Math.max(best, hCompact.length || hl.length);
+        }
+        continue;
+      }
       if (n.includes(hl)) {
         best = Math.max(best, hCompact.length || hl.length);
         continue;
       }
       if (hCompact.length >= 3 && nCompact.includes(hCompact)) {
+        best = Math.max(best, hCompact.length);
+        continue;
+      }
+      // Compact equality for hyphenated shorts ("h-1" ↔ name "H1").
+      if (hCompact.length >= 2 && nCompact === hCompact) {
         best = Math.max(best, hCompact.length);
         continue;
       }
@@ -71,7 +84,18 @@ function exclusiveHintsForRole(role: StudioRoleDef): string[] {
     case 'sp404':
       return ['sp404', 'sp-404', '404mkii', '404'];
     case 'fm1':
-      return ['fm1', 'fm-1', 'felucca', 'h-1', 'mvave', 'm-vave', 'mvav', 'ch345', 'wch'];
+      return [
+        'fm1',
+        'fm-1',
+        'felucca',
+        'h-1',
+        'h1',
+        'mvave',
+        'm-vave',
+        'mvav',
+        'ch345',
+        'wch',
+      ];
     default:
       return role.portNameHints;
   }
