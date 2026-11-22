@@ -1,8 +1,10 @@
 /**
- * FLIP lane UI — sits under the 8 MIDI tracks. Hardware audio capture only
- * (Scarlett / ZED / etc.). Circuit audio is unused. Not a 9th MIDI track.
+ * FLIP lane UI — stereo mix capture under the 8 MIDI tracks.
+ * Workflow: Input → PLAY Circuit/seq → ARM → capture → PLAY LOOP.
+ * Optional: mute Dawlessdaw Pattern tracks while the loop plays (not Circuit mute / not stems).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { MoreInfo } from '../components/MoreInfo';
 import {
   formatInputLabel,
   listAudioInputs,
@@ -13,7 +15,15 @@ import { loadTakeAudio } from '../recorder/takeStore';
 import type { AudioInputDevice, StereoAudio } from '../recorder/types';
 import { PLAYBACK_REENGAGE_WARN } from './feedback';
 import { downloadFlipWav, exportChopWavs } from './exportFlip';
+import { FlipInputPreview } from './FlipInputPreview';
 import { getFlipEngine, type FlipEngineStatus } from './flipEngine';
+import {
+  FLIP_HANDOFF_TRACKS,
+  HANDOFF_LIMITS,
+  HANDOFF_LIMITS_DETAIL,
+  toggleHandoffTrack,
+  type FlipHandoffTrack,
+} from './handoff';
 import { FLIP_BAR_OPTIONS, type FlipBarCount } from './types';
 
 export interface FlipLaneProps {
@@ -21,22 +31,50 @@ export interface FlipLaneProps {
   playhead: number;
   playing: boolean;
   clockSource: 'circuit' | 'internal';
+  /** Current Dawlessdaw Pattern mute flags (index 0 = track 1). */
+  trackMutes?: boolean[];
+  setTrackMute?: (track: number, muted: boolean) => void;
 }
 
-export function FlipLane({ bpm, playhead, playing, clockSource }: FlipLaneProps) {
+export function FlipLane({
+  bpm,
+  playhead,
+  playing,
+  clockSource,
+  trackMutes,
+  setTrackMute,
+}: FlipLaneProps) {
   const [status, setStatus] = useState<FlipEngineStatus>(() => getFlipEngine().status());
   const [inputs, setInputs] = useState<AudioInputDevice[]>([]);
   const [audio, setAudio] = useState<StereoAudio | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [wavBits, setWavBits] = useState<16 | 24>(24);
   const [busy, setBusy] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const waveRef = useRef<HTMLCanvasElement>(null);
+  const mutesRef = useRef(trackMutes);
+  mutesRef.current = trackMutes;
+  const setMuteRef = useRef(setTrackMute);
+  setMuteRef.current = setTrackMute;
 
   useEffect(() => getFlipEngine().subscribe(setStatus), []);
 
   useEffect(() => {
     getFlipEngine().updateClock({ playing, playhead, bpm, clockSource });
   }, [playing, playhead, bpm, clockSource]);
+
+  const hasMuteHook = typeof setTrackMute === 'function';
+  useEffect(() => {
+    if (!hasMuteHook) {
+      getFlipEngine().setHandoffHooks(null);
+      return;
+    }
+    getFlipEngine().setHandoffHooks({
+      getMuted: (track) => mutesRef.current?.[track - 1] === true,
+      setMute: (track, muted) => setMuteRef.current?.(track, muted),
+    });
+    return () => getFlipEngine().setHandoffHooks(null);
+  }, [hasMuteHook]);
 
   useEffect(() => {
     void (async () => {
@@ -143,6 +181,8 @@ export function FlipLane({ bpm, playhead, playing, clockSource }: FlipLaneProps)
     status.phase === 'waiting_boundary' ||
     status.phase === 'armed' ||
     status.phase === 'processing';
+  const ready = clip && status.phase === 'ready';
+  const handoff = status.handoff;
 
   return (
     <section className="flip-lane" aria-label="FLIP capture lane">
@@ -153,9 +193,16 @@ export function FlipLane({ bpm, playhead, playing, clockSource }: FlipLaneProps)
           <span className={`flip-phase flip-phase-${status.phase}`}>{status.phaseLabel}</span>
         </div>
         <p className="flip-lead muted small">
-          Hardware loop under the 8 MIDI tracks — capture from Scarlett / ZED / any input. Circuit
-          audio unused. Not a 9th MIDI track.
+          Captures the <b>stereo audio mix</b> from your interface — not a MIDI track, not stem
+          isolation. Circuit USB audio is unused; feed Scarlett / ZED / MPC / SP / FM1 into the
+          selected input.
         </p>
+        <ol className="flip-steps" aria-label="FLIP workflow">
+          <li>Input</li>
+          <li>PLAY seq</li>
+          <li>ARM</li>
+          <li>PLAY LOOP</li>
+        </ol>
       </div>
 
       <div className="flip-controls" role="toolbar" aria-label="FLIP capture">
@@ -193,36 +240,26 @@ export function FlipLane({ bpm, playhead, playing, clockSource }: FlipLaneProps)
           </select>
         </label>
 
-        <label className="seq-field" title="Non-destructive trim offset per input">
-          Offset ms
-          <input
-            type="number"
-            min={-500}
-            max={500}
-            step={1}
-            value={status.captureOffsetMs}
-            disabled={phaseRec}
-            onChange={(e) => getFlipEngine().setCaptureOffsetMs(Number(e.target.value), true)}
-          />
-        </label>
-
         <button
           type="button"
           className={
             status.phase === 'armed' || status.phase === 'waiting_boundary'
               ? 'seq-btn rec on'
-              : 'seq-btn rec'
+              : ready
+                ? 'seq-btn'
+                : 'seq-btn rec'
           }
           disabled={status.phase === 'recording' || status.phase === 'processing'}
           onClick={() => {
             if (status.phase === 'armed' || status.phase === 'waiting_boundary') {
               getFlipEngine().disarm();
+              setMsg(null);
             } else {
               getFlipEngine().armQuantised();
               setMsg(
                 playing
-                  ? 'Armed — waiting for next bar boundary'
-                  : 'Armed — start sequencer PLAY, or Capture now (unaligned)',
+                  ? 'Waiting for next bar boundary…'
+                  : 'Press sequencer PLAY, then wait for the bar — or use Capture now (Advanced).',
               );
             }
           }}
@@ -234,52 +271,52 @@ export function FlipLane({ bpm, playhead, playing, clockSource }: FlipLaneProps)
               : 'ARM'}
         </button>
 
-        <button
-          type="button"
-          className="seq-btn"
-          disabled={
-            status.phase === 'recording' ||
-            status.phase === 'processing' ||
-            status.phase === 'waiting_boundary'
-          }
-          onClick={() => {
-            void (async () => {
-              if (status.phase !== 'armed') getFlipEngine().armQuantised();
-              await getFlipEngine().captureNow();
-              setMsg('Unaligned capture — no time-stretch applied');
-            })();
-          }}
-        >
-          CAPTURE NOW
-        </button>
+        {phaseRec ? (
+          <button
+            type="button"
+            className="seq-btn ghost"
+            onClick={() => void getFlipEngine().cancel()}
+          >
+            CANCEL
+          </button>
+        ) : null}
 
-        <button
-          type="button"
-          className="seq-btn ghost"
-          disabled={!phaseRec}
-          onClick={() => void getFlipEngine().cancel()}
-        >
-          CANCEL
-        </button>
-
-        <label className="flip-check">
-          <input
-            type="checkbox"
-            checked={status.monitorInput}
-            onChange={(e) => getFlipEngine().setMonitorInput(e.target.checked)}
-          />
-          Monitor
-        </label>
-
-        <label className="flip-check" title="Intentional resample — feedback risk">
-          <input
-            type="checkbox"
-            checked={status.allowPlayWhileRec}
-            onChange={(e) => getFlipEngine().setAllowPlayWhileRec(e.target.checked)}
-          />
-          Adv. resample
-        </label>
+        {ready ? (
+          <button
+            type="button"
+            className={status.loopPlaying ? 'seq-btn on' : 'seq-btn rec'}
+            onClick={() => {
+              if (status.loopPlaying) {
+                getFlipEngine().stopPlayback();
+                setMsg(
+                  status.handoffActive
+                    ? 'Stopped — Dawlessdaw track mutes restored'
+                    : 'Stopped',
+                );
+              } else {
+                void getFlipEngine().playLoop().then(() => {
+                  const s = getFlipEngine().status();
+                  setMsg(
+                    s.handoff.replaceMidiWhilePlaying
+                      ? `Playing loop — muted Dawlessdaw T${s.handoff.tracks.join(',')}`
+                      : 'Playing loop',
+                  );
+                });
+              }
+            }}
+          >
+            {status.loopPlaying ? 'STOP LOOP' : 'PLAY LOOP'}
+          </button>
+        ) : null}
       </div>
+
+      <FlipInputPreview
+        deviceId={status.deviceId}
+        enabled={status.phase !== 'processing'}
+        captureMeters={
+          status.phase === 'recording' ? status.capture.meters : null
+        }
+      />
 
       {status.phase === 'recording' ? (
         <p className="flip-progress mono small" role="status">
@@ -302,12 +339,6 @@ export function FlipLane({ bpm, playhead, playing, clockSource }: FlipLaneProps)
         </p>
       ) : null}
 
-      {!status.monitorInput ? (
-        <p className="muted small flip-hint">
-          Monitor OFF — room won&apos;t feed back into the take. {PLAYBACK_REENGAGE_WARN}
-        </p>
-      ) : null}
-
       {status.error ? (
         <p className="callout warn-callout" role="alert">
           {status.error}
@@ -316,16 +347,8 @@ export function FlipLane({ bpm, playhead, playing, clockSource }: FlipLaneProps)
 
       {msg ? <p className="muted small">{msg}</p> : null}
 
-      {clip && status.phase === 'ready' ? (
+      {ready && clip ? (
         <div className="flip-ready">
-          <div className="flip-align" role="status">
-            <span className={`flip-badge align-${clip.alignment}`}>{clip.alignment}</span>
-            <span className={`flip-badge conf-${clip.confidence}`}>
-              confidence {clip.confidence}
-            </span>
-            <span className="muted small">{clip.confidenceNote}</span>
-          </div>
-
           <canvas
             ref={waveRef}
             className="flip-wave"
@@ -351,17 +374,56 @@ export function FlipLane({ bpm, playhead, playing, clockSource }: FlipLaneProps)
             }}
           />
 
+          <div className="flip-handoff" role="group" aria-label="Replace MIDI tracks">
+            <label className="flip-check">
+              <input
+                type="checkbox"
+                checked={handoff.replaceMidiWhilePlaying}
+                onChange={(e) =>
+                  getFlipEngine().setReplaceMidiWhilePlaying(e.target.checked)
+                }
+              />
+              Replace MIDI tracks while FLIP plays
+            </label>
+            {handoff.replaceMidiWhilePlaying ? (
+              <div className="flip-handoff-tracks">
+                {FLIP_HANDOFF_TRACKS.map((t) => (
+                  <label key={t} className="flip-check flip-track-chip">
+                    <input
+                      type="checkbox"
+                      checked={handoff.tracks.includes(t)}
+                      onChange={() => {
+                        const next = toggleHandoffTrack(
+                          handoff.tracks as FlipHandoffTrack[],
+                          t,
+                        );
+                        getFlipEngine().setHandoffTracks(next);
+                      }}
+                    />
+                    T{t}
+                  </label>
+                ))}
+                {status.handoffActive ? (
+                  <button
+                    type="button"
+                    className="seq-btn ghost"
+                    onClick={() => {
+                      getFlipEngine().undoHandoffMutes();
+                      setMsg('Handoff mutes undone — previous mute state restored');
+                    }}
+                  >
+                    UNDO MUTES
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            <p className="muted small flip-handoff-note">{HANDOFF_LIMITS}</p>
+            <MoreInfo label="Handoff limits">
+              <p className="muted small">{HANDOFF_LIMITS_DETAIL}</p>
+            </MoreInfo>
+          </div>
+
           <div className="flip-play-row">
-            <button
-              type="button"
-              className={status.loopPlaying ? 'seq-btn on' : 'seq-btn'}
-              onClick={() => {
-                if (status.loopPlaying) getFlipEngine().stopPlayback();
-                else void getFlipEngine().playLoop();
-              }}
-            >
-              {status.loopPlaying ? 'STOP' : 'PLAY LOOP'}
-            </button>
             <label className="seq-field">
               Gain
               <input
@@ -372,45 +434,13 @@ export function FlipLane({ bpm, playhead, playing, clockSource }: FlipLaneProps)
                 onChange={(e) => getFlipEngine().setGain(Number(e.target.value) / 100)}
               />
             </label>
-            <label className="flip-check">
-              <input
-                type="checkbox"
-                checked={clip.reverse}
-                onChange={(e) => getFlipEngine().setReverse(e.target.checked)}
-              />
-              Reverse
-            </label>
-            <label className="seq-field">
-              Fade in ms
-              <input
-                type="number"
-                min={0}
-                max={500}
-                value={clip.fadeInMs}
-                onChange={(e) =>
-                  getFlipEngine().setFades(Number(e.target.value), clip.fadeOutMs)
-                }
-              />
-            </label>
-            <label className="seq-field">
-              Fade out ms
-              <input
-                type="number"
-                min={0}
-                max={500}
-                value={clip.fadeOutMs}
-                onChange={(e) =>
-                  getFlipEngine().setFades(clip.fadeInMs, Number(e.target.value))
-                }
-              />
-            </label>
             <button
               type="button"
               className="seq-btn ghost"
               disabled={status.undoCount < 1}
               onClick={() => getFlipEngine().undo()}
             >
-              UNDO
+              UNDO EDIT
             </button>
             <button
               type="button"
@@ -455,54 +485,173 @@ export function FlipLane({ bpm, playhead, playing, clockSource }: FlipLaneProps)
                     {st.slice >= 0 ? st.slice + 1 : '·'}
                   </button>
                 ))}
-                <span className="muted small">mono/choke</span>
               </div>
             ) : null}
           </div>
+        </div>
+      ) : null}
 
-          <div className="flip-export-row">
-            <label className="seq-field">
-              WAV
-              <select
-                value={wavBits}
-                onChange={(e) => setWavBits(Number(e.target.value) as 16 | 24)}
-              >
-                <option value={24}>24-bit</option>
-                <option value={16}>16-bit</option>
-              </select>
+      <button
+        type="button"
+        className="flip-more-toggle"
+        aria-expanded={showAdvanced}
+        onClick={() => setShowAdvanced((v) => !v)}
+      >
+        {showAdvanced ? 'Hide advanced' : 'More / Advanced'}
+      </button>
+
+      {showAdvanced ? (
+        <div className="flip-advanced">
+          <div className="flip-controls" role="toolbar" aria-label="FLIP advanced">
+            <label className="seq-field" title="Non-destructive trim offset per input">
+              Offset ms
+              <input
+                type="number"
+                min={-500}
+                max={500}
+                step={1}
+                value={status.captureOffsetMs}
+                disabled={phaseRec}
+                onChange={(e) => getFlipEngine().setCaptureOffsetMs(Number(e.target.value), true)}
+              />
             </label>
             <button
               type="button"
               className="seq-btn"
-              disabled={busy || !audio}
+              disabled={
+                status.phase === 'recording' ||
+                status.phase === 'processing' ||
+                status.phase === 'waiting_boundary'
+              }
               onClick={() => {
-                if (!audio || !clip) return;
-                setBusy(true);
-                void downloadFlipWav(audio, clip, { wavBitDepth: wavBits })
-                  .then((name) => setMsg(`Exported ${name}`))
-                  .finally(() => setBusy(false));
+                void (async () => {
+                  if (status.phase !== 'armed') getFlipEngine().armQuantised();
+                  await getFlipEngine().captureNow();
+                  setMsg('Unaligned capture — no time-stretch');
+                })();
               }}
             >
-              EXPORT WAV
+              CAPTURE NOW
             </button>
-            <button
-              type="button"
-              className="seq-btn ghost"
-              disabled={busy || !audio || !clip.chop}
-              onClick={() => {
-                if (!audio || !clip?.chop) return;
-                setBusy(true);
-                void exportChopWavs(audio, clip, wavBits)
-                  .then((names) => setMsg(`Exported ${names.length} slices`))
-                  .finally(() => setBusy(false));
-              }}
-            >
-              EXPORT SLICES
-            </button>
-            <span className="muted small">
-              Uses Session Recorder WAV path · take ref {clip.takeId.slice(0, 12)}…
-            </span>
+            <label className="flip-check">
+              <input
+                type="checkbox"
+                checked={status.monitorInput}
+                onChange={(e) => getFlipEngine().setMonitorInput(e.target.checked)}
+              />
+              Monitor
+            </label>
+            <label className="flip-check" title="Intentional resample — feedback risk">
+              <input
+                type="checkbox"
+                checked={status.allowPlayWhileRec}
+                onChange={(e) => getFlipEngine().setAllowPlayWhileRec(e.target.checked)}
+              />
+              Intentional resample
+            </label>
           </div>
+
+          {!status.monitorInput ? (
+            <p className="muted small flip-hint">
+              Monitor OFF (safe default). {PLAYBACK_REENGAGE_WARN}
+            </p>
+          ) : null}
+
+          {ready && clip ? (
+            <>
+              <div className="flip-align" role="status">
+                <span className={`flip-badge align-${clip.alignment}`}>{clip.alignment}</span>
+                <span className={`flip-badge conf-${clip.confidence}`}>
+                  confidence {clip.confidence}
+                </span>
+                <span className="muted small">{clip.confidenceNote}</span>
+              </div>
+              <div className="flip-play-row">
+                <label className="flip-check">
+                  <input
+                    type="checkbox"
+                    checked={clip.reverse}
+                    onChange={(e) => getFlipEngine().setReverse(e.target.checked)}
+                  />
+                  Reverse
+                </label>
+                <label className="seq-field">
+                  Fade in ms
+                  <input
+                    type="number"
+                    min={0}
+                    max={500}
+                    value={clip.fadeInMs}
+                    onChange={(e) =>
+                      getFlipEngine().setFades(Number(e.target.value), clip.fadeOutMs)
+                    }
+                  />
+                </label>
+                <label className="seq-field">
+                  Fade out ms
+                  <input
+                    type="number"
+                    min={0}
+                    max={500}
+                    value={clip.fadeOutMs}
+                    onChange={(e) =>
+                      getFlipEngine().setFades(clip.fadeInMs, Number(e.target.value))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="flip-export-row">
+                <label className="seq-field">
+                  WAV
+                  <select
+                    value={wavBits}
+                    onChange={(e) => setWavBits(Number(e.target.value) as 16 | 24)}
+                  >
+                    <option value={24}>24-bit</option>
+                    <option value={16}>16-bit</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="seq-btn"
+                  disabled={busy || !audio}
+                  onClick={() => {
+                    if (!audio || !clip) return;
+                    setBusy(true);
+                    void downloadFlipWav(audio, clip, { wavBitDepth: wavBits })
+                      .then((name) => setMsg(`Exported ${name}`))
+                      .finally(() => setBusy(false));
+                  }}
+                >
+                  EXPORT WAV
+                </button>
+                <button
+                  type="button"
+                  className="seq-btn ghost"
+                  disabled={busy || !audio || !clip.chop}
+                  onClick={() => {
+                    if (!audio || !clip?.chop) return;
+                    setBusy(true);
+                    void exportChopWavs(audio, clip, wavBits)
+                      .then((names) => setMsg(`Exported ${names.length} slices`))
+                      .finally(() => setBusy(false));
+                  }}
+                >
+                  EXPORT SLICES
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          <MoreInfo label="What FLIP does / does not do">
+            <p className="muted small">
+              FLIP records whatever arrives on the chosen audio input for N bars, then loops that
+              clip in the browser. It does <b>not</b> convert a MIDI track into audio by itself —
+              hardware must be audible on that input. Phase C Circuit mute / stem APIs are not
+              claimed. Optional &quot;Replace MIDI tracks&quot; only mutes Dawlessdaw Pattern
+              tracks while PLAY LOOP runs (undo restores).
+            </p>
+          </MoreInfo>
         </div>
       ) : null}
     </section>

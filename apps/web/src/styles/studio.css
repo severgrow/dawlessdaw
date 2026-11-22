@@ -4381,12 +4381,188 @@ button.send-add {
 
 .flip-lead { margin: 0.25rem 0 0; max-width: 52rem; }
 
+.flip-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #9a958c);
+  font-family: var(--mono, ui-monospace, monospace);
+}
+
+.flip-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.flip-steps li::before {
+  content: counter(flip-step);
+  counter-increment: flip-step;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 1px solid var(--line-hard);
+  color: var(--bone);
+  font-size: 0.65rem;
+}
+
+.flip-steps { counter-reset: flip-step; }
+
 .flip-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem 0.75rem;
   align-items: flex-end;
   margin-bottom: 0.45rem;
+}
+
+.flip-more-toggle {
+  margin: 0.35rem 0 0;
+  padding: 0.2rem 0;
+  border: none;
+  background: transparent;
+  color: var(--muted, #9a958c);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.flip-more-toggle:hover { color: var(--bone); }
+
+.flip-advanced {
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed var(--line-hard);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.flip-input-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  margin: 0.2rem 0 0.45rem;
+  min-height: 2.1rem;
+}
+
+.flip-input-preview.idle {
+  opacity: 0.75;
+}
+
+.flip-live-wave {
+  width: 140px;
+  height: 36px;
+  display: block;
+  border: 1px solid var(--line-hard);
+  background: rgba(0, 0, 0, 0.35);
+  flex: 0 0 auto;
+}
+
+.flip-live-meters {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 7.5rem;
+  flex: 1 1 7.5rem;
+  max-width: 14rem;
+}
+
+.flip-live-meter {
+  display: grid;
+  grid-template-columns: 0.9rem 1fr;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.flip-live-meter span {
+  font-size: 0.65rem;
+  color: var(--muted, #9a958c);
+  line-height: 1;
+}
+
+.flip-live-track {
+  height: 8px;
+  background: var(--bg-3, #1a1a1a);
+  border: 1px solid var(--line-hard);
+  overflow: hidden;
+}
+
+.flip-live-track i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--on, #9a2a45);
+}
+
+.flip-live-meter.clip .flip-live-track i {
+  background: var(--alert-hi, #b5ead3);
+}
+
+.flip-live-kind {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--line-hard);
+  color: var(--muted, #9a958c);
+}
+
+.flip-live-kind.kind-signal {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.flip-live-kind.kind-hot {
+  color: var(--alert-hi);
+  border-color: var(--alert-hi);
+}
+
+.flip-live-kind.kind-silence {
+  opacity: 0.8;
+}
+
+.flip-live-err {
+  flex: 1 1 100%;
+}
+
+.flip-handoff {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px dashed var(--line-hard);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.flip-handoff-tracks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  align-items: center;
+}
+
+.flip-track-chip {
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--line-hard);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+}
+
+.flip-handoff-note {
+  margin: 0;
+  max-width: 48rem;
+  line-height: 1.35;
 }
 
 .flip-check {
