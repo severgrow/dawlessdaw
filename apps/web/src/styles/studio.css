@@ -1,7 +1,7 @@
 /*
  * Dawlessdaw visual system
  * Two pastel colours on black:
- *   ON    (pastel burgundy) = on / live / OK / MIDI / selected
+ *   ON    (deep burgundy)   = on / live / OK / MIDI / selected
  *   ALERT (pastel mint)     = stop / fail / warn / clip / audio
  * Everything else is greyscale. A fine film grain sits over everything
  * (same SVG noise as severgrow-01's Soil texture). Rounded, playful hardware
@@ -20,12 +20,12 @@
   --text-dim: #a09d96;
   --text-mute: #64615c;
 
-  /* ON — pastel burgundy */
-  --on: #d996a9;
-  --on-2: #c27d92;
-  --on-dim: #4d2733;
-  --on-glow: rgba(217, 150, 169, 0.36);
-  --on-wash: rgba(217, 150, 169, 0.1);
+  /* ON — deep, dark burgundy (light text on its fills) */
+  --on: #9a2a45;
+  --on-2: #7c1f36;
+  --on-dim: #3a131e;
+  --on-glow: rgba(154, 42, 69, 0.5);
+  --on-wash: rgba(154, 42, 69, 0.14);
 
   /* ALERT — pastel mint */
   --alert: #9fdcc2; /* fills */
@@ -38,7 +38,8 @@
   --accent: var(--on);
   --accent-dim: var(--on-dim);
   --accent-glow: var(--on-glow);
-  --accent-ink: #0a0a0a;
+  --accent-ink: #f5e9ec; /* text on burgundy fills */
+  --alert-ink: #0a0a0a; /* text on mint fills */
   --ok: var(--on);
   --ok-glow: var(--on-glow);
   --warn: var(--alert-hi);
@@ -188,12 +189,12 @@ button.ghost {
 
 button.danger {
   border-color: var(--alert);
-  color: var(--accent-ink);
+  color: var(--alert-ink);
   background: var(--alert);
 }
 button.danger:hover:not(:disabled) {
   background: var(--alert-hi);
-  color: var(--accent-ink);
+  color: var(--alert-ink);
   border-color: var(--alert-hi);
 }
 
@@ -207,7 +208,7 @@ button.verdict-fail.active,
 button.verdict-fail.active:hover:not(:disabled) {
   background: var(--alert);
   border-color: var(--alert-hi);
-  color: var(--accent-ink);
+  color: var(--alert-ink);
   box-shadow: 0 0 14px -2px var(--alert-glow);
 }
 /* Unsure = neutral: a white outline, no colour */
@@ -1469,7 +1470,7 @@ button.bench-head:hover:not(:disabled) {
 .verdict-tag.v-fail {
   background: var(--alert);
   border-color: var(--alert);
-  color: var(--accent-ink);
+  color: var(--alert-ink);
 }
 .verdict-tag.v-pass {
   background: var(--on);
@@ -1874,7 +1875,7 @@ button.ap-clip {
 button.ap-clip.on {
   background: var(--alert);
   border-color: var(--alert-hi);
-  color: var(--accent-ink);
+  color: var(--alert-ink);
 }
 
 @media (max-width: 720px) {
