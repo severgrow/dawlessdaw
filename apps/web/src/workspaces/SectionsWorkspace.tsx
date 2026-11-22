@@ -1,3 +1,4 @@
+import { MoreInfo } from '../components/MoreInfo';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 /** Number box that shows 1-based numbers but stores 0-based Program Change values. */
@@ -63,9 +64,7 @@ export function SectionsWorkspace() {
         </button>
       </div>
       <p className="lead">
-        Change <strong>Project</strong> on the Circuit and the SP and MPC follow: the app sends the
-        SP a pattern change and the MPC a sequence change. Circuit Setup: <strong>Program Change
-        Tx</strong> on (Project changes go out on channel 16).
+        Circuit Project → SP pattern + MPC sequence. Needs Circuit <strong>Program Change Tx</strong> on (ch 16).
       </p>
 
       <div className="panel">
@@ -73,11 +72,11 @@ export function SectionsWorkspace() {
         {last ? (
           <p className="mono">
             Project {last.index} ({last.kind}) ·{' '}
-            {last.matched ? 'row found — sent' : bridge.enabled ? 'no row for it' : 'bridge is off'} ·{' '}
+            {last.matched ? 'sent' : bridge.enabled ? 'no row' : 'bridge off'} ·{' '}
             {new Date(last.at).toLocaleTimeString()}
           </p>
         ) : (
-          <p className="muted">Nothing yet. Change Project on the Circuit to test.</p>
+          <p className="muted">Nothing yet — change Project on the Circuit.</p>
         )}
       </div>
 
@@ -150,17 +149,16 @@ export function SectionsWorkspace() {
         <button type="button" className="ghost" onClick={addRow} disabled={bridge.rows.length >= 64}>
           + Add project
         </button>
-        <p className="muted small">
-          Leave a box empty to send nothing to that device. SP: pattern change on channel 13{' '}
-          {pass('sp-pattern-pc') ? '(bench passed)' : '(not yet bench-tested — test e)'}. MPC:
-          program change on channel 15 {pass('mpc-sequence-pc') ? '(bench passed)' : '(not yet bench-tested — test f)'}.
-        </p>
         {spInModeA ? (
-          <p className="warn">
-            The SP is getting notes in MIDI Mode A (Rig tab). In Mode A the SP&apos;s pattern change
-            on channel 13 may not work — check with test e.
-          </p>
+          <p className="warn">SP Mode A (notes) — pattern PC on ch 13 may fail (bench e).</p>
         ) : null}
+        <MoreInfo>
+          <p className="muted small">
+            Empty box = send nothing. SP pattern PC on ch 13{' '}
+            {pass('sp-pattern-pc') ? '(bench pass)' : '(bench e pending)'}. MPC sequence PC on ch 15{' '}
+            {pass('mpc-sequence-pc') ? '(bench pass)' : '(bench f pending)'}.
+          </p>
+        </MoreInfo>
       </div>
     </div>
   );

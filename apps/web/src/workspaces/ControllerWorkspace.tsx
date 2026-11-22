@@ -20,6 +20,7 @@ import {
   type KnobSlot,
 } from '@dawlessdaw/devices';
 import { DeviceArt } from '../components/DeviceArt';
+import { MoreInfo } from '../components/MoreInfo';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -269,19 +270,22 @@ function TrackPanel({ trackNo, advanced }: { trackNo: number; advanced: boolean 
               </button>
             ) : null}
           </div>
-          <PadMap track={track} />
-          {dest.device === 'mpc' ? (
-            <p className="muted small">MPC pads assume the MPC’s default (Classic) pad map, pad 1 = note 37. Check your program.</p>
-          ) : null}
+          <details className="more-info">
+            <summary>Pad map</summary>
+            <div className="more-info-body">
+              <PadMap track={track} />
+              {dest.device === 'mpc' ? (
+                <p className="muted small">MPC Classic pad map: pad 1 = note 37.</p>
+              ) : null}
+            </div>
+          </details>
         </>
       ) : null}
 
       <h3>Knobs</h3>
       <p className="muted small">
-        The 8 Circuit macro knobs, while track {trackNo} is selected on the Circuit. Unmapped knobs are dropped.
-        {dest?.device === 'mpc'
-          ? ' MPC: open MIDI Learn on the MPC, touch the control you want, then press “test” on a Learnable knob (or turn the real knob).'
-          : ''}
+        8 macros on Circuit track {trackNo}. Unmapped = dropped.
+        {dest?.device === 'mpc' ? ' MPC Learn + “test” to bind.' : ''}
       </p>
       <div className="knob-page">
         {Array.from({ length: 8 }, (_, k) => (
@@ -289,31 +293,35 @@ function TrackPanel({ trackNo, advanced }: { trackNo: number; advanced: boolean 
         ))}
       </div>
 
-      <h3>Copy track {trackNo} to…</h3>
-      <div className="row">
-        {Array.from({ length: 8 }, (_, i) => i + 1)
-          .filter((t) => t !== trackNo)
-          .map((t) => (
-            <label key={t} className="check-pill">
-              <input
-                type="checkbox"
-                checked={copyTo.includes(t)}
-                onChange={(e) => setCopyTo((c) => (e.target.checked ? [...c, t] : c.filter((x) => x !== t)))}
-              />
-              T{t}
-            </label>
-          ))}
-        <button
-          type="button"
-          disabled={!copyTo.length}
-          onClick={() => {
-            a.copyControllerTrack(trackNo, copyTo);
-            setCopyTo([]);
-          }}
-        >
-          Copy
-        </button>
-      </div>
+      {advanced ? (
+        <>
+          <h3>Copy track {trackNo} to…</h3>
+          <div className="row">
+            {Array.from({ length: 8 }, (_, i) => i + 1)
+              .filter((t) => t !== trackNo)
+              .map((t) => (
+                <label key={t} className="check-pill">
+                  <input
+                    type="checkbox"
+                    checked={copyTo.includes(t)}
+                    onChange={(e) => setCopyTo((c) => (e.target.checked ? [...c, t] : c.filter((x) => x !== t)))}
+                  />
+                  T{t}
+                </label>
+              ))}
+            <button
+              type="button"
+              disabled={!copyTo.length}
+              onClick={() => {
+                a.copyControllerTrack(trackNo, copyTo);
+                setCopyTo([]);
+              }}
+            >
+              Copy
+            </button>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -374,7 +382,12 @@ function PresetBar({ advanced, setAdvanced }: { advanced: boolean; setAdvanced: 
       <button type="button" className="ghost" disabled={!snap.controllerUndoCount} onClick={() => a.undoController()} title="Undo (⌘Z)">
         ↶ Undo {snap.controllerUndoCount ? `(${snap.controllerUndoCount})` : ''}
       </button>
-      <button type="button" className={advanced ? 'active' : 'ghost'} onClick={() => setAdvanced(!advanced)} title="Show MIDI channels and CC numbers">
+      <button
+        type="button"
+        className={advanced ? 'active' : 'ghost'}
+        onClick={() => setAdvanced(!advanced)}
+        title="MIDI channels, CC numbers, copy track, Skiff channels"
+      >
         Advanced
       </button>
     </div>
@@ -447,8 +460,7 @@ export function ControllerWorkspace() {
         </span>
       </div>
       <p className="lead">
-        Point each Circuit track at the SP-404, FM1 or MPC, then say what its eight knobs do. Unmapped knobs are
-        dropped. Everyday labels stay plain; turn on <strong>Advanced</strong> for MIDI channel and CC numbers.
+        Circuit tracks → SP / FM1 / MPC. Unmapped knobs drop. <strong>Advanced</strong> = channels &amp; CCs.
       </p>
 
       <PresetBar advanced={advanced} setAdvanced={setAdvanced} />
@@ -505,13 +517,15 @@ export function ControllerWorkspace() {
             })}
           </div>
           <p className="muted small">
-            Knobs show track <b>T{knobTrack}</b>
-            {circuitTrack ? ' — following the track selected on the Circuit.' : ' — turn a knob on the Circuit and they follow its selected track.'}
+            Knobs = <b>T{knobTrack}</b>
+            {circuitTrack ? ' (follows Circuit).' : ' (follows Circuit when you twist).'}
           </p>
-          <p className="honest-note">
-            Circuit buttons (mute, scenes, patterns, track select) don&apos;t send MIDI, so they can&apos;t be mapped. Only notes
-            and the 8 macro knobs reach the app.
-          </p>
+          <MoreInfo>
+            <p className="muted small">
+              Circuit buttons (mute, scenes, patterns, track select) don&apos;t send MIDI — only notes and the 8
+              macros reach the app.
+            </p>
+          </MoreInfo>
         </div>
 
         <div className="device-cards">
@@ -543,7 +557,7 @@ export function ControllerWorkspace() {
               </span>
             </div>
           ))}
-          <p className="muted small">Drag a card onto a track, or click a track and pick below.</p>
+          <p className="muted small">Drag onto a track, or pick below.</p>
         </div>
       </div>
 
@@ -579,7 +593,7 @@ export function ControllerWorkspace() {
       ) : null}
 
       <div className="live-strip" aria-live="polite">
-        <div className={`ls-now ${devClass(last?.device)}`}>{last ? last.text : 'Play or turn a knob on the Circuit — what happens shows here.'}</div>
+        <div className={`ls-now ${devClass(last?.device)}`}>{last ? last.text : 'Play or twist — live output here.'}</div>
         <ol className="ls-list">
           {snap.ctrlEvents.slice(1).map((e, i) => (
             <li key={`${e.at}-${i}`} className={devClass(e.device)}>

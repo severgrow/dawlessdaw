@@ -287,7 +287,6 @@ label {
   font-size: 12px;
   letter-spacing: 0.02em;
   color: var(--text);
-  text-transform: lowercase;
 }
 
 .brand .brand-slash {
@@ -1051,11 +1050,104 @@ textarea.session-io {
 }
 
 .nav-sub {
-  font-size: 9.5px;
+  display: none; /* hints live in title= — less chrome in the rail */
+}
+
+/* Progressive disclosure for honesty / power-user notes */
+.more-info {
+  margin: 0.35rem 0 0.75rem;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-dim);
+  max-width: 64ch;
+}
+
+.more-info > summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   color: var(--text-mute);
-  letter-spacing: 0.02em;
-  white-space: normal;
-  line-height: 1.35;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.more-info > summary::-webkit-details-marker {
+  display: none;
+}
+
+.more-info > summary::before {
+  content: '+';
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-mute);
+}
+
+.more-info[open] > summary::before {
+  content: '−';
+}
+
+.more-info-body {
+  margin-top: 0.45rem;
+  padding: 0.5rem 0.65rem;
+  border-left: 2px solid var(--line-hard);
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.more-info-body > :last-child {
+  margin-bottom: 0;
+}
+
+.more-info-body .howto,
+.more-info-body .steps {
+  margin-top: 0.4rem;
+  margin-bottom: 0;
+}
+
+.panel.collapsed-chrome {
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+
+.panel.collapsed-chrome > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.panel.collapsed-chrome > summary::-webkit-details-marker {
+  display: none;
+}
+
+.panel.collapsed-chrome > summary h2 {
+  margin: 0;
+  display: inline;
+}
+
+.panel.collapsed-chrome > summary::after {
+  content: 'show';
+  font-size: 10px;
+  color: var(--text-mute);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.panel.collapsed-chrome[open] > summary::after {
+  content: 'hide';
+}
+
+.panel.collapsed-chrome[open] > summary {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--line);
 }
 
 .callout {

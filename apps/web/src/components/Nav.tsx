@@ -71,11 +71,7 @@ export function Nav() {
           </span>
         </button>
       ))}
-      <div className="nav-hint">
-        keys 1–7 switch tabs
-        <br />
-        no sysex · no firmware writes
-      </div>
+      <div className="nav-hint">keys 1–7</div>
     </nav>
   );
 }

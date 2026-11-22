@@ -1,5 +1,6 @@
 import { destBadge } from '@dawlessdaw/devices';
 import { AudioPreview } from '../components/AudioPreview';
+import { MoreInfo } from '../components/MoreInfo';
 import { RigMap } from '../components/RigMap';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
@@ -24,10 +25,7 @@ export function RigWorkspace() {
           Panic · all notes off
         </button>
       </div>
-      <p className="lead">
-        Home view — what&apos;s connected and what each Circuit track plays. Routing is read-only here;
-        edit destinations in Controller. Lights flash on notes (not on clock ticks).
-      </p>
+      <p className="lead">What&apos;s connected — edit destinations in Controller.</p>
 
       {showOnboard ? (
         <p className="callout warn-callout">
@@ -42,7 +40,7 @@ export function RigWorkspace() {
 
       {!circuitIn && !showOnboard ? (
         <p className="callout warn-callout">
-          No Circuit input yet — plug the Circuit in by USB, or pick its port in{' '}
+          No Circuit input — pick its port in{' '}
           <button type="button" className="linklike" onClick={() => setWorkspace('setup')}>
             Setup
           </button>
@@ -55,21 +53,14 @@ export function RigWorkspace() {
       <div className="panel">
         <h2>Activity</h2>
         <p className="muted small">
-          Track pads lit recently: <b>{noteHits}</b>
+          Tracks lit: <b>{noteHits}</b>
           {snap.estimatedBpm != null ? (
             <>
               {' '}
-              · Circuit tempo ≈ <b>{snap.estimatedBpm}</b> BPM
+              · ≈ <b>{snap.estimatedBpm}</b> BPM
             </>
           ) : null}
-          {snap.anyClockForwarding ? (
-            <>
-              {' '}
-              · clock forwarding on (details stay in Setup — this page skips tick spam)
-            </>
-          ) : (
-            <> · app clock off</>
-          )}
+          {snap.anyClockForwarding ? <> · clock on</> : <> · clock off</>}
         </p>
       </div>
 
@@ -99,22 +90,21 @@ export function RigWorkspace() {
             {snap.controllerDirty ? ' (changed)' : ''}
           </span>
         </div>
-        <p className="muted small">
-          Circuit Mixer (▼ macros) Level CC29 → Volume CC7 on each routed out — turn Circuit CC Tx
-          on in Setup. Program changes are never passed on.
-        </p>
+        <MoreInfo>
+          <p className="muted small">
+            Circuit Mixer Level (CC29) → Volume CC7 on each routed out — turn Circuit CC Tx on in
+            Setup. Program changes are never passed on. Lights flash on notes, not clock ticks.
+          </p>
+        </MoreInfo>
       </div>
 
       <AudioPreview />
 
       <div className="panel">
         <h2>Tempo · sequencer follow</h2>
-        <p className="lead">
-          Each switch forwards only Circuit <strong>clock / start / stop / continue</strong> (and
-          Song Position if Circuit sends it) — never notes. <strong>→ MPC</strong> is &quot;MPC follows
-          Circuit Play&quot;: the MPC sequencer runs with Circuit. Use Scarlett→DIN for MPC Out (USB-B
-          ignores clock). SP already gets clock from the thru box. Circuit:{' '}
-          <strong>Clock Tx</strong> (pad 32) bright.
+        <p className="muted small">
+          Forwards Circuit clock / start / stop only — never notes. → MPC = sequencer follows Circuit
+          Play (Scarlett→DIN).
         </p>
         <div className="switch-row">
           <button type="button" className={snap.clockToMpc ? 'active' : ''} onClick={() => setClockToMpc(!snap.clockToMpc)}>
@@ -133,20 +123,23 @@ export function RigWorkspace() {
         </div>
         {snap.clockToSp ? <p className="warn">SP may get double clock if it&apos;s still on the thru box.</p> : null}
         {snap.clockToMpc && snap.mpcNoteMode === 'din-only' ? (
-          <p className="warn">
-            → MPC does nothing while the MPC is set to &quot;MIDI cable from thru box only&quot; (Setup).
-          </p>
+          <p className="warn">→ MPC does nothing while MPC is &quot;thru box only&quot; (Setup).</p>
         ) : null}
         {snap.clockToMpc ? (
           <p className="muted small">
-            Full checklist:{' '}
+            Checklist:{' '}
             <button type="button" className="linklike" onClick={() => setWorkspace('setup')}>
               Setup › MPC follows Circuit Play
             </button>
-            .
           </p>
         ) : null}
-        <p className="muted small">{snap.clockActivity.hint}</p>
+        <MoreInfo label="Clock details">
+          <p className="muted small">
+            Song Position is forwarded if Circuit sends it. USB-B on the MPC ignores clock — use
+            Scarlett→DIN for MPC Out. SP usually already gets clock from the thru box. Circuit:{' '}
+            <strong>Clock Tx</strong> (pad 32) bright. {snap.clockActivity.hint}
+          </p>
+        </MoreInfo>
       </div>
     </div>
   );
