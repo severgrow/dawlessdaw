@@ -1,5 +1,20 @@
-import { MY_STUDIO_ROLES } from '@dawlessdaw/devices';
+import {
+  MY_STUDIO_ROLES,
+  roleUsingPort,
+  unmatchedConnectedPorts,
+} from '@dawlessdaw/devices';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
+
+function portOptionLabel(p: {
+  name: string;
+  manufacturer?: string;
+  state: string;
+  id: string;
+}): string {
+  const mfr = p.manufacturer ? ` · ${p.manufacturer}` : '';
+  const state = p.state !== 'connected' ? ` [${p.state}]` : '';
+  return `${p.name}${mfr}${state}`;
+}
 
 export function SettingsWorkspace() {
   const snap = useStudioStore();
@@ -15,6 +30,8 @@ export function SettingsWorkspace() {
   const native = getRuntime().getNativeBridgeStub();
   const inputs = snap.ports.filter((p) => p.type === 'input');
   const outputs = snap.ports.filter((p) => p.type === 'output');
+  const unmatched = unmatchedConnectedPorts(snap.ports, snap.assignments);
+  const allConnected = snap.ports.filter((p) => p.state === 'connected');
 
   return (
     <div className="section-enter">
@@ -73,8 +90,49 @@ export function SettingsWorkspace() {
       </div>
 
       <div className="panel">
+        <h2>All Web MIDI ports (raw)</h2>
+        <p className="lead">
+          Every input/output Chrome reports — including names that did not auto-match. If MPC or
+          FM1 show NOT CONNECTED on the strip but appear here under an odd name, assign them
+          manually below and paste these exact names when reporting issues.
+        </p>
+        {allConnected.length === 0 ? (
+          <p className="muted mono">
+            No connected ports. If Live MIDI is on, check USB, Audio MIDI Setup, and restart
+            Chrome.
+          </p>
+        ) : (
+          <ul className="cap-list mono" style={{ fontSize: 12 }}>
+            {allConnected.map((p) => {
+              const role = roleUsingPort(snap.assignments, p.id);
+              const roleLabel = role
+                ? MY_STUDIO_ROLES.find((r) => r.id === role)?.label ?? role
+                : 'UNMATCHED';
+              return (
+                <li key={`${p.type}-${p.id}`}>
+                  [{p.type}] {p.name}
+                  {p.manufacturer ? ` · mfr:${p.manufacturer}` : ''}
+                  {' → '}
+                  <span className={role ? '' : 'warn'}>{roleLabel}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {unmatched.length > 0 && (
+          <p className="muted" style={{ marginTop: '0.75rem' }}>
+            {unmatched.length} connected port{unmatched.length === 1 ? '' : 's'} unmatched — use the
+            dropdowns below to assign MPC / FM1 if those names belong to them.
+          </p>
+        )}
+      </div>
+
+      <div className="panel">
         <h2>Port assignments (saved on this Mac)</h2>
-        <p className="muted">Wrong match? Pick the correct port manually. Survives reload.</p>
+        <p className="muted">
+          Wrong or missing match? Pick the correct port manually (dropdown lists every raw name).
+          Survives reload.
+        </p>
         {MY_STUDIO_ROLES.filter((r) => r.midi).map((role) => {
           const a = snap.assignments.find((x) => x.roleId === role.id);
           return (
@@ -98,7 +156,7 @@ export function SettingsWorkspace() {
                     <option value="">—</option>
                     {inputs.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name}
+                        {portOptionLabel(p)}
                       </option>
                     ))}
                   </select>
@@ -115,7 +173,7 @@ export function SettingsWorkspace() {
                     <option value="">—</option>
                     {outputs.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name}
+                        {portOptionLabel(p)}
                       </option>
                     ))}
                   </select>

@@ -9,6 +9,7 @@ import type {
 } from '@dawlessdaw/core';
 import type { DeviceProfile as DP } from '@dawlessdaw/core';
 import { CircuitRhythmInterpreter, trackFromChannel } from './circuit-rhythm';
+import { scorePortAgainstHints } from './port-matcher';
 
 export interface DeviceAdapter {
   readonly kind: DeviceKind;
@@ -19,17 +20,12 @@ export interface DeviceAdapter {
   matchPortName(name: string): boolean;
 }
 
-function matchHints(name: string, hints: string[]): boolean {
-  const n = name.toLowerCase();
-  return hints.some((h) => n.includes(h.toLowerCase()));
-}
-
 export abstract class BaseAdapter implements DeviceAdapter {
   abstract readonly kind: DeviceKind;
   abstract readonly profile: DP;
 
   matchPortName(name: string): boolean {
-    return matchHints(name, this.profile.portNameHints);
+    return scorePortAgainstHints({ name }, this.profile.portNameHints) > 0;
   }
 
   createDevice(id: DeviceId, ports: { inputs: PortId[]; outputs: PortId[] }): StudioDevice {

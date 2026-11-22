@@ -1,10 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import type { MidiPortInfo } from '@dawlessdaw/core';
-import { matchPortsToRoles, assignPort, portsForRoles } from './port-matcher';
+import {
+  matchPortsToRoles,
+  assignPort,
+  portsForRoles,
+  scorePortAgainstHints,
+  unmatchedConnectedPorts,
+  roleUsingPort,
+} from './port-matcher';
 import {
   buildMyStudioRoutes,
   myStudioTemplateRoutes,
   rebindRoutesToAssignments,
+  MY_STUDIO_ROLES,
 } from './studio-layout';
 import {
   resolveSectionBridge,
@@ -48,6 +56,91 @@ describe('port matching', () => {
     const fm1 = a.find((x) => x.roleId === 'fm1')!;
     expect(fm1.connected).toBe(false);
     expect(fm1.outputPortId).toBeNull();
+  });
+});
+
+describe('Mac / Live hint matching', () => {
+  const mpcHints = MY_STUDIO_ROLES.find((r) => r.id === 'mpc')!.portNameHints;
+  const fm1Hints = MY_STUDIO_ROLES.find((r) => r.id === 'fm1')!.portNameHints;
+  const circuitHints = MY_STUDIO_ROLES.find((r) => r.id === 'circuit')!.portNameHints;
+  const spHints = MY_STUDIO_ROLES.find((r) => r.id === 'sp404')!.portNameHints;
+
+  it('matches Akai Professional MPC One (non-contiguous akai…mpc)', () => {
+    expect(
+      scorePortAgainstHints({ name: 'Akai Professional MPC One' }, mpcHints),
+    ).toBeGreaterThan(0);
+    expect(
+      scorePortAgainstHints(
+        { name: 'Akai Professional MPC One Port 1', manufacturer: 'Akai Professional' },
+        mpcHints,
+      ),
+    ).toBeGreaterThan(0);
+  });
+
+  it('matches FM1 / H-1 CDC and truncated brand names', () => {
+    expect(scorePortAgainstHints({ name: 'M-VAVE' }, fm1Hints)).toBeGreaterThan(0);
+    expect(scorePortAgainstHints({ name: 'MVAV' }, fm1Hints)).toBeGreaterThan(0);
+    expect(scorePortAgainstHints({ name: 'CH345' }, fm1Hints)).toBeGreaterThan(0);
+    expect(
+      scorePortAgainstHints({ name: 'USB-MIDI', manufacturer: 'wch.cn' }, fm1Hints),
+    ).toBeGreaterThan(0);
+  });
+
+  it('does not score Circuit/SP names against MPC or FM1 hints', () => {
+    expect(scorePortAgainstHints({ name: 'Circuit Rhythm MIDI' }, mpcHints)).toBe(0);
+    expect(scorePortAgainstHints({ name: 'SP-404MKII' }, mpcHints)).toBe(0);
+    expect(scorePortAgainstHints({ name: 'Circuit Rhythm MIDI' }, fm1Hints)).toBe(0);
+    expect(scorePortAgainstHints({ name: 'SP-404MKII' }, fm1Hints)).toBe(0);
+    expect(scorePortAgainstHints({ name: 'Akai Professional MPC One' }, circuitHints)).toBe(0);
+    expect(scorePortAgainstHints({ name: 'CH345' }, spHints)).toBe(0);
+  });
+
+  it('auto-binds Mac-like port names without stealing Circuit/SP', () => {
+    const macPorts: MidiPortInfo[] = [
+      { id: 'c-in', name: 'Circuit Rhythm', type: 'input', state: 'connected' },
+      { id: 'c-out', name: 'Circuit Rhythm', type: 'output', state: 'connected' },
+      {
+        id: 'm-in',
+        name: 'Akai Professional MPC One',
+        manufacturer: 'Akai Professional',
+        type: 'input',
+        state: 'connected',
+      },
+      {
+        id: 'm-out',
+        name: 'Akai Professional MPC One',
+        manufacturer: 'Akai Professional',
+        type: 'output',
+        state: 'connected',
+      },
+      { id: 's-in', name: 'SP-404MKII', type: 'input', state: 'connected' },
+      { id: 's-out', name: 'SP-404MKII', type: 'output', state: 'connected' },
+      { id: 'f-in', name: 'CH345', manufacturer: 'wch.cn', type: 'input', state: 'connected' },
+      { id: 'f-out', name: 'CH345', manufacturer: 'wch.cn', type: 'output', state: 'connected' },
+    ];
+    const a = matchPortsToRoles(macPorts);
+    expect(a.find((x) => x.roleId === 'circuit')?.inputPortId).toBe('c-in');
+    expect(a.find((x) => x.roleId === 'mpc')?.inputPortId).toBe('m-in');
+    expect(a.find((x) => x.roleId === 'mpc')?.outputPortId).toBe('m-out');
+    expect(a.find((x) => x.roleId === 'sp404')?.outputPortId).toBe('s-out');
+    expect(a.find((x) => x.roleId === 'fm1')?.inputPortId).toBe('f-in');
+    expect(a.find((x) => x.roleId === 'fm1')?.connected).toBe(true);
+    expect(unmatchedConnectedPorts(macPorts, a)).toHaveLength(0);
+  });
+
+  it('lists unmatched connected ports for Settings inventory', () => {
+    const odd: MidiPortInfo[] = [
+      ...ports.filter((p) => !p.name.includes('FM1') && !p.name.includes('MPC')),
+      { id: 'mystery-in', name: 'IAC Driver Bus 1', type: 'input', state: 'connected' },
+      { id: 'mystery-out', name: 'IAC Driver Bus 1', type: 'output', state: 'connected' },
+    ];
+    const a = matchPortsToRoles(odd);
+    const um = unmatchedConnectedPorts(odd, a);
+    expect(um.map((p) => p.id).sort()).toEqual(['mystery-in', 'mystery-out']);
+    expect(roleUsingPort(a, 'c-in')).toBe('circuit');
+    expect(roleUsingPort(a, 'mystery-in')).toBeNull();
+    expect(a.find((x) => x.roleId === 'mpc')?.connected).toBe(false);
+    expect(a.find((x) => x.roleId === 'fm1')?.connected).toBe(false);
   });
 });
 

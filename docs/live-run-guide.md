@@ -65,6 +65,31 @@ Open **http://localhost:5173** in **Chrome**.
 4. Confirm FM1 firmware shows **H-1** (or set it). Leave app clock forwarding **off**.
 5. Click **Re-apply My Studio routes** (ch1–4→MPC 9–12, ch5→FM1 5, ch6→SP 13).
 
+### Mac troubleshooting — Device Strip says NOT CONNECTED
+
+The strip shows **CONNECTED** only when that gear has a **port assignment** (auto-match or manual). LIVE MIDI can be on while MPC / FM1 still show NOT CONNECTED if Chrome’s port name did not match hints.
+
+**Do this first (while waiting for an update):**
+
+1. Open **Settings → All Web MIDI ports (raw)**.
+2. **Copy/paste every port name** listed there (inputs and outputs), including odd ones like `CH345`, `USB-MIDI`, `Akai Professional …`, `IAC Driver…`.
+3. If you see a name that is clearly the MPC or FM1, use the **In / Out** dropdowns under Port assignments to attach it, then **Re-apply My Studio routes**.
+4. If MPC / FM1 USB cables are plugged in but **no extra ports appear at all**, this is OS/Chrome/hardware — not app matching:
+   - Open **Audio MIDI Setup → Window → Show MIDI Studio**; confirm the devices appear and are online.
+   - Unplug USB → wait 3 s → replug (powered hub if you use one).
+   - Quit Chrome fully (⌘Q) and reopen; click **Switch to Live** and allow MIDI again.
+   - Try another USB port / cable; avoid unpowered daisy-chains for MPC + SP + Circuit + FM1.
+
+Common Mac Chrome names:
+
+| Gear | Names you may see |
+|------|-------------------|
+| MPC One | `MPC One`, `Akai Professional MPC One`, sometimes Port 1 / Port 2 |
+| FM1 (H-1) | `M-VAVE FM1`, `M-VAVE`, `MVAV`, or generic `CH345` / `USB-MIDI` (WCH CDC) — may **not** contain `fm1` |
+| Circuit / SP | Usually contain `Circuit` / `SP-404` — leave those alone when assigning MPC/FM1 |
+
+Manual assign beats auto-match and is saved on this Mac.
+
 ## 4. Bench Test (mark honestly)
 
 Open **Bench Test**. For each item, play the hardware and mark Pass / Fail / Unsure. Export JSON when done.

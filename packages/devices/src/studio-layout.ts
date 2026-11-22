@@ -34,21 +34,42 @@ export const MY_STUDIO_ROLES: StudioRoleDef[] = [
     label: 'Akai MPC One',
     kind: 'mpc-one',
     midi: true,
-    portNameHints: ['mpc one', 'mpc-one', 'akai mpc'],
+    // Mac Chrome often reports "Akai Professional MPC One" (and Port 1/2 variants).
+    // Token match lets "akai mpc" hit names with "Professional" in between.
+    portNameHints: [
+      'mpc one',
+      'mpc-one',
+      'akai professional mpc',
+      'akai mpc',
+      'akai professional',
+      'mpc',
+    ],
   },
   {
     id: 'sp404',
     label: 'Roland SP-404MKII',
     kind: 'sp404mkii',
     midi: true,
-    portNameHints: ['sp-404', 'sp404', '404mkii', '404 mkii'],
+    portNameHints: ['sp-404', 'sp404', '404mkii', '404 mkii', 'sp 404'],
   },
   {
     id: 'fm1',
     label: 'M-VAVE FM1',
     kind: 'm-vave-fm1',
     midi: true,
-    portNameHints: ['fm1', 'm-vave', 'mvave', 'fm-1'],
+    // H-1 / stock USB may omit "fm1" — CH345 / WCH CDC / bare M-VAVE are common.
+    // Weak CDC hints are last; matcher refuses ports that already look like Circuit/MPC/SP.
+    portNameHints: [
+      'fm1',
+      'fm-1',
+      'm-vave',
+      'm vave',
+      'mvave',
+      'mvav',
+      'ch345',
+      'wch.cn',
+      'wch',
+    ],
   },
   {
     id: 'zed',
