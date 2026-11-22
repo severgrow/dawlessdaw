@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @dawlessdaw/web",
+    "dev:fresh": "rm -rf apps/web/node_modules/.vite && npm run dev -w @dawlessdaw/web",
     "build": "npm run build -w @dawlessdaw/web",
     "test": "vitest run",
     "test:watch": "vitest",

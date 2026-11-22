@@ -11,6 +11,9 @@
       "@dawlessdaw/routing": ["../../packages/routing/src"],
       "@dawlessdaw/focus": ["../../packages/focus/src"],
       "@dawlessdaw/devices": ["../../packages/devices/src"],
+      "@dawlessdaw/devices/circuit-deep-sync": [
+        "../../packages/devices/src/circuit-deep-sync"
+      ],
       "@dawlessdaw/scenes": ["../../packages/scenes/src"],
       "@dawlessdaw/sessions": ["../../packages/sessions/src"],
       "@dawlessdaw/sequencer": ["../../packages/sequencer/src"],
