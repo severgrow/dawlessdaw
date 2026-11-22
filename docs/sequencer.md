@@ -26,3 +26,7 @@ Web MIDI runs on the **main thread**. Look-ahead timestamps reduce jitter but ar
 ## Persistence
 
 Bank JSON in `localStorage` key `dawlessdaw.sequencer.v1` (`schemaVersion: 1`). Undo/redo is in-memory per active pattern slot.
+
+## FLIP lane
+
+Under the 8 MIDI tracks: hardware audio loop capture (Scarlett / ZED / etc.). Not a 9th MIDI track; Circuit audio unused. Reuses Session Recorder PCM / IndexedDB / WAV. See [flip.md](./flip.md).
