@@ -3,6 +3,7 @@
  * Plain-language UI; terminal × hardware look. No upload, no AI in the audio path.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MoreInfo } from '../components/MoreInfo';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import {
   formatInputLabel,
@@ -573,10 +574,7 @@ export function SessionsWorkspace() {
         <h1>sessions</h1>
         <span className="readout mono">{spaceHint}</span>
       </div>
-      <p className="lead">
-        Record the stereo mix from any USB audio input the Mac shows Chrome — ZED-10FX, Scarlett,
-        SP-404MKII, or whatever else appears. Takes stay on this computer. Nothing is uploaded.
-      </p>
+      <p className="lead">Record stereo from any USB input Chrome sees. Takes stay local — nothing uploaded.</p>
 
       {recoverNote ? <p className="warn">{recoverNote}</p> : null}
       {msg ? <p className="mono small">{msg}</p> : null}
@@ -599,11 +597,6 @@ export function SessionsWorkspace() {
             ))}
           </select>
         </label>
-        <p className="muted small">
-          ZED over USB = 16-bit / 48 kHz max. For 24-bit, connect the ZED&apos;s main or Record
-          outputs to the Scarlett inputs and pick the Scarlett. SP-404MKII and other interfaces
-          appear in the same list when the Mac exposes them.
-        </p>
         <div className="rec-transport">
           <button
             type="button"
@@ -645,21 +638,19 @@ export function SessionsWorkspace() {
             Marker (M)
           </button>
         </div>
-        <p className="muted small">
-          {monitorInput
-            ? 'Monitor input is on — the live input plays through these speakers. Use headphones or turn it off if you hear ringing.'
-            : 'Monitoring is off so the room doesn\u2019t feed back into the take.'}
-        </p>
-        <p className="muted small">
-          Capture is raw PCM via AudioWorklet (not MediaRecorder). Echo cancel / noise suppress /
-          auto gain stay off. Clip lights at −0.3 dBFS and hold 2 s. Auto-markers on Circuit
-          channel-16 Program Change (project change).
-        </p>
+        {monitorInput ? (
+          <p className="warn small">Monitor on — use headphones if it rings.</p>
+        ) : null}
         {snap.estimatedBpm != null ? (
-          <p className="mono small">Circuit clock ≈ {snap.estimatedBpm} bpm</p>
-        ) : (
-          <p className="muted small">No Circuit clock heard yet — tempo tag stays empty until then.</p>
-        )}
+          <p className="mono small">Circuit ≈ {snap.estimatedBpm} bpm</p>
+        ) : null}
+        <MoreInfo>
+          <p className="muted small">
+            ZED USB = 16-bit / 48 kHz max; for 24-bit route ZED → Scarlett and pick Scarlett. Raw PCM
+            via AudioWorklet (echo cancel / AGC off). Clip at −0.3 dBFS (2 s hold). Auto-markers on
+            Circuit ch-16 Program Change.
+          </p>
+        </MoreInfo>
       </div>
 
       <div className="grid-2">
@@ -839,9 +830,7 @@ export function SessionsWorkspace() {
                   Split export at markers
                 </label>
               </div>
-              <p className="muted small">
-                Trim only affects the export. The original take is never rewritten.
-              </p>
+              <p className="muted small">Trim is export-only — original take stays intact.</p>
               <div className="row wrap">
                 <label className="field inline">
                   WAV
@@ -867,18 +856,23 @@ export function SessionsWorkspace() {
                   </select>
                 </label>
               </div>
-              <label className="field">
-                <span>Filename pattern</span>
-                <input
-                  className="text-input"
-                  value={filenamePattern}
-                  onChange={(e) => setFilenamePattern(e.target.value)}
-                  spellCheck={false}
-                />
-              </label>
-              <p className="muted small mono">
-                Tokens: {'{date}'} {'{name}'} {'{bpm}'} {'{part}'} — e.g. 2026-11-22 jam 128bpm.wav
-              </p>
+              <details className="more-info">
+                <summary>Filename pattern</summary>
+                <div className="more-info-body">
+                  <label className="field">
+                    <span>Pattern</span>
+                    <input
+                      className="text-input"
+                      value={filenamePattern}
+                      onChange={(e) => setFilenamePattern(e.target.value)}
+                      spellCheck={false}
+                    />
+                  </label>
+                  <p className="muted small mono">
+                    {'{date}'} {'{name}'} {'{bpm}'} {'{part}'}
+                  </p>
+                </div>
+              </details>
               <div className="row wrap">
                 <button type="button" className="active" onClick={() => void runExport('wav')}>
                   Export WAV
@@ -895,7 +889,9 @@ export function SessionsWorkspace() {
                   <span className="mono small">{exportProgress.label}</span>
                 </div>
               ) : null}
-              <p className="muted small">{MP3_LICENCE_NOTICE}</p>
+              <MoreInfo label="MP3 licence">
+                <p className="muted small">{MP3_LICENCE_NOTICE}</p>
+              </MoreInfo>
 
               <div className="rec-sp-export" aria-label="Export WAV to SP-404MKII pad">
                 <div className="rec-sp-export-head">
@@ -903,11 +899,8 @@ export function SessionsWorkspace() {
                   <span className="rec-sp-hw mono">SP-404MKII · IMPORT</span>
                 </div>
                 <p className="muted small">
-                  Writes a trimmed 48 kHz / 16-bit WAV named like{' '}
-                  <span className="mono">A01 take.wav</span> into the mounted SD card&apos;s{' '}
-                  <span className="mono">IMPORT/</span> folder. Grant the <b>card root</b> (Finder
-                  shows IMPORT / EXPORT / BKUP) or the IMPORT folder itself — not a PROJECT folder.
-                  USB alone cannot push pads. Chrome or Edge only.
+                  48 kHz / 16-bit → SD <span className="mono">IMPORT/</span>. Chrome / Edge · card
+                  reader (not USB alone).
                 </p>
                 <div className="bank-tabs" role="tablist" aria-label="SP banks">
                   {SP_BANKS.map((b) => (
@@ -976,10 +969,12 @@ export function SessionsWorkspace() {
                 {!canPickSpVolume ? (
                   <p className="warn small">{SP_VOLUME_BROWSER_HINT}</p>
                 ) : (
-                  <p className="muted small">
-                    If the SD write fails, the same pad WAV downloads automatically so you can copy
-                    it into IMPORT/ by hand.
-                  </p>
+                  <MoreInfo>
+                    <p className="muted small">
+                      Grant card root (IMPORT / EXPORT / BKUP) or the IMPORT folder — not a PROJECT
+                      folder. Write failure downloads the same pad WAV as fallback.
+                    </p>
+                  </MoreInfo>
                 )}
               </div>
             </>
@@ -987,11 +982,11 @@ export function SessionsWorkspace() {
         </div>
       </div>
 
-      <div className="panel">
-        <h2>Studio session JSON</h2>
-        <p className="muted small">
-          Routes, scenes, and setup — separate from audio takes. Local import/export only.
-        </p>
+      <details className="panel collapsed-chrome">
+        <summary>
+          <h2>Studio session JSON</h2>
+        </summary>
+        <p className="muted small">Routes / scenes / setup — local only, separate from audio takes.</p>
         <div className="row" style={{ marginBottom: '0.75rem' }}>
           <button
             type="button"
@@ -1024,7 +1019,7 @@ export function SessionsWorkspace() {
           placeholder="Session JSON…"
           spellCheck={false}
         />
-      </div>
+      </details>
     </div>
   );
 }

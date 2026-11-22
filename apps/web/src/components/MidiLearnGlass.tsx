@@ -171,16 +171,18 @@ export function MidiLearnGlass() {
       ) : null}
 
       {mapping.kind !== 'macro' ? (
-        <p className="mlg-note">
-          Mixer Level/Pan always map to Volume (CC7) / Pan (CC10) on this track&apos;s destination. Change the
-          device above to retarget — not remappable to arbitrary CCs.
-        </p>
+        <p className="mlg-note">Mixer Level/Pan → Vol CC7 / Pan CC10 on this dest (not remappable).</p>
       ) : null}
 
-      <p className="mlg-honest">
-        Circuit buttons (mute, scenes, patterns, track select) do not send MIDI — only macros and mixer Level/Pan
-        reach the app. Some Circuit TX paths need CC Tx ON in Circuit Setup.
-      </p>
+      <details className="more-info mlg-more">
+        <summary>Limits</summary>
+        <div className="more-info-body">
+          <p className="mlg-honest">
+            Circuit buttons don&apos;t send MIDI — only macros and mixer Level/Pan. Some TX paths need
+            CC Tx ON in Circuit Setup.
+          </p>
+        </div>
+      </details>
 
       <footer className="mlg-foot">
         {mapping.editableKnob ? (

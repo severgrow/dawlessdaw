@@ -24,6 +24,7 @@ import {
   type FsDirectoryHandle,
   type SdVolumeScanResult,
 } from '../sp404/sdVolume';
+import { MoreInfo } from '../components/MoreInfo';
 import { useStudioStore } from '../store/useStudioStore';
 
 type Slots = Record<string, StoredPad>;
@@ -408,31 +409,11 @@ export function SamplesWorkspace() {
         </span>
       </div>
 
-      <ol className="steps">
-        <li>
-          <b>Load</b> — drag audio files onto pads (several files fill the next pads).
-        </li>
-        <li>
-          <b>Shape</b> — name, trim and normalise. Click or press Space to hear it.
-        </li>
-        <li>
-          <b>Save</b> — write 48 kHz WAVs named by pad (e.g. <span className="mono">A01 kick.wav</span>) and
-          import them on the SP.
-        </li>
-        <li>
-          <b>See the SP</b> — open the SD card volume to list which pads already have samples (export first on the unit).
-        </li>
-      </ol>
+      <p className="lead">Load → trim → save 48 kHz WAVs for the SP. Optional: read occupied pads from the SD card.</p>
 
       <div className="panel">
         <h2>Pads already on the SP</h2>
-        <p className="muted small">
-          A USB cable alone will <strong>not</strong> show the library — the SP only offers audio and MIDI over USB.
-          Pull the SD card, put it in a Mac card reader, then grant this page folder access. You must{' '}
-          <strong>export the project</strong> on the SP first (SHIFT + pad 14 → EXPORT to SD-CARD → PROJECT), or open an{' '}
-          <span className="mono">IMPORT/PROJECT_*</span> folder. This never writes the card and never talks to the SP
-          over MIDI.
-        </p>
+        <p className="muted small">SD card in a reader — not USB alone. Read-only.</p>
         <div className="row">
           <button type="button" disabled={sdBusy || !canPickFolder} onClick={() => void openSpVolume()}>
             {sdHandle.current ? 'Choose folder…' : 'Open SP volume…'}
@@ -463,7 +444,7 @@ export function SamplesWorkspace() {
           ) : null}
         </div>
         {!canPickFolder ? (
-          <p className="muted small">Folder access needs Chrome or Edge on this Mac.</p>
+          <p className="muted small">Folder access needs Chrome or Edge.</p>
         ) : null}
         {sdStatus ? <p className="mono small status-line-inline">{sdBusy ? `… ${sdStatus}` : sdStatus}</p> : null}
         {sdResult?.warnings.map((w) => (
@@ -473,20 +454,25 @@ export function SamplesWorkspace() {
         ))}
         {sdProject ? (
           <p className="muted small">
-            Showing <span className="mono">{sdProject.projectName}</span>
+            <span className="mono">{sdProject.projectName}</span>
             {sdProject.path ? (
               <>
                 {' '}
-                from <span className="mono">{sdProject.path}</span>
+                · <span className="mono">{sdProject.path}</span>
               </>
             ) : null}
             {' '}
-            ({sdProject.source === 'export' ? 'exported project' : sdProject.source === 'import' ? 'import folder' : 'project folder'}
-            ). Occupied pads get an <span className="sp-on-sd-mark" aria-hidden>SD</span> mark on the grid. Names come
-            from <span className="mono">PADCONF.BIN</span>; length from <span className="mono">.SMP</span> headers when
-            present. Live preview of SD audio is not offered.
+            · <span className="sp-on-sd-mark" aria-hidden>SD</span> on occupied pads
           </p>
         ) : null}
+        <MoreInfo>
+          <p className="muted small">
+            Export the project on the SP first (SHIFT + pad 14 → EXPORT → PROJECT), or open an{' '}
+            <span className="mono">IMPORT/PROJECT_*</span> folder. Names from{' '}
+            <span className="mono">PADCONF.BIN</span>; length from <span className="mono">.SMP</span> when present. Never
+            writes the card; no MIDI dump; no live SD audio preview.
+          </p>
+        </MoreInfo>
       </div>
 
       <div className="panel">
@@ -515,9 +501,9 @@ export function SamplesWorkspace() {
         </div>
         <p className="muted small">
           {tracks?.length
-            ? `Played by Circuit track ${tracks.join(' & ')} (Rig tab, SP in MIDI Mode A).`
-            : 'No Circuit track plays this bank right now — set one in the Rig tab if you want it.'}
-          {sdProject ? ' Bank counts show browser pads / occupied on SD.' : null}
+            ? `Circuit T${tracks.join(' & T')} → this bank`
+            : 'No Circuit track → this bank (set in Controller).'}
+          {sdProject ? ' · counts = browser / SD' : null}
         </p>
 
         <div className="sp-grid" role="grid" aria-label={`Bank ${bank} pads`}>
@@ -580,9 +566,7 @@ export function SamplesWorkspace() {
           })}
         </div>
         <div className="row">
-          <span className="muted small">
-            Drag a pad onto another to move it (swaps if both are full). Arrow keys move, Space plays.
-          </span>
+          <span className="muted small">Drag to move · arrows · Space plays</span>
           <span className="spacer" />
           <button type="button" className="ghost" disabled={!inBank.length} onClick={clearBank}>
             Clear bank {bank}
@@ -711,28 +695,23 @@ export function SamplesWorkspace() {
                 choose files…
               </button>
             </p>
-            <p className="muted small">WAV, AIFF, MP3 or FLAC. Several files fill pads {selected}–16.</p>
+            <p className="muted small">WAV / AIFF / MP3 / FLAC · fills pads {selected}–16</p>
             {selectedSd?.occupied ? (
               <p className="muted small">
-                On the SD project this pad is occupied
+                On SD
                 {selectedSd.name ? (
                   <>
                     {' '}
                     as <span className="mono">{selectedSd.name}</span>
                   </>
                 ) : null}
-                {selectedSd.fileName ? (
-                  <>
-                    {' '}
-                    (<span className="mono">{selectedSd.fileName}</span>)
-                  </>
-                ) : null}
                 {selectedSd.durationSec != null ? <> · {formatPadDuration(selectedSd.durationSec)}</> : null}
-                {selectedSd.channels === 1 ? ' · mono' : selectedSd.channels === 2 ? ' · stereo' : ''}.
-                Audio preview from the card is not available here.
+                {selectedSd.channels === 1 ? ' · mono' : selectedSd.channels === 2 ? ' · stereo' : ''}
+                {' '}
+                (no card preview)
               </p>
             ) : sdProject ? (
-              <p className="muted small">Empty on the SD project too.</p>
+              <p className="muted small">Empty on SD too.</p>
             ) : null}
           </div>
         )}
@@ -756,16 +735,19 @@ export function SamplesWorkspace() {
             ))}
           </ul>
         ) : null}
-        <ol className="howto">
-          <li>Press <b>Save</b>. Chrome asks for a folder: pick one on your Mac (or the SD card&apos;s <span className="mono">IMPORT</span> folder in a card reader). Files are 48 kHz, 16-bit WAV, named by pad: <span className="mono">A01 …</span> = bank A, pad 1.</li>
-          <li>Put the files on the SP: copy them to the SD card and use the SP&apos;s <b>Import</b> (see Roland&apos;s SP-404MKII Reference Manual, “Importing samples”), or drag them onto pads in Roland&apos;s <b>SP-404MKII App</b>.</li>
-          <li>Import each file onto the pad its name says.</li>
-        </ol>
-        <p className="muted small">
-          Browser pads stay in this Chrome profile on this Mac. Opening the SP volume only <em>reads</em> exported
-          (or import-staged) project folders you grant — it never writes the card, never touches <span className="mono">BKUP</span>,
-          and never dumps pads over USB MIDI.
-        </p>
+        <MoreInfo label="How to import on the SP">
+          <ol className="howto">
+            <li>
+              Save → pick a folder (or SD <span className="mono">IMPORT</span>). Files are 48 kHz / 16-bit, named{' '}
+              <span className="mono">A01 …</span>.
+            </li>
+            <li>Import on the SP (or Roland SP-404MKII App) onto the pad the filename says.</li>
+          </ol>
+          <p className="muted small">
+            Browser pads stay in this Chrome profile. SD open is read-only — never writes{' '}
+            <span className="mono">BKUP</span>, never dumps over USB MIDI.
+          </p>
+        </MoreInfo>
       </div>
     </div>
   );

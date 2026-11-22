@@ -383,10 +383,8 @@ export function AudioPreview() {
         <canvas ref={canvas} className="ap-canvas" aria-label={`Audio ${style} display`} />
         {!running ? (
           <div className="ap-idle">
-            <p>Press <b>Start</b> to see your mixer&apos;s sound.</p>
-            <p className="muted small">
-              Uses the ZED&apos;s USB audio (&quot;USB Audio CODEC&quot;). Chrome will ask to use
-              the microphone — that&apos;s this input. Nothing is recorded.
+            <p>
+              Press <b>Start</b> — mixer USB in (nothing recorded).
             </p>
           </div>
         ) : null}

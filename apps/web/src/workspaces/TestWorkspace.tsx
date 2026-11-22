@@ -35,11 +35,7 @@ export function TestWorkspace() {
           </button>
         </div>
       </div>
-      <p className="lead">
-        Check each feature on your real gear. Open a test, follow the steps, then mark what
-        actually happened. The app only shows the MIDI it saw — you decide pass or fail. No SysEx,
-        no firmware writes.
-      </p>
+      <p className="lead">Open a card · follow steps · mark pass / fail. App only shows MIDI it heard.</p>
 
       {BENCH_GROUPS.map((g) => {
         const tests = BENCH_TESTS.filter((t) => t.group === g.id);

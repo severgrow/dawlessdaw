@@ -10,6 +10,7 @@ import {
   type PortAssignment,
   type StudioRoleDef,
 } from '@dawlessdaw/devices';
+import { MoreInfo } from '../components/MoreInfo';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import { formatRouteChannelDetail } from './routeChannelDetail';
 
@@ -54,15 +55,16 @@ function PortSelect({
 
 function OnboardingBanner() {
   const snap = useStudioStore();
-  const steps: Array<{ id: typeof snap.onboarding.step; label: string }> = [
-    { id: 'connect', label: 'Connect' },
-    { id: 'identify', label: 'Identify' },
-    { id: 'assign', label: 'Assign' },
-    { id: 'play', label: 'Play' },
+  if (snap.onboarding.step === 'play') return null;
+  const steps = [
+    { id: 'connect' as const, label: 'Connect' },
+    { id: 'identify' as const, label: 'Identify' },
+    { id: 'assign' as const, label: 'Assign' },
+    { id: 'play' as const, label: 'Play' },
   ];
   const idx = steps.findIndex((s) => s.id === snap.onboarding.step);
   return (
-    <div className={`callout ${snap.onboarding.step === 'play' ? '' : 'warn-callout'} onboard-banner`}>
+    <div className="callout warn-callout onboard-banner">
       <ol className="onboard-steps" aria-label="First-run steps">
         {steps.map((s, i) => (
           <li key={s.id} className={i === idx ? 'current' : i < idx ? 'done' : ''}>
@@ -124,11 +126,15 @@ function UnknownDevicesPanel() {
   return (
     <div className="panel">
       <h2>Unknown devices</h2>
-      <p className="lead">
-        A port Chrome sees that isn&apos;t Circuit / MPC / SP / FM1? Name it, pick In/Out + channel, and
-        it is remembered on this Mac. Honesty stays <strong>Generic</strong> until you mark a control
-        from a manual (Documented) or a live Pass (Verified) — we never invent knobs.
+      <p className="muted small">
+        Name an unmatched port · pick In/Out + channel · remembered on this Mac.
       </p>
+      <MoreInfo>
+        <p className="muted small">
+          Honesty stays <strong>Generic</strong> until you mark a control from a manual (Documented)
+          or a live Pass (Verified) — we never invent knobs.
+        </p>
+      </MoreInfo>
 
       {(freeIns.length > 0 || freeOuts.length > 0) && (
         <p className="muted small">
@@ -268,9 +274,9 @@ function UnknownDevicesPanel() {
                   </label>
                 </div>
                 <div className="cd-controls">
-                  <p className="muted small">
-                    Controls you add yourself — empty means Generic MIDI only (no fake knobs).
-                  </p>
+                  {p.controls.length === 0 ? (
+                    <p className="muted small">No controls yet — Generic MIDI only.</p>
+                  ) : null}
                   {p.controls.map((c) => {
                     const learning =
                       snap.genericLearn?.profileId === p.id && snap.genericLearn.controlId === c.id;
@@ -359,9 +365,9 @@ function UnknownDevicesPanel() {
           }}
         />
       </div>
-      <p className="muted small">
-        Import validates schema only — no scripts run. Local file only; no cloud or marketplace.
-      </p>
+      <MoreInfo>
+        <p className="muted small">Import validates schema only — local file, no cloud.</p>
+      </MoreInfo>
     </div>
   );
 }
@@ -394,9 +400,7 @@ export function SetupWorkspace() {
         </button>
       </div>
       <p className="lead">
-        Connect → Identify → Assign → Play. Most studio ports are found automatically; pick by hand when
-        a name isn&apos;t recognised (e.g. the Scarlett for the MPC). Hand-picked ports are remembered by
-        name, even while unplugged. Choose <strong>— auto</strong> to go back to automatic.
+        Ports auto-match; pick by hand when a name isn&apos;t recognised. Hand-picks remember by name.
       </p>
       <OnboardingBanner />
       {snap.midiError ? <p className="callout warn-callout">{snap.midiError}</p> : null}
@@ -439,10 +443,7 @@ export function SetupWorkspace() {
             {' — '}add as an unknown device below, or assign above.
           </p>
         ) : null}
-        <p className="muted small">
-          Allen &amp; Heath ZED-10FX: USB audio only — the app can&apos;t see it over MIDI. A device
-          missing from every list isn&apos;t visible to the Mac: check its cable and Audio MIDI Setup.
-        </p>
+        <p className="muted small">ZED-10FX = USB audio only (no MIDI). Missing device → cable / Audio MIDI Setup.</p>
       </div>
 
       <UnknownDevicesPanel />
@@ -467,18 +468,15 @@ export function SetupWorkspace() {
         </div>
         <p className="muted small">
           {snap.mpcNoteMode === 'usb'
-            ? `Note routes (Circuit T1–T4 → MPC ch9–12) go through MPC Out = ${mpc?.outputPortName ?? 'not assigned'}${mpc?.outputManual && !mpc.outputPortId ? ' (unplugged)' : ''}. Transport is separate — see “MPC follows Circuit Play” below.`
-            : 'The app sends the MPC nothing (notes or clock). Use only if the MPC is back on the thru box, with MPC tracks 1–4 on channels 1–4.'}
+            ? `Notes via MPC Out = ${mpc?.outputPortName ?? 'not assigned'}${mpc?.outputManual && !mpc.outputPortId ? ' (unplugged)' : ''}.`
+            : 'App sends MPC nothing — thru-box mode (MPC T1–4 on ch 1–4).'}
         </p>
       </div>
 
       <div className="panel">
         <h2>MPC follows Circuit Play</h2>
-        <p className="lead">
-          Makes the <strong>MPC sequencer</strong> run with Circuit tempo — not just pad/sample hits.
-          The app forwards MIDI Clock + Start / Stop / Continue (and Song Position if Circuit sends
-          it) to <strong>MPC Out</strong>. Prefer a Scarlett / MIDI interface → MPC DIN In. The MPC
-          USB-B port does <strong>not</strong> accept clock from a computer.
+        <p className="muted small">
+          Sequencer sync via clock → <strong>MPC Out</strong> (Scarlett→DIN; USB-B ignores clock).
         </p>
         <div className="switch-row">
           <button
@@ -491,41 +489,35 @@ export function SetupWorkspace() {
           </button>
         </div>
         {snap.mpcNoteMode === 'din-only' ? (
-          <p className="warn">
-            Switch MPC connection to &quot;App sends notes&quot; first — thru-box-only mode blocks app
-            transport too.
-          </p>
+          <p className="warn">Switch to &quot;App sends notes&quot; first — thru-box mode blocks transport.</p>
         ) : null}
         <p className={clockAdvice.kind === 'warn-akai-usb' ? 'warn' : 'muted small'}>
           {clockAdvice.message}
         </p>
-        <p className="muted small">
-          Clock/transport port = <strong>Ports › Akai MPC One › MIDI out</strong> above. Pick the
-          Scarlett (or any interface), not &quot;MPC One&quot;. Notes and transport share that port but use
-          separate routes, so both can stay on.
-        </p>
-        <ol className="steps">
-          <li>
-            <b>Cable</b> Scarlett MIDI Out → MPC MIDI In (3.5 mm adapter on the MPC).
-          </li>
-          <li>
-            <b>Setup › Ports</b> — MPC Out = Scarlett (by hand if needed).
-          </li>
-          <li>
-            <b>This switch On</b> — Circuit Clock Tx (pad 32) bright.
-          </li>
-          <li>
-            <b>MPC</b> Preferences → MIDI / Sync: MIDI In row on · Receive = MIDI Clock · send clock
-            off.
-          </li>
-          <li>
-            Press <b>Play</b> on Circuit — MPC sequence should start and follow tempo; Stop stops it.
-          </li>
-        </ol>
-        <p className="muted small">
-          Untested on your firmware until Bench <strong>g3</strong> is Pass. No MMC invented — Clock
-          + Start only.
-        </p>
+        <MoreInfo label="Checklist">
+          <p className="muted small">
+            Ports › MPC Out = Scarlett (not &quot;MPC One&quot;). Notes + transport share that port on
+            separate routes.
+          </p>
+          <ol className="steps">
+            <li>
+              <b>Cable</b> Scarlett MIDI Out → MPC MIDI In.
+            </li>
+            <li>
+              <b>Ports</b> — MPC Out = Scarlett.
+            </li>
+            <li>
+              <b>This switch On</b> — Circuit Clock Tx (pad 32) bright.
+            </li>
+            <li>
+              <b>MPC</b> MIDI In on · Receive = MIDI Clock · send clock off.
+            </li>
+            <li>
+              Circuit <b>Play</b> starts / stops the MPC sequence.
+            </li>
+          </ol>
+          <p className="muted small">Bench g3 Pass = verified on your firmware. Clock + Start only — no MMC.</p>
+        </MoreInfo>
       </div>
 
       <div className="panel">
@@ -540,9 +532,17 @@ export function SetupWorkspace() {
         </div>
         <p className="muted small">
           {snap.fm1Firmware === 'skiff'
-            ? 'Skiff: tracks sent to the FM1 also carry the macro knobs (1–7 → sound settings, 8 → steps sounds) and Circuit Mixer Level/Pan (CC29/30 → Skiff LEVEL/PAN). On the FM1: MENU › MIDI › T1–T4 CHANNEL = 5, 6, 7, 8. Keep the FM1 off the thru box.'
-            : 'h1: notes only, and h1 plays every channel — never put it on the thru box.'}
+            ? 'Skiff: macros + Level/Pan on routed tracks. Keep FM1 off the thru box.'
+            : 'h1: notes only · all channels — never on the thru box.'}
         </p>
+        {snap.fm1Firmware === 'skiff' ? (
+          <MoreInfo>
+            <p className="muted small">
+              Macros 1–7 → sound settings, 8 → steps. Mixer CC29/30 → Skiff LEVEL/PAN. FM1 MENU › MIDI ›
+              T1–T4 CHANNEL = 5, 6, 7, 8.
+            </p>
+          </MoreInfo>
+        ) : null}
       </div>
 
       <details className="panel diag">
