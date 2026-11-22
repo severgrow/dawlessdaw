@@ -156,7 +156,9 @@ button:disabled {
 
 /* Lit pad: the one place the accent fills a surface */
 button.active,
-button[aria-pressed='true'] {
+button.active:hover:not(:disabled),
+button[aria-pressed='true'],
+button[aria-pressed='true']:hover:not(:disabled) {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
@@ -546,13 +548,14 @@ label {
   flex: none;
 }
 
-.nav button:hover:not(:disabled) {
+.nav button:hover:not(:disabled):not(.active) {
   color: var(--text);
   background: var(--bg-2);
   border-color: transparent;
 }
 
-.nav button.active {
+.nav button.active,
+.nav button.active:hover:not(:disabled) {
   color: var(--text);
   background: var(--bg-2);
   border-left-color: var(--accent);
