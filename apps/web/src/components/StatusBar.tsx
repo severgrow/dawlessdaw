@@ -6,26 +6,30 @@ export function StatusBar() {
 
   return (
     <header className="status-bar">
-      <div className="brand">Dawlessdaw</div>
+      <div className="brand" aria-label="Dawlessdaw">
+        dawless<span className="brand-slash">/</span>daw
+        <span className="cursor" aria-hidden="true" />
+      </div>
       <div className={snap.simulation ? 'sim-badge' : 'sim-badge live-badge'}>
         <span className="dot" />
-        {snap.simulation ? 'Simulation' : 'Live MIDI'}
+        {snap.simulation ? 'sim' : 'live'}
       </div>
-      <span className="muted mono">{snap.transportKind}</span>
+      <span className="readout">
+        io <b>{snap.transportKind}</b>
+      </span>
       {snap.routeClockThroughApp ? (
-        <span className="muted mono" title={snap.clockActivity.hint}>
-          clk IN {snap.clockActivity.inTicks}/OUT {snap.clockActivity.outTicks}
+        <span className="readout" title={snap.clockActivity.hint}>
+          clk <b>{snap.clockActivity.inTicks}</b>↓ <b>{snap.clockActivity.outTicks}</b>↑
         </span>
       ) : null}
-      <span className="muted" style={{ flex: 1 }}>
-        {snap.statusLine}
-      </span>
+      <span className="status-line">{snap.statusLine}</span>
+      <span className="spacer" />
       <button
         type="button"
-        aria-pressed={snap.simulation}
         onClick={() => void setSimulation(!snap.simulation)}
+        title="Toggle between simulated ports and real Web MIDI"
       >
-        {snap.simulation ? 'Switch to Live' : 'Switch to Sim'}
+        {snap.simulation ? 'go live' : 'go sim'}
       </button>
     </header>
   );

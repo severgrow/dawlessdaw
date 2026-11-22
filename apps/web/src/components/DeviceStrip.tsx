@@ -55,7 +55,6 @@ export function DeviceStrip() {
             }`}
             onClick={() => device && selectDevice(device.id)}
             title={portTitle}
-            style={connected ? undefined : { opacity: 0.45 }}
           >
             <span className="name">{role.label}</span>
             <span className="meta">
