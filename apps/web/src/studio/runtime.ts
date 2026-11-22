@@ -41,6 +41,8 @@ import {
   type BenchTestResult,
   type BenchVerdict,
   type CircuitInterpretation,
+  type Fm1Firmware,
+  type MpcNoteMode,
   type PersistedStudioSetup,
   type PortAssignment,
   type SectionBridgeConfig,
@@ -90,6 +92,9 @@ export interface StudioRuntimeSnapshot {
   lastCircuitGesture: CircuitInterpretation | null;
   assignments: PortAssignment[];
   routeClockThroughApp: boolean;
+  fm1Firmware: Fm1Firmware;
+  mpcNoteMode: MpcNoteMode;
+  forwardClockToFm1: boolean;
   sectionBridge: SectionBridgeConfig;
   benchResults: BenchTestResult[];
   benchDetections: string[];
@@ -169,6 +174,9 @@ export class StudioRuntime {
     connected: r.id === 'zed',
   }));
   private routeClockThroughApp = false;
+  private fm1Firmware: Fm1Firmware = 'skiff';
+  private mpcNoteMode: MpcNoteMode = 'usb';
+  private forwardClockToFm1 = false;
   private sectionBridge: SectionBridgeConfig = {
     ...DEFAULT_SECTION_BRIDGE,
     rows: DEFAULT_SECTION_BRIDGE.rows.map((r) => ({ ...r })),
@@ -214,7 +222,12 @@ export class StudioRuntime {
         };
       });
     }
-    if (saved) this.routeClockThroughApp = Boolean(saved.routeClockThroughApp);
+    if (saved) {
+      this.routeClockThroughApp = Boolean(saved.routeClockThroughApp);
+      this.fm1Firmware = saved.fm1Firmware === 'h1' ? 'h1' : 'skiff';
+      this.mpcNoteMode = saved.mpcNoteMode === 'din-only' ? 'din-only' : 'usb';
+      this.forwardClockToFm1 = Boolean(saved.forwardClockToFm1);
+    }
     this.registerDefaultAssistantTools();
   }
 
@@ -243,6 +256,9 @@ export class StudioRuntime {
       lastCircuitGesture: this.lastCircuitGesture,
       assignments: this.assignments.map((a) => ({ ...a })),
       routeClockThroughApp: this.routeClockThroughApp,
+      fm1Firmware: this.fm1Firmware,
+      mpcNoteMode: this.mpcNoteMode,
+      forwardClockToFm1: this.forwardClockToFm1,
       sectionBridge: {
         enabled: this.sectionBridge.enabled,
         rows: this.sectionBridge.rows.map((r) => ({ ...r })),
@@ -440,6 +456,43 @@ export class StudioRuntime {
     this.notify();
   }
 
+  setFm1Firmware(firmware: Fm1Firmware): void {
+    this.fm1Firmware = firmware;
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    this.setStatus(
+      firmware === 'skiff'
+        ? 'FM1 = Skiff: Circuit T5–T8 → FM1 ch5–8, macro knobs translated'
+        : 'FM1 = h1: Circuit T5–T6 → FM1, notes only',
+    );
+    this.notify();
+  }
+
+  setMpcNoteMode(mode: MpcNoteMode): void {
+    this.mpcNoteMode = mode;
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    this.setStatus(
+      mode === 'din-only'
+        ? 'MPC via MIDI cable only — app sends the MPC nothing (set MPC tracks to ch1–4 on the DIN port)'
+        : 'MPC via USB — Circuit T1–T4 → MPC ch9–12',
+    );
+    this.notify();
+  }
+
+  setForwardClockToFm1(on: boolean): void {
+    this.forwardClockToFm1 = on;
+    this.resetClockActivity();
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    this.setStatus(
+      on
+        ? 'Circuit clock → FM1 over USB ON (set Skiff CLOCK = USB)'
+        : 'Circuit clock → FM1 OFF',
+    );
+    this.notify();
+  }
+
   setFocusMode(mode: 'follow' | 'smart' | 'manual'): void {
     this.focus.setMode(mode);
     this.notify();
@@ -482,6 +535,9 @@ export class StudioRuntime {
       spOut: p.spOut || '__missing_sp__',
       fm1Out: p.fm1Out || '__missing_fm1__',
       forwardClock: this.routeClockThroughApp,
+      fm1Firmware: this.fm1Firmware,
+      mpcNoteMode: this.mpcNoteMode,
+      forwardClockToFm1: this.forwardClockToFm1,
     }).map((r) => ({
       ...r,
       destinations: r.destinations.filter((d) => !d.portId.startsWith('__missing_')),
@@ -489,7 +545,7 @@ export class StudioRuntime {
 
     this.routing.setRoutes(routes.filter((r) => r.destinations.length > 0));
     this.routing.setClockAuthority(
-      this.routeClockThroughApp ? p.circuitIn : null,
+      this.routeClockThroughApp || this.forwardClockToFm1 ? p.circuitIn : null,
     );
     this.arranger.configure({
       kind: 'circuit-rhythm',
@@ -807,6 +863,9 @@ export class StudioRuntime {
       assignments: this.assignments,
       routeClockThroughApp: this.routeClockThroughApp,
       lastRoutingPresetId: 'my-studio',
+      fm1Firmware: this.fm1Firmware,
+      mpcNoteMode: this.mpcNoteMode,
+      forwardClockToFm1: this.forwardClockToFm1,
     });
   }
 

@@ -273,7 +273,8 @@ describe('My Studio routing restore', () => {
       spOut: 's-out',
       fm1Out: 'f-out',
     });
-    expect(routes).toHaveLength(6);
+    // Skiff default: T1–T4 → MPC, T5–T8 → FM1
+    expect(routes).toHaveLength(8);
     expect(routes.every((r) => r.forwardClock !== true)).toBe(true);
     expect(routes.some((r) => r.id === 'mystudio-clock')).toBe(false);
     expect(routes.find((r) => r.id === 'mystudio-t1-mpc')?.channel).toEqual({
@@ -295,7 +296,50 @@ describe('My Studio routing restore', () => {
     });
     expect(t6?.destinations[0]?.portId).toBe('f-out');
     expect(routes.some((r) => r.id === 'mystudio-t6-sp')).toBe(false);
+    expect(routes.find((r) => r.id === 'mystudio-t7-fm1')?.channel).toEqual({
+      allow: [7],
+      remap: { 7: 7 },
+    });
+    expect(routes.find((r) => r.id === 'mystudio-t8-fm1')?.destinations[0]?.portId).toBe('f-out');
+  });
+
+  it('h1 profile keeps the older T5+T6 notes-only path', () => {
+    const routes = buildMyStudioRoutes({
+      circuitIn: 'c-in',
+      mpcOut: 'm-out',
+      spOut: 's-out',
+      fm1Out: 'f-out',
+      fm1Firmware: 'h1',
+    });
+    expect(routes).toHaveLength(6);
     expect(routes.some((r) => r.id.includes('t7'))).toBe(false);
+    expect(routes.find((r) => r.id === 'mystudio-t5-fm1')?.blockKinds).toContain('cc');
+  });
+
+  it('MPC "MIDI cable only" mode drops every app route to the MPC', () => {
+    const routes = buildMyStudioRoutes({
+      circuitIn: 'c-in',
+      mpcOut: 'm-out',
+      spOut: 's-out',
+      fm1Out: 'f-out',
+      mpcNoteMode: 'din-only',
+    });
+    expect(routes.some((r) => r.destinations.some((d) => d.portId === 'm-out'))).toBe(false);
+    expect(routes.filter((r) => r.id.endsWith('-fm1'))).toHaveLength(4);
+  });
+
+  it('adds a Circuit → FM1 clock-only route when forwardClockToFm1 is on', () => {
+    const routes = buildMyStudioRoutes({
+      circuitIn: 'c-in',
+      mpcOut: 'm-out',
+      spOut: 's-out',
+      fm1Out: 'f-out',
+      forwardClockToFm1: true,
+    });
+    const clk = routes.find((r) => r.id === 'mystudio-clock-fm1');
+    expect(clk?.forwardClock).toBe(true);
+    expect(clk?.destinations.map((d) => d.portId)).toEqual(['f-out']);
+    expect(clk?.blockKinds).toEqual(expect.arrayContaining(['note-on', 'cc']));
   });
 
   it('FM1 jam works without MPC (T5/T6 still bind to FM1 out)', () => {

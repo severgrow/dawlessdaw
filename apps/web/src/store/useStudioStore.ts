@@ -56,6 +56,9 @@ export function useStudioActions() {
     },
     setClockAuthority: (portId: string | null) => runtime.setClockAuthority(portId),
     setRouteClockThroughApp: (on: boolean) => runtime.setRouteClockThroughApp(on),
+    setFm1Firmware: (firmware: 'skiff' | 'h1') => runtime.setFm1Firmware(firmware),
+    setMpcNoteMode: (mode: 'usb' | 'din-only') => runtime.setMpcNoteMode(mode),
+    setForwardClockToFm1: (on: boolean) => runtime.setForwardClockToFm1(on),
     assignStudioPort: (
       roleId: StudioRoleId,
       which: 'input' | 'output',

@@ -22,7 +22,7 @@ npm run build
 
 ## Your studio plan (My Studio)
 
-**FM1 jam focus:** Circuit T5 + T6 → Felucca / FM1 over USB. MPC is optional (routes no-op when unplugged).
+**FM1 jam focus:** Circuit T5–T8 → FM1 running **Skiff** over USB (port often named Felucca); Circuit macro knobs are translated to Skiff's CCs. MPC can take notes over USB or straight from the thru-box cable (Settings → MPC connection). See [docs/skiff-fm1.md](docs/skiff-fm1.md).
 
 | Circuit track | Circuit ch | USB dest channel | Destination |
 |---------------|------------|------------------|-------------|

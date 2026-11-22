@@ -14,19 +14,21 @@ export interface StudioRoleDef {
 /**
  * Patryk's studio — USB MIDI to Mac; hardware MIDI thru outside the app.
  *
- * FM1 jam path (default focus): Circuit T5 + T6 → Felucca / FM1 over USB.
+ * FM1 jam path (default focus): Circuit T5–T8 → FM1 running Skiff over USB
+ * (Chrome often names the port "Felucca"). Set Skiff T1–T4 to listen on ch5–8.
+ * Circuit macro CCs 21–28 are translated to Skiff CCs (CIRCUIT_MACRO_TO_SKIFF_CC).
  * MPC / SP USB note routes remain in the template for when those devices are
  * connected; they simply no-op (missing port placeholders) when absent.
  *
  * Thru box (when used) forwards ALL Circuit MIDI (notes 1–8 + ch16 PGM + clock)
  * to MPC + SP DIN. App remaps USB notes:
  *   Circuit ch1–4 → MPC ch9–12 (optional — leave MPC unplugged for FM1-only jam)
- *   Circuit ch5   → FM1 ch5
- *   Circuit ch6   → FM1 ch6 (no longer USB-routes to SP in this preset)
- *   T7–8 internal; Project ch16 observed by Section Bridge (never forwarded as notes)
+ *   Circuit ch5–8 → FM1 ch5–8 (Skiff); the h1 profile keeps the older T5+T6 notes-only path
+ *   Project ch16 observed by Section Bridge (never forwarded as notes)
  *
- * If FM1 / H-1 only responds on one channel, remap both tracks to ch5 in Settings
- * (or edit routes) — default preserves track identity: 5→5, 6→6.
+ * MPC "din-only" mode removes every app route to the MPC (MPC tracks listen to the
+ * thru-box cable on ch1–4 instead). Never put an FM1 on h1 on the thru chain:
+ * h1 plays every channel.
  */
 export const MY_STUDIO_ROLES: StudioRoleDef[] = [
   {
@@ -70,6 +72,7 @@ export const MY_STUDIO_ROLES: StudioRoleDef[] = [
     portNameHints: [
       'fm1',
       'fm-1',
+      'skiff',
       'felucca',
       'h-1',
       'h1',
@@ -99,6 +102,36 @@ export const MY_STUDIO_CHANNEL_REMAP: Readonly<Record<number, number>> = {
   4: 12,
   5: 5,
   6: 6,
+  7: 7,
+  8: 8,
+};
+
+/** FM1 firmware the My Studio preset is built for. */
+export type Fm1Firmware = 'skiff' | 'h1';
+
+/** How the MPC receives Circuit notes. */
+export type MpcNoteMode = 'usb' | 'din-only';
+
+/**
+ * Skiff (illuminus5/skiff) — Circuit macro knobs (CC 21–28, sent on each track's
+ * own channel) translated to Skiff's standard per-track CCs.
+ * Source: Skiff README (standard CCs). Untested on this studio until bench pass.
+ */
+export const CIRCUIT_MACRO_TO_SKIFF_CC: Readonly<Record<number, number>> = {
+  21: 74, // macro 1 → brightness
+  22: 71, // macro 2 → resonance
+  23: 73, // macro 3 → attack
+  24: 75, // macro 4 → decay
+  25: 72, // macro 5 → release
+  26: 94, // macro 6 → delay send
+  27: 91, // macro 7 → reverb send
+  28: 7, // macro 8 → level
+};
+
+/** Circuit tracks routed to the FM1 for each firmware. */
+export const FM1_TRACKS_BY_FIRMWARE: Readonly<Record<Fm1Firmware, number[]>> = {
+  skiff: [5, 6, 7, 8],
+  h1: [5, 6],
 };
 
 export interface PortAssignment {
@@ -117,6 +150,12 @@ export interface PersistedStudioSetup {
   /** When true, app may forward MIDI clock (default false — hardware thru box). */
   routeClockThroughApp: boolean;
   lastRoutingPresetId: string;
+  /** FM1 firmware profile for routing (default 'skiff'). Optional for older saves. */
+  fm1Firmware?: Fm1Firmware;
+  /** 'din-only' = MPC hears Circuit over the thru-box cable; app sends it nothing. */
+  mpcNoteMode?: MpcNoteMode;
+  /** Forward Circuit clock to FM1 over USB (Skiff CLOCK = USB). Default false. */
+  forwardClockToFm1?: boolean;
 }
 
 export const STORAGE_KEY_STUDIO_SETUP = 'dawlessdaw.studioSetup.v1';
@@ -128,7 +167,15 @@ export function buildMyStudioRoutes(ports: {
   fm1Out: string;
   /** default false — clock stays on hardware thru */
   forwardClock?: boolean;
+  /** default 'skiff' — Circuit T5–T8 → FM1 with macro CC translation */
+  fm1Firmware?: Fm1Firmware;
+  /** default 'usb' — 'din-only' drops all app routes to the MPC */
+  mpcNoteMode?: MpcNoteMode;
+  /** default false — forward Circuit clock/start/stop to FM1 over USB */
+  forwardClockToFm1?: boolean;
 }): MidiRoute[] {
+  const fm1Firmware: Fm1Firmware = ports.fm1Firmware ?? 'skiff';
+  const mpcNoteMode: MpcNoteMode = ports.mpcNoteMode ?? 'usb';
   const routes: MidiRoute[] = [
     {
       id: 'mystudio-t1-mpc',
@@ -170,29 +217,62 @@ export function buildMyStudioRoutes(ports: {
       forwardClock: false,
       blockKinds: ['program-change'],
     },
-    {
-      id: 'mystudio-t5-fm1',
-      name: 'Circuit T5 → FM1 ch5',
-      enabled: true,
-      sourcePortId: ports.circuitIn,
-      destinations: [{ portId: ports.fm1Out }],
-      channel: { allow: [5], remap: { 5: 5 } },
-      forwardClock: false,
-      blockKinds: ['program-change'],
-    },
-    {
-      id: 'mystudio-t6-fm1',
-      name: 'Circuit T6 → FM1 ch6',
-      enabled: true,
-      sourcePortId: ports.circuitIn,
-      destinations: [{ portId: ports.fm1Out }],
-      channel: { allow: [6], remap: { 6: 6 } },
-      forwardClock: false,
-      blockKinds: ['program-change'],
-    },
   ];
 
-  // Tracks 7–8 intentionally omitted (internal Circuit only).
+  for (const track of FM1_TRACKS_BY_FIRMWARE[fm1Firmware]) {
+    if (fm1Firmware === 'skiff') {
+      routes.push({
+        id: `mystudio-t${track}-fm1`,
+        name: `Circuit T${track} → FM1 (Skiff) ch${track}`,
+        enabled: true,
+        sourcePortId: ports.circuitIn,
+        destinations: [{ portId: ports.fm1Out }],
+        channel: { allow: [track], remap: { [track]: track } },
+        // Only translated macro knobs reach Skiff; every other CC is dropped.
+        cc: { map: { ...CIRCUIT_MACRO_TO_SKIFF_CC }, dropUnmapped: true },
+        forwardClock: false,
+        blockKinds: ['program-change'],
+      });
+    } else {
+      // h1 plays every channel: notes only, no CCs.
+      routes.push({
+        id: `mystudio-t${track}-fm1`,
+        name: `Circuit T${track} → FM1 ch${track}`,
+        enabled: true,
+        sourcePortId: ports.circuitIn,
+        destinations: [{ portId: ports.fm1Out }],
+        channel: { allow: [track], remap: { [track]: track } },
+        forwardClock: false,
+        blockKinds: ['program-change', 'cc'],
+      });
+    }
+  }
+
+  if (mpcNoteMode === 'din-only') {
+    // MPC hears the Circuit directly over the thru-box cable — app sends it nothing.
+    for (let i = routes.length - 1; i >= 0; i--) {
+      if (/^mystudio-t[1-4]-mpc$/.test(routes[i]!.id)) routes.splice(i, 1);
+    }
+  }
+
+  if (ports.forwardClockToFm1) {
+    routes.push({
+      id: 'mystudio-clock-fm1',
+      name: 'Circuit clock → FM1 (USB, Skiff CLOCK = USB)',
+      enabled: true,
+      sourcePortId: ports.circuitIn,
+      destinations: [{ portId: ports.fm1Out }],
+      forwardClock: true,
+      blockKinds: [
+        'note-on',
+        'note-off',
+        'cc',
+        'program-change',
+        'aftertouch',
+        'pitch-bend',
+      ],
+    });
+  }
 
   if (ports.forwardClock) {
     routes.push({

@@ -85,11 +85,27 @@ export const BENCH_TESTS: BenchTestDef[] = [
   },
   {
     id: 'fm1-t5-t6-notes',
-    title: 'h. Circuit T5 + T6 → FM1 (Felucca) USB',
+    title: 'h. Circuit T5–T8 → FM1 (Skiff) over USB',
     instruction:
-      'Assign Felucca → FM1 if needed, Re-apply My Studio. Play Circuit tracks 5 and 6 — both should reach FM1 (ch5 and ch6). MPC is optional. If FM1 only responds on one channel, remap both to ch5 and re-test. Mark Pass only when you hear FM1.',
-    listenHint: 'note-on ch5/ch6 Circuit in → FM1 out (hardware verify)',
+      'Settings → FM1 firmware = Skiff. On the FM1: MENU › MIDI › T1–T4 CHANNEL = 5, 6, 7, 8. Load empty samples on Circuit tracks 5–8 and program a few steps on each. Play: Circuit T5 should play Skiff track 1, T6 → track 2, T7 → track 3, T8 → track 4. Mark Pass only when you hear each one on the right Skiff track.',
+    listenHint: 'note-on ch5–8 Circuit in → FM1 out (hardware verify)',
     capabilityKey: 'fm1-usb-notes',
+  },
+  {
+    id: 'fm1-skiff-knobs',
+    title: 'h2. Circuit macro knobs → Skiff settings',
+    instruction:
+      'Circuit Setup: CC Tx on. Select track 5 and turn each macro knob. Expected on Skiff track 1: macro 1 brightness, 2 resonance, 3 attack, 4 decay, 5 release, 6 delay send, 7 reverb send, 8 level. Repeat on tracks 6–8. Note any knob that does nothing or moves the wrong thing.',
+    listenHint: 'CC 21–28 in on ch5–8 → CC 74/71/73/75/72/94/91/7 out to FM1',
+    capabilityKey: 'skiff-standard-cc',
+  },
+  {
+    id: 'fm1-skiff-clock',
+    title: 'h3. Skiff follows Circuit tempo over USB (optional)',
+    instruction:
+      'Skiff CLOCK = USB. Settings → Circuit clock → FM1 over USB ON. Press Play on the Circuit, change its tempo, press Stop. Skiff should start, follow the tempo and stop with it.',
+    listenHint: 'clock/start/stop Circuit in → FM1 out',
+    capabilityKey: 'skiff-usb-clock',
   },
   {
     id: 'timing-circuit-to-mpc',
@@ -111,7 +127,7 @@ export const BENCH_TESTS: BenchTestDef[] = [
     id: 'thru-box-clock-no-notes',
     title: 'k. Thru box: clock without app notes (optional)',
     instruction:
-      'Skip if no DIN thru / MPC/SP. Close the app, play the Circuit: MPC and SP should follow tempo but play no notes. (Proves DIN thru carries clock; musical notes only arrive via USB when the app is open — T5/T6 → FM1, T1–4 → MPC 9–12.)',
+      'Skip if no DIN thru / MPC/SP. Close the app, play the Circuit: MPC and SP should follow tempo but play no notes. (Proves DIN thru carries clock; musical notes only arrive via USB when the app is open — T5–T8 → FM1, T1–4 → MPC 9–12. In "MPC via MIDI cable only" mode the MPC plays tracks 1–4 straight from the cable instead.)',
     listenHint: 'hardware-only check — no app detections',
     capabilityKey: 'thru-clock-isolation',
   },

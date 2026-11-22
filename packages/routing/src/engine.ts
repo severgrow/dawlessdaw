@@ -172,6 +172,9 @@ export class MidiRoutingEngine {
 
     if (message.kind === 'cc') {
       let controller = message.controller ?? 0;
+      if (route.cc?.dropUnmapped && route.cc.map?.[controller] === undefined) {
+        return null;
+      }
       if (route.cc?.map && route.cc.map[controller] !== undefined) {
         controller = route.cc.map[controller]!;
       }

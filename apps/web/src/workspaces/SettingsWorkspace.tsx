@@ -22,6 +22,9 @@ export function SettingsWorkspace() {
     setSimulation,
     rescanMidiPorts,
     setRouteClockThroughApp,
+    setFm1Firmware,
+    setMpcNoteMode,
+    setForwardClockToFm1,
     assignStudioPort,
     applyMyStudioRoutes,
     getAssistantTools,
@@ -67,18 +70,89 @@ export function SettingsWorkspace() {
       <div className="panel">
         <h2>My Studio channel plan</h2>
         <p className="lead">
-          FM1 jam: Circuit T5 + T6 → Felucca / FM1 over USB (MPC optional — routes no-op when
-          unplugged). Thru box (when used) still mirrors Circuit MIDI into MPC/SP DIN; USB remaps
-          avoid doubles on MPC when connected:
+          FM1 jam: Circuit T5–T8 → FM1 over USB (Chrome often calls it Felucca). The thru box still
+          mirrors all Circuit MIDI into MPC/SP over the cable, so app routes use channels the cable
+          path never plays:
         </p>
         <ul className="cap-list mono" style={{ fontSize: 12 }}>
-          <li>Circuit ch1–4 → MPC ch9–12 (optional; no-op if MPC absent)</li>
-          <li>Circuit ch5 → FM1 ch5 · ch6 → FM1 ch6 (USB; H-1 = generic MIDI until bench)</li>
-          <li>SP: T6 is not USB-routed in this preset (Bridge/Bench PC still uses SP ch13)</li>
-          <li>If FM1 only listens on one channel, remap both tracks to ch5</li>
+          <li>
+            {snap.mpcNoteMode === 'din-only'
+              ? 'MPC: MIDI cable only — MPC tracks 1–4 listen to the DIN port on ch1–4; app sends nothing'
+              : 'Circuit ch1–4 → MPC ch9–12 over USB (no-op if MPC absent)'}
+          </li>
+          <li>
+            {snap.fm1Firmware === 'skiff'
+              ? 'Circuit ch5–8 → FM1 ch5–8 (Skiff T1–T4) · macro knobs CC21–28 → Skiff CCs; other CCs dropped'
+              : 'Circuit ch5–6 → FM1 (h1) · notes only'}
+          </li>
+          <li>Keep the FM1 off the thru box — it gets only what the app sends it</li>
           <li>Mute Learn: CC 20 on MPC control ch15 (not 16)</li>
           <li>Section Bridge: SP PC ch13 · MPC PC ch15 · never 1–8 or 16</li>
         </ul>
+      </div>
+
+      <div className="panel">
+        <h2>FM1 firmware</h2>
+        <p className="lead">
+          <strong>Skiff</strong>: Circuit tracks 5–8 → FM1 on channels 5–8 over USB. On the FM1 set
+          Skiff MENU › MIDI › T1–T4 CHANNEL to 5, 6, 7, 8. Circuit macro knobs 1–8 become Skiff
+          brightness, resonance, attack, decay, release, delay, reverb, level. Load empty samples on
+          Circuit tracks 5–8. <strong>h1</strong>: tracks 5–6, notes only (h1 plays every
+          channel — keep it off the thru box).
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            type="button"
+            className={snap.fm1Firmware === 'skiff' ? 'active' : ''}
+            onClick={() => setFm1Firmware('skiff')}
+          >
+            Skiff
+          </button>
+          <button
+            type="button"
+            className={snap.fm1Firmware === 'h1' ? 'active' : ''}
+            onClick={() => setFm1Firmware('h1')}
+          >
+            h1
+          </button>
+        </div>
+        <button
+          type="button"
+          style={{ marginTop: '0.5rem' }}
+          className={snap.forwardClockToFm1 ? 'active' : ''}
+          onClick={() => setForwardClockToFm1(!snap.forwardClockToFm1)}
+        >
+          Circuit clock → FM1 over USB: {snap.forwardClockToFm1 ? 'ON' : 'OFF'}
+        </button>
+        <p className="muted" style={{ marginTop: '0.5rem' }}>
+          Turn ON with Skiff CLOCK = USB so the FM1 follows the Circuit&apos;s tempo and play/stop.
+        </p>
+      </div>
+
+      <div className="panel">
+        <h2>MPC connection</h2>
+        <p className="lead">
+          <strong>USB</strong>: app sends Circuit tracks 1–4 to the MPC on channels 9–12.{' '}
+          <strong>MIDI cable only</strong>: the app sends the MPC nothing; set MPC tracks 1–4 to
+          listen to the MIDI (DIN) port on channels 1–4 — they hear the Circuit through the thru box.
+          Use this when the Mac can&apos;t see the MPC over USB.
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            type="button"
+            className={snap.mpcNoteMode === 'usb' ? 'active' : ''}
+            onClick={() => setMpcNoteMode('usb')}
+          >
+            USB
+          </button>
+          <button
+            type="button"
+            className={snap.mpcNoteMode === 'din-only' ? 'active' : ''}
+            onClick={() => setMpcNoteMode('din-only')}
+          >
+            MIDI cable only
+          </button>
+        </div>
       </div>
 
       <div className="panel">

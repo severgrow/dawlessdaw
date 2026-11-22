@@ -23,6 +23,11 @@ export interface CcRemap {
   map?: Record<number, number>;
   /** Clamp value range after remap */
   range?: { min: number; max: number };
+  /**
+   * When true, CCs not listed in `map` are dropped instead of passed through.
+   * Used so only translated knob CCs reach a destination (e.g. Circuit macros → Skiff).
+   */
+  dropUnmapped?: boolean;
 }
 
 export interface RouteDestination {

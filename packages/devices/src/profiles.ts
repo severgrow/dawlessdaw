@@ -117,11 +117,12 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
   },
   'm-vave-fm1': {
     kind: 'm-vave-fm1',
-    displayName: 'M-VAVE FM1 (H-1)',
+    displayName: 'M-VAVE FM1 (Skiff)',
     manufacturer: 'M-VAVE',
     portNameHints: [
       'fm1',
       'fm-1',
+      'skiff',
       'felucca',
       'h-1',
       'h1',
@@ -135,32 +136,42 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
     ],
     hasMidi: true,
     hasAudioCapture: false,
-    // User studio runs community H-1 (jakehandy/h1), not FM1 Open / stock.
-    // Chrome may show the CDC port as "Felucca" instead of FM1 / M-VAVE.
-    // Until Bench Pass: treat as generic MIDI only — every H-1 capability unknown/untested.
-    firmwareProfiles: ['h-1', 'stock', 'open', 'generic'],
-    defaultFirmwareProfile: 'h-1',
+    // User studio now runs Skiff (illuminus5/skiff, built on Felucca); h1 kept as an option.
+    // Chrome may show the USB port as "Felucca". Everything untested until Bench Pass.
+    firmwareProfiles: ['skiff', 'h-1', 'stock', 'open', 'generic'],
+    defaultFirmwareProfile: 'skiff',
     capabilities: [
       {
-        id: 'generic-midi',
-        label: 'Generic MIDI (H-1 — unknown until bench)',
-        status: 'unknown',
+        id: 'skiff-track-channels',
+        label: 'Skiff: 6 tracks, each on its own MIDI channel (T1–T6 CHANNEL, since 1.3)',
+        status: 'untested',
         notes:
-          'This studio’s FM1 runs H-1. Treat as generic MIDI until Bench Pass. Do not assume Open or stock CC maps.',
+          'Skiff README. Plan: set Skiff T1–T4 to ch5–8 so Circuit T5–T8 play them unchanged.',
       },
       {
-        id: 'h1-knob-cc',
-        label: 'H-1 knob CCs (community docs claim 20–23)',
+        id: 'skiff-standard-cc',
+        label: 'Skiff standard CCs (7 level, 10 pan, 74 brightness, 71 res, 73/75/72 env, 91/93/94 sends)',
+        status: 'untested',
+        notes: 'Skiff README. Circuit macros 21–28 are translated to these by My Studio routes.',
+      },
+      {
+        id: 'skiff-usb-clock',
+        label: 'Skiff CLOCK source INT / USB / TRS',
+        status: 'untested',
+        notes: 'Skiff README. App can forward Circuit clock to FM1 over USB (Settings toggle).',
+      },
+      {
+        id: 'h1-any-channel',
+        label: 'h1 (alternative firmware): plays notes on any channel; knobs CC 20–23',
         status: 'unknown',
         notes:
-          'jakehandy/h1 docs only — untested here; not encoded as a working map; CC 123 all-notes-off also untested',
+          'jakehandy/h1 guide. Never put an h1 FM1 on the thru-box chain — it would play every track.',
       },
       {
         id: 'firmware-map',
-        label: 'Deep firmware CC / SysEx map',
+        label: 'Deep firmware SysEx map',
         status: 'unavailable',
-        notes:
-          'H-1 ≠ Open ≠ stock. Never apply Open V14 or stock MIDI CONTROL tables to H-1.',
+        notes: 'Skiff ≠ h1 ≠ Open ≠ stock. Never apply one firmware’s map to another.',
       },
     ],
   },
