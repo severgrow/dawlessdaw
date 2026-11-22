@@ -27,6 +27,20 @@ Presets save/load/rename in the Controller bar and are included in **Sessions** 
 
 Honest limit: Circuit buttons (mute, scenes, patterns, track select) do **not** send MIDI, so they cannot be mapped.
 
+
+## MIDI learn glass
+
+Twist a **macro** or **mixer Level/Pan** on the Circuit → a dark frosted-glass popup shows:
+
+1. What fired (e.g. Circuit Track 3 · Macro 2)
+2. What it currently does (e.g. → FM1 Level CC7 on ch1)
+3. Easy change: destination (**FM1 / SP / MPC / Circuit only**), bank/track slot, and macro target from the known map (or Custom CC)
+4. **Twist another to reassign** / **Save** / **Cancel** — plus **pin** and **don’t show for 10s**
+
+Mappings are **per Circuit track** (T5→FM1 and T6→SP can differ) and persist in the Controller preset (`localStorage` via the existing studio setup). MIDI clock (F8) and other transport never open the glass.
+
+Honest limit: Circuit **buttons** (mute, scenes, patterns, track select) do not transmit MIDI. Mixer Level/Pan need **CC Tx ON** in Circuit Setup; some TX paths are still hardware-unverified.
+
 ## Device colours
 
 - SP = deep burgundy `#9a2a45`

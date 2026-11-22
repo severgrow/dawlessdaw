@@ -36,12 +36,15 @@ import {
   CIRCUIT_MACRO_CCS,
   buildControllerRoutes,
   clonePreset,
+  controlMappingKey,
   copyTrack,
   describeIncoming,
   destChannel,
+  isLearnGlassIgnoredMidi,
   knobTarget,
   myStudioPreset,
   presetFromTrackPlan,
+  resolveControlMapping,
   sanitizePreset,
   slotCc,
   swapKnobs,
@@ -49,6 +52,7 @@ import {
   type CtrlDevice,
   type CtrlTrack,
   type KnobSlot,
+  type ResolvedControlMapping,
   legacyTrackPlan,
   sanitizeTrackPlan,
   setTrackSend as withTrackSend,
@@ -155,6 +159,18 @@ export interface StudioRuntimeSnapshot {
   activeCircuitTrack: number | null;
   /** Last 10 plain-English events, newest first. */
   ctrlEvents: { text: string; device: CtrlDevice | null; at: number }[];
+  /**
+   * Dark glass learn popup for the last Circuit user control (macro / mixer).
+   * Null when closed. Clock / SysEx never open this.
+   */
+  midiLearnGlass: {
+    mapping: ResolvedControlMapping;
+    at: number;
+    learnReassign: boolean;
+    pinned: boolean;
+  } | null;
+  /** When > Date.now(), glass stays closed (“don’t show for 10s”). */
+  midiLearnSnoozeUntil: number;
   spNoteOffset: number;
   learningSpPadOffset: boolean;
   sectionBridge: SectionBridgeConfig;
@@ -290,6 +306,13 @@ export class StudioRuntime {
   private activeCircuitTrack: number | null = null;
   private ctrlEvents: StudioRuntimeSnapshot['ctrlEvents'] = [];
   private ctrlNotifyAt = 0;
+  private midiLearnGlass: StudioRuntimeSnapshot['midiLearnGlass'] = null;
+  private midiLearnSnoozeUntil = 0;
+  private midiLearnDebounce: ReturnType<typeof setTimeout> | null = null;
+  private midiLearnPending: ResolvedControlMapping | null = null;
+  private midiLearnHideTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Preset snapshot when the glass opened — Cancel restores this. */
+  private midiLearnBaseline: ControllerPreset | null = null;
   private testTimers: ReturnType<typeof setTimeout>[] = [];
   private destActivity: Record<TrackDestId, number> = { mpc: 0, sp: 0, fm1: 0 };
   private spNoteOffset = DEFAULT_SP_NOTE_OFFSET;
@@ -422,6 +445,15 @@ export class StudioRuntime {
       lastKnob: this.lastKnob ? { ...this.lastKnob } : null,
       activeCircuitTrack: this.activeCircuitTrack,
       ctrlEvents: [...this.ctrlEvents],
+      midiLearnGlass: this.midiLearnGlass
+        ? {
+            mapping: { ...this.midiLearnGlass.mapping },
+            at: this.midiLearnGlass.at,
+            learnReassign: this.midiLearnGlass.learnReassign,
+            pinned: this.midiLearnGlass.pinned,
+          }
+        : null,
+      midiLearnSnoozeUntil: this.midiLearnSnoozeUntil,
       spNoteOffset: this.spNoteOffset,
       learningSpPadOffset: this.learningSpPadOffset,
       lastProject: this.lastProject ? { ...this.lastProject } : null,
@@ -771,6 +803,19 @@ export class StudioRuntime {
     this.controller = next;
     this.applyMyStudioRoutes();
     this.persistSetup();
+    // Keep the open glass in sync with the new mapping (same control, fresh detail).
+    if (this.midiLearnGlass) {
+      const m = this.midiLearnGlass.mapping;
+      const refreshed = resolveControlMapping(this.controller, {
+        kind: 'cc',
+        channel: m.sourceChannel,
+        controller: m.sourceCc,
+        value: m.value,
+      });
+      if (refreshed) {
+        this.midiLearnGlass = { ...this.midiLearnGlass, mapping: refreshed };
+      }
+    }
     if (status) this.setStatus(status);
     this.notify();
   }
@@ -825,6 +870,16 @@ export class StudioRuntime {
     this.controller = prev;
     this.applyMyStudioRoutes();
     this.persistSetup();
+    if (this.midiLearnGlass) {
+      const m = this.midiLearnGlass.mapping;
+      const refreshed = resolveControlMapping(this.controller, {
+        kind: 'cc',
+        channel: m.sourceChannel,
+        controller: m.sourceCc,
+        value: m.value,
+      });
+      if (refreshed) this.midiLearnGlass = { ...this.midiLearnGlass, mapping: refreshed };
+    }
     this.setStatus('Undone');
     this.notify();
   }
@@ -894,7 +949,134 @@ export class StudioRuntime {
 
   cancelControllerLearn(): void {
     this.controllerLearn = null;
+    if (this.midiLearnGlass) {
+      this.midiLearnGlass = { ...this.midiLearnGlass, learnReassign: false };
+    }
     this.notify();
+  }
+
+  /** Close the MIDI learn glass (keeps mappings). */
+  dismissMidiLearnGlass(): void {
+    if (this.midiLearnDebounce) {
+      clearTimeout(this.midiLearnDebounce);
+      this.midiLearnDebounce = null;
+    }
+    this.midiLearnPending = null;
+    if (this.midiLearnHideTimer) {
+      clearTimeout(this.midiLearnHideTimer);
+      this.midiLearnHideTimer = null;
+    }
+    this.midiLearnGlass = null;
+    this.midiLearnBaseline = null;
+    this.notify();
+  }
+
+  /** Save = dismiss; mappings already persist via the controller preset store. */
+  saveMidiLearnGlass(): void {
+    this.midiLearnBaseline = null;
+    this.dismissMidiLearnGlass();
+    this.setStatus('Controller mapping kept');
+  }
+
+  /** Cancel = restore the preset from when the glass opened, then close. */
+  cancelMidiLearnGlass(): void {
+    if (this.midiLearnBaseline) {
+      this.controller = clonePreset(this.midiLearnBaseline);
+      this.applyMyStudioRoutes();
+      this.persistSetup();
+      this.midiLearnBaseline = null;
+    }
+    this.dismissMidiLearnGlass();
+    this.setStatus('Mapping change cancelled');
+  }
+
+  setMidiLearnPinned(pinned: boolean): void {
+    if (!this.midiLearnGlass) return;
+    this.midiLearnGlass = { ...this.midiLearnGlass, pinned };
+    if (pinned) {
+      if (this.midiLearnHideTimer) {
+        clearTimeout(this.midiLearnHideTimer);
+        this.midiLearnHideTimer = null;
+      }
+    } else {
+      this.armMidiLearnHide();
+    }
+    this.notify();
+  }
+
+  /** Hide the glass for 10 seconds even if knobs keep moving. */
+  snoozeMidiLearnGlass(ms = 10_000): void {
+    this.midiLearnSnoozeUntil = Date.now() + ms;
+    this.dismissMidiLearnGlass();
+    this.setStatus('MIDI learn glass hidden for 10s');
+  }
+
+  /** “Twist another control to reassign” — next macro on this track swaps into the open slot. */
+  startMidiLearnReassign(): void {
+    if (!this.midiLearnGlass || this.midiLearnGlass.mapping.knob == null) return;
+    const { track, knob } = this.midiLearnGlass.mapping;
+    this.midiLearnGlass = { ...this.midiLearnGlass, learnReassign: true, pinned: true };
+    this.controllerLearn = { kind: 'twist', track, knob };
+    this.setStatus('Twist another Circuit macro to reassign');
+    this.notify();
+  }
+
+  private armMidiLearnHide(): void {
+    if (this.midiLearnHideTimer) clearTimeout(this.midiLearnHideTimer);
+    if (this.midiLearnGlass?.pinned) return;
+    this.midiLearnHideTimer = setTimeout(() => {
+      if (this.midiLearnGlass && !this.midiLearnGlass.pinned) {
+        this.midiLearnGlass = null;
+        this.notify();
+      }
+    }, 6000);
+  }
+
+  private queueMidiLearnGlass(mapping: ResolvedControlMapping): void {
+    if (Date.now() < this.midiLearnSnoozeUntil) return;
+
+    const open = this.midiLearnGlass;
+    const same = open && controlMappingKey(open.mapping) === controlMappingKey(mapping);
+
+    if (same && open) {
+      this.midiLearnGlass = {
+        ...open,
+        mapping: { ...mapping },
+        at: Date.now(),
+      };
+      this.armMidiLearnHide();
+      return;
+    }
+
+    // Pinned: refresh to the new control immediately (still editing).
+    if (open?.pinned && !open.learnReassign) {
+      this.midiLearnGlass = {
+        mapping: { ...mapping },
+        at: Date.now(),
+        learnReassign: false,
+        pinned: true,
+      };
+      this.notify();
+      return;
+    }
+
+    this.midiLearnPending = mapping;
+    if (this.midiLearnDebounce) clearTimeout(this.midiLearnDebounce);
+    this.midiLearnDebounce = setTimeout(() => {
+      this.midiLearnDebounce = null;
+      const pending = this.midiLearnPending;
+      this.midiLearnPending = null;
+      if (!pending || Date.now() < this.midiLearnSnoozeUntil) return;
+      this.midiLearnBaseline = clonePreset(this.controller);
+      this.midiLearnGlass = {
+        mapping: { ...pending },
+        at: Date.now(),
+        learnReassign: false,
+        pinned: false,
+      };
+      this.armMidiLearnHide();
+      this.notify();
+    }, 140);
   }
 
   /** Slow sweep (min→max→min, ~2.4 s) to a mapped knob target, so you can hear or see it move. */
@@ -937,6 +1119,9 @@ export class StudioRuntime {
   }
 
   private controllerIncoming(message: MidiMessage): void {
+    // Never react to MIDI clock / transport / SysEx here — glass must not spam.
+    if (isLearnGlassIgnoredMidi(message.kind)) return;
+
     const t = message.channel ?? 0;
     if (t < 1 || t > 8) return;
     const isNote = message.kind === 'note-on' && (message.velocity ?? 0) > 0;
@@ -944,7 +1129,9 @@ export class StudioRuntime {
       message.kind === 'cc' && message.controller != null
         ? CIRCUIT_MACRO_CCS.indexOf(message.controller as (typeof CIRCUIT_MACRO_CCS)[number])
         : -1;
-    if (!isNote && knob < 0) return;
+    const resolved =
+      message.kind === 'cc' ? resolveControlMapping(this.controller, message) : null;
+    if (!isNote && !resolved) return;
     this.activeCircuitTrack = t;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
@@ -955,8 +1142,25 @@ export class StudioRuntime {
       this.setStatus(`Learned: Circuit note ${message.note} on T${t} is the first note`);
     } else if (learn?.kind === 'twist' && knob >= 0) {
       this.controllerLearn = null;
+      if (this.midiLearnGlass) {
+        this.midiLearnGlass = { ...this.midiLearnGlass, learnReassign: false };
+      }
       if (knob !== learn.knob) {
         this.changeController(swapKnobs(this.controller, learn.track, learn.knob, knob), `Moved to knob ${knob + 1}`);
+        const after = resolveControlMapping(this.controller, {
+          kind: 'cc',
+          channel: learn.track,
+          controller: CIRCUIT_MACRO_CCS[knob],
+          value: message.value,
+        });
+        if (after) {
+          this.midiLearnGlass = {
+            mapping: after,
+            at: Date.now(),
+            learnReassign: false,
+            pinned: this.midiLearnGlass?.pinned ?? true,
+          };
+        }
       } else {
         this.setStatus(`That's already knob ${knob + 1}`);
       }
@@ -976,6 +1180,10 @@ export class StudioRuntime {
         this.ctrlEvents = [{ text: ev.text, device: ev.device, at: Date.now() }, ...this.ctrlEvents].slice(0, 10);
       }
     }
+
+    // Glass: macros + mixer only (not notes — pads would spam while playing).
+    if (resolved) this.queueMidiLearnGlass(resolved);
+
     if (knob >= 0 && now - this.ctrlNotifyAt < 33) return;
     this.ctrlNotifyAt = now;
     this.notify();
