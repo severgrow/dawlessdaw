@@ -1,6 +1,10 @@
 /**
  * Session Recorder capture: getUserMedia → AudioWorklet raw PCM (not MediaRecorder).
  * IndexedDB chunk persistence while recording.
+ *
+ * Graph: MediaStreamSource → Worklet (PCM + meters) only.
+ * Worklet → silent gain → destination keeps the node alive without monitoring.
+ * Live input never reaches destination unless Monitor input is explicitly ON.
  */
 import { CLIP_HOLD_MS, CLIP_LINEAR, type TakeMarker, type TakeMeta } from './types';
 import {
@@ -16,6 +20,11 @@ import {
 } from './takeStore';
 import { stitchChunks, type PcmChunk } from './stitch';
 import { isClipping } from './pcmMath';
+import {
+  loadPersistedMonitorInput,
+  persistMonitorInput,
+  planCaptureGraph,
+} from './captureGraph';
 
 export type CaptureState = 'idle' | 'recording' | 'stopping';
 
@@ -33,6 +42,8 @@ export interface CaptureStatus {
   sampleRate: number;
   meters: MeterLevels;
   takeId: string | null;
+  /** Speaker monitoring of the live input (default off). */
+  monitorInput: boolean;
 }
 
 type StatusListener = (s: CaptureStatus) => void;
@@ -42,6 +53,8 @@ export interface StartCaptureOpts {
   deviceLabel: string;
   tags: Partial<TakeTags>;
   name?: string;
+  /** Override monitor for this take; omit to use persisted / default OFF. */
+  monitorInput?: boolean;
 }
 
 export class CaptureEngine {
@@ -49,6 +62,12 @@ export class CaptureEngine {
   private stream: MediaStream | null = null;
   private worklet: AudioWorkletNode | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
+  /** Keeps worklet in the render graph; gain stays 0 (worklet outputs are silence). */
+  private keepAliveGain: GainNode | null = null;
+  /** Optional mic → speakers tap; only connected when monitorInput is true. */
+  private monitorGain: GainNode | null = null;
+  private monitorConnected = false;
+  private monitorInput = loadPersistedMonitorInput();
   private state: CaptureState = 'idle';
   private chunks: PcmChunk[] = [];
   private chunkIndex = 0;
@@ -78,7 +97,49 @@ export class CaptureEngine {
       sampleRate: this.ctx?.sampleRate ?? 48000,
       meters: { ...this.meters },
       takeId: this.takeId,
+      monitorInput: this.monitorInput,
     };
+  }
+
+  /** Explicit speaker monitor of the live input. Default OFF. */
+  setMonitorInput(on: boolean): void {
+    this.monitorInput = on === true;
+    persistMonitorInput(this.monitorInput);
+    this.applyMonitorWiring();
+    this.notify();
+  }
+
+  getMonitorInput(): boolean {
+    return this.monitorInput;
+  }
+
+  private applyMonitorWiring(): void {
+    if (!this.ctx || !this.source) return;
+    const plan = planCaptureGraph(this.monitorInput);
+    if (plan.sourceToDestination) {
+      if (!this.monitorGain) {
+        this.monitorGain = this.ctx.createGain();
+        this.monitorGain.gain.value = 1;
+      }
+      if (!this.monitorConnected) {
+        this.source.connect(this.monitorGain);
+        this.monitorGain.connect(this.ctx.destination);
+        this.monitorConnected = true;
+      }
+    } else if (this.monitorConnected && this.monitorGain) {
+      try {
+        this.source.disconnect(this.monitorGain);
+      } catch {
+        // ignore
+      }
+      try {
+        this.monitorGain.disconnect();
+      } catch {
+        // ignore
+      }
+      this.monitorConnected = false;
+      this.monitorGain = null;
+    }
   }
 
   private notify(): void {
@@ -88,6 +149,11 @@ export class CaptureEngine {
 
   async start(opts: StartCaptureOpts): Promise<void> {
     if (this.state !== 'idle') throw new Error('Already recording');
+
+    if (typeof opts.monitorInput === 'boolean') {
+      this.monitorInput = opts.monitorInput;
+      persistMonitorInput(this.monitorInput);
+    }
 
     const audioConstraints: MediaTrackConstraints = {
       echoCancellation: false,
@@ -182,12 +248,16 @@ export class CaptureEngine {
         });
     };
 
+    // Mic → worklet only (PCM + meters). Never mic → destination unless monitor ON.
     this.source.connect(this.worklet);
-    // Keep graph alive without monitoring through speakers
-    const mute = this.ctx.createGain();
-    mute.gain.value = 0;
-    this.source.connect(mute);
-    mute.connect(this.ctx.destination);
+    // Keep worklet in the render graph via silent outputs (processor zeros them).
+    this.keepAliveGain = this.ctx.createGain();
+    this.keepAliveGain.gain.value = 0;
+    this.worklet.connect(this.keepAliveGain);
+    this.keepAliveGain.connect(this.ctx.destination);
+    this.monitorConnected = false;
+    this.monitorGain = null;
+    this.applyMonitorWiring();
 
     const tick = () => {
       if (this.state !== 'recording') return;
@@ -224,6 +294,16 @@ export class CaptureEngine {
       // ignore
     }
     try {
+      this.keepAliveGain?.disconnect();
+    } catch {
+      // ignore
+    }
+    try {
+      this.monitorGain?.disconnect();
+    } catch {
+      // ignore
+    }
+    try {
       this.source?.disconnect();
     } catch {
       // ignore
@@ -232,6 +312,9 @@ export class CaptureEngine {
     await this.ctx.close();
     this.worklet = null;
     this.source = null;
+    this.keepAliveGain = null;
+    this.monitorGain = null;
+    this.monitorConnected = false;
     this.stream = null;
     this.ctx = null;
 

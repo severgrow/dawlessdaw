@@ -18,6 +18,7 @@ ZED over USB = **16-bit / 48 kHz max**. For 24-bit, connect the ZED’s main or 
 
 - `getUserMedia` with echoCancellation / noiseSuppression / autoGainControl **off**, stereo, prefer 48 kHz.
 - **AudioWorklet** raw PCM (not MediaRecorder).
+- Graph: input → worklet (PCM + meters) only. Worklet outputs are silenced and only that silent path reaches `AudioContext.destination` so the node stays alive. **Monitor input** is **off** by default — turning it on taps the live mic to the speakers (headphones recommended). Monitoring is off so the room doesn’t feed back into the take.
 - Chunks written to IndexedDB while recording; **Recover unsaved take** on reopen if a session was interrupted.
 
 ## Export
