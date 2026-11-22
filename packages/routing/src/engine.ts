@@ -5,6 +5,7 @@ import {
   buildNoteOn,
   cloneMidiData,
   isClockLike,
+  parseMidiMessage,
 } from '@dawlessdaw/core';
 import type { StudioEventBus } from '@dawlessdaw/events';
 import type { HardwareTransport } from '@dawlessdaw/midi';
@@ -216,14 +217,10 @@ export class MidiRoutingEngine {
     const ts = typeof performance !== 'undefined' ? performance.now() : Date.now();
     this.recentOut.set(portId, ts);
     this.transport.send(portId, data, ts);
+    // Parse kind so outbound clock/start/stop partition into midi:clock (not UI flood)
     this.bus?.emit({
       type: 'midi:out',
-      message: {
-        data,
-        timestamp: ts,
-        portId,
-        kind: 'unknown',
-      },
+      message: parseMidiMessage(data, ts, portId),
     });
   }
 }

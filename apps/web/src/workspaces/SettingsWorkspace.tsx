@@ -79,8 +79,9 @@ export function SettingsWorkspace() {
         <p className="lead">
           Default <strong>OFF</strong> — clock stays on hardware (Circuit MIDI Out → thru → MPC +
           SP). Turn <strong>ON</strong> only for USB-only sync (no DIN thru): forwards Circuit
-          clock / start / stop to MPC + SP USB outs. If you later add DIN thru, turn this OFF again
-          to avoid double clock.
+          clock / start / stop to MPC + SP USB outs. Circuit must have Setup <strong>Clock Tx</strong>{' '}
+          (pad 32) bright — that one pad feeds USB and DIN together. Watch Patchbay → USB clock
+          monitor. If you later add DIN thru, turn this OFF again to avoid double clock.
         </p>
         <button
           type="button"

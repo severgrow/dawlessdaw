@@ -107,6 +107,14 @@ export const BENCH_TESTS: BenchTestDef[] = [
     listenHint: 'hardware-only check — no app detections',
     capabilityKey: 'thru-clock-isolation',
   },
+  {
+    id: 'usb-app-clock',
+    title: 'k. USB-only: Circuit clock through app → MPC/SP',
+    instruction:
+      'Settings → App clock forwarding ON. Circuit Setup (Shift+Save): Clock Tx pad 32 bright. Focus this test, press Play on Circuit. Patchbay clock strip should show IN (start/clock) and OUT ticks. MPC should start if Remote GLOBAL + Receive MIDI Clock are on.',
+    listenHint: 'start/stop/clock on Circuit in; forwarded out to MPC/SP',
+    capabilityKey: 'usb-app-clock',
+  },
 ];
 
 export function emptyBenchResults(): BenchTestResult[] {

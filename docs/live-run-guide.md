@@ -112,7 +112,19 @@ Suggested order:
 
 Use this when Circuit clock reaches MPC / SP only over USB through Dawlessdaw.
 
-1. **Dawlessdaw → Settings → MIDI clock through app** → click **App clock forwarding** until it shows **ON** (default is OFF). Re-apply routes if needed.
+#### Circuit Rhythm (do this first)
+
+There is **no separate USB vs DIN clock switch**. One Tx pad feeds **both** USB and MIDI Out.
+
+1. Hold **Shift + Save** → **Setup View**.
+2. **Pad 32 — MIDI Clock Tx**: must be **bright** (ON). Dim = no Start/Clock leave the box (USB or DIN).
+3. **Pad 31 — MIDI Clock Rx**: prefer **dim (OFF)** while Circuit is leader so a USB echo cannot steal tempo (Rx OFF = internal clock; Tx still works).
+4. Press **Play** to save/exit Setup, then press **Play** again so the project is actually running (Start + Clock only while playing).
+5. Do **not** use the analogue **Sync** 3.5 mm jack for this path — that is not MIDI Clock.
+
+#### Dawlessdaw + MPC
+
+1. **Dawlessdaw → Settings → MIDI clock through app** → **App clock forwarding: ON**. Confirm Patchbay lists route **Circuit clock → MPC + SP (app path)**.
 2. **MPC Preferences → MIDI / SYNC:**
    - **SYNC RECEIVE → RECEIVE**: **MIDI Clock**
    - **ABLETON START/STOP SYNC**: **OFF**; Ableton Link off
@@ -122,6 +134,12 @@ Use this when Circuit clock reaches MPC / SP only over USB through Dawlessdaw.
    - **OUTPUT PORTS → MPC + Remote → SYNC**: both **OFF**
 3. Live on, Circuit **Play** → MPC should run (tempo + start/stop). SP should follow if its USB sync receive is enabled.
 4. **Warn:** if you later add DIN thru (Circuit Out → thru → MPC/SP In), turn **App clock forwarding** back to **OFF** so you do not double-clock.
+
+#### See clock in Patchbay / Bench
+
+1. **Patchbay → USB clock monitor**: with Circuit playing, **IN** ticks and shows `start` then `clock`. With forwarding ON, **OUT** ticks too. If IN stays `—` while Circuit plays → Clock Tx / USB / Live port assign. If IN live but OUT dead → forwarding OFF or missing MPC/SP out.
+2. **Bench → k. USB-only: Circuit clock through app**: Focus this test, Play on Circuit — detections list `start` / sampled `clock`.
+3. **Export Bench JSON** → `rawMidiLog` summaries include `start` / `clock` / `stop` (F8 is sampled ~1 per quarter).
 
 ## 5. After the bench
 

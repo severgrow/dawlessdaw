@@ -123,6 +123,58 @@ describe('MidiRoutingEngine', () => {
     expect(transport.getSent()).toHaveLength(1);
   });
 
+  it('forwards start/stop/clock to MPC + SP when forwardClock is true', () => {
+    engine.setClockAuthority('mock-circuit-in');
+    engine.setRoutes([
+      {
+        id: 'mystudio-t1',
+        name: 'notes',
+        enabled: true,
+        sourcePortId: 'mock-circuit-in',
+        destinations: [{ portId: 'mock-mpc-out' }],
+        channel: { allow: [1] },
+        forwardClock: false,
+      },
+      {
+        id: 'mystudio-clock',
+        name: 'clock',
+        enabled: true,
+        sourcePortId: 'mock-circuit-in',
+        destinations: [{ portId: 'mock-mpc-out' }, { portId: 'mock-sp404-out' }],
+        forwardClock: true,
+        blockKinds: ['note-on', 'note-off', 'cc', 'program-change'],
+      },
+    ]);
+    transport.inject('mock-circuit-in', [0xfa]); // start
+    transport.inject('mock-circuit-in', [0xf8]); // clock
+    transport.inject('mock-circuit-in', [0xfc]); // stop
+    const sent = transport.getSent();
+    // 3 transport msgs × 2 dests
+    expect(sent).toHaveLength(6);
+    expect(sent.filter((s) => s.portId === 'mock-mpc-out').map((s) => s.data[0])).toEqual([
+      0xfa, 0xf8, 0xfc,
+    ]);
+    expect(sent.filter((s) => s.portId === 'mock-sp404-out').map((s) => s.data[0])).toEqual([
+      0xfa, 0xf8, 0xfc,
+    ]);
+  });
+
+  it('does not forward clock on note routes with forwardClock false', () => {
+    engine.setRoutes([
+      {
+        id: 'notes',
+        name: 'notes',
+        enabled: true,
+        sourcePortId: 'mock-circuit-in',
+        destinations: [{ portId: 'mock-mpc-out' }],
+        forwardClock: false,
+      },
+    ]);
+    transport.inject('mock-circuit-in', [0xfa]);
+    transport.inject('mock-circuit-in', [0xf8]);
+    expect(transport.getSent()).toHaveLength(0);
+  });
+
   it('cleans up note-offs via allNotesOff', () => {
     engine.setRoutes([
       {

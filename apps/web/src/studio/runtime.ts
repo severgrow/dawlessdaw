@@ -1,4 +1,4 @@
-import { AssistantToolRegistry, type MidiMessage } from '@dawlessdaw/core';
+import { AssistantToolRegistry, isClockLike, type MidiMessage } from '@dawlessdaw/core';
 import { StudioEventBus } from '@dawlessdaw/events';
 import {
   FIXTURE_CIRCUIT_GROOVE,
@@ -89,6 +89,16 @@ export interface StudioRuntimeSnapshot {
   benchDetections: string[];
   latencyStats: { samples: number; meanMs: number; jitterMs: number; message: string } | null;
   capturingSceneMidi: boolean;
+  /** Throttled USB clock monitor (Circuit in → MPC/SP out when app forwarding is on). */
+  clockActivity: {
+    lastInKind: string | null;
+    lastInAt: number | null;
+    inTicks: number;
+    lastOutKind: string | null;
+    lastOutAt: number | null;
+    outTicks: number;
+    forwarding: boolean;
+  };
 }
 
 type Listener = () => void;
@@ -155,6 +165,14 @@ export class StudioRuntime {
   private pendingNoteIns = new Map<string, number>();
   private capturingSceneMidi = false;
   private captureTimer: ReturnType<typeof setTimeout> | null = null;
+  private clockInTicks = 0;
+  private clockOutTicks = 0;
+  private lastClockInKind: string | null = null;
+  private lastClockInAt: number | null = null;
+  private lastClockOutKind: string | null = null;
+  private lastClockOutAt: number | null = null;
+  private clockUiNotifyAt = 0;
+  private clockLogSample = 0;
   private activeBenchId: string | null = null;
   private listeners = new Set<Listener>();
   private unsubs: Array<() => void> = [];
@@ -206,6 +224,15 @@ export class StudioRuntime {
       benchDetections: [...this.benchDetections],
       latencyStats: this.latencyStats ? { ...this.latencyStats } : null,
       capturingSceneMidi: this.capturingSceneMidi,
+      clockActivity: {
+        lastInKind: this.lastClockInKind,
+        lastInAt: this.lastClockInAt,
+        inTicks: this.clockInTicks,
+        lastOutKind: this.lastClockOutKind,
+        lastOutAt: this.lastClockOutAt,
+        outTicks: this.clockOutTicks,
+        forwarding: this.routeClockThroughApp,
+      },
     };
   }
 
@@ -260,6 +287,13 @@ export class StudioRuntime {
     );
 
     this.unsubs.push(this.bus.on('focus:changed', () => this.notify()));
+
+    this.unsubs.push(
+      this.bus.on('midi:clock', (event) => {
+        if (event.type !== 'midi:clock') return;
+        this.recordClockActivity(event.message);
+      }),
+    );
 
     this.setStatus(
       this.simulation
@@ -319,6 +353,18 @@ export class StudioRuntime {
   }
 
   setClockAuthority(portId: string | null): void {
+    if (this.routeClockThroughApp) {
+      const circuitIn = portsForRoles(this.assignments).circuitIn;
+      // USB-only forwarding always locks authority to Circuit in
+      this.routing.setClockAuthority(circuitIn);
+      this.setStatus(
+        circuitIn
+          ? 'Clock authority locked to Circuit (app clock forwarding ON)'
+          : 'Assign Circuit input before app clock forwarding can lock authority',
+      );
+      this.notify();
+      return;
+    }
     this.routing.setClockAuthority(portId);
     this.notify();
   }
@@ -695,7 +741,7 @@ export class StudioRuntime {
       }
 
       if (interpreted.gesture === 'sequencer-stream' || interpreted.gesture === 'background') {
-        this.notify();
+        // Clock/background: do not notify() every tick — Patchbay clock strip is throttled.
         return;
       }
       if (interpreted.focusWorthy) this.focus.onMidi(message, deviceId);
@@ -736,19 +782,81 @@ export class StudioRuntime {
     );
   }
 
+  private recordClockActivity(message: MidiMessage): void {
+    const now = Date.now();
+    const circuitIn = portsForRoles(this.assignments).circuitIn;
+    const mpcOut = portsForRoles(this.assignments).mpcOut;
+    const spOut = portsForRoles(this.assignments).spOut;
+    const isIn = circuitIn != null && message.portId === circuitIn;
+    const isOut =
+      (mpcOut != null && message.portId === mpcOut) ||
+      (spOut != null && message.portId === spOut);
+
+    if (isIn) {
+      this.clockInTicks += 1;
+      this.lastClockInKind = message.kind;
+      this.lastClockInAt = now;
+      if (
+        this.activeBenchId === 'usb-app-clock' &&
+        (message.kind === 'start' || message.kind === 'stop' || message.kind === 'continue')
+      ) {
+        this.pushBenchDetection(
+          'usb-app-clock',
+          `in ${message.kind} (tick #${this.clockInTicks})`,
+        );
+      }
+    }
+    if (isOut) {
+      this.clockOutTicks += 1;
+      this.lastClockOutKind = message.kind;
+      this.lastClockOutAt = now;
+      if (
+        this.activeBenchId === 'usb-app-clock' &&
+        (message.kind === 'start' || message.kind === 'stop' || message.kind === 'continue')
+      ) {
+        this.pushBenchDetection(
+          'usb-app-clock',
+          `out ${message.kind} → ${message.portId.slice(0, 12)}…`,
+        );
+      }
+    }
+
+    // Throttle React notify so Patchbay can show live clock without 48 Hz re-renders
+    if (now - this.clockUiNotifyAt >= 200) {
+      this.clockUiNotifyAt = now;
+      this.notify();
+    }
+  }
+
   private logMidi(message: MidiMessage): void {
     const summary = `${message.kind} ch${message.channel ?? '-'} ${Array.from(message.data).join(',')}`;
-    this.rawMidiLog = [
-      ...this.rawMidiLog.slice(-1999),
-      {
-        at: Date.now(),
-        portId: message.portId,
-        data: Array.from(message.data),
-        summary,
-      },
-    ];
+    // Keep start/stop/continue always; sample F8 (~1/quarter) so exports stay readable
+    let keep = true;
+    if (message.kind === 'clock') {
+      this.clockLogSample += 1;
+      keep = this.capturingSceneMidi || this.clockLogSample % 24 === 1;
+    }
+    if (keep) {
+      this.rawMidiLog = [
+        ...this.rawMidiLog.slice(-1999),
+        {
+          at: Date.now(),
+          portId: message.portId,
+          data: Array.from(message.data),
+          summary,
+        },
+      ];
+    }
     if (this.capturingSceneMidi || this.activeBenchId === 'circuit-scene-any-midi') {
       this.benchDetections = [`${summary}`, ...this.benchDetections].slice(0, 80);
+    }
+    if (this.activeBenchId === 'usb-app-clock' && isClockLike(message.kind)) {
+      if (message.kind !== 'clock' || this.clockLogSample % 24 === 1) {
+        this.benchDetections = [
+          `${summary} @ ${message.portId}`,
+          ...this.benchDetections,
+        ].slice(0, 80);
+      }
     }
 
     // Latency: when we see matching note leave via route-fired isn't easy; approximate

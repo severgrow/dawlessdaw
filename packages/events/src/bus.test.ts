@@ -63,4 +63,27 @@ describe('StudioEventBus', () => {
     expect(ui).toHaveBeenCalledTimes(1);
     expect(ui.mock.calls[0]![0].type).toBe('studio:status');
   });
+
+  it('onUi does not receive clock-like midi:in or midi:out (no 24ppqn flood)', () => {
+    const bus = new StudioEventBus();
+    const ui = vi.fn();
+    const typedClock = vi.fn();
+    bus.onUi(ui);
+    bus.on('midi:clock', typedClock);
+    for (const kind of ['clock', 'start', 'stop', 'continue'] as const) {
+      const status = kind === 'clock' ? 0xf8 : kind === 'start' ? 0xfa : kind === 'continue' ? 0xfb : 0xfc;
+      bus.emit({
+        type: 'midi:in',
+        message: { data: new Uint8Array([status]), timestamp: 0, portId: 'circuit', kind },
+      });
+      bus.emit({
+        type: 'midi:out',
+        message: { data: new Uint8Array([status]), timestamp: 0, portId: 'mpc', kind },
+      });
+    }
+    expect(ui).not.toHaveBeenCalled();
+    expect(typedClock).toHaveBeenCalledTimes(8);
+    bus.emit({ type: 'studio:status', message: 'ok', level: 'info' });
+    expect(ui).toHaveBeenCalledTimes(1);
+  });
 });
