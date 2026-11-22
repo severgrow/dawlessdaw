@@ -26,24 +26,33 @@ export function PatchbayWorkspace() {
       <div className="panel">
         <h2>USB clock monitor</h2>
         <p className="muted">
-          While Circuit plays: IN should show <span className="mono">start</span> then ticking{' '}
-          <span className="mono">clock</span>. With App clock forwarding ON, OUT should rise on MPC
-          / SP. Updates ~5×/s (not every F8).
+          Hex: <span className="mono">F8</span> clock · <span className="mono">FA</span> start ·{' '}
+          <span className="mono">FB</span> continue · <span className="mono">FC</span> stop. IN =
+          Circuit USB into the app; OUT = forwarded to MPC/SP. F8 UI updates ~5×/s.
         </p>
         <div className="row" style={{ gap: '1.25rem', flexWrap: 'wrap' }}>
           <div className="mono">
-            IN {clock.inTicks} · {clock.lastInKind ?? '—'} · {ageLabel(clock.lastInAt)}
+            IN {clock.inTicks} · last {clock.lastInKind ?? '—'} · {ageLabel(clock.lastInAt)}
+            <div className="muted">
+              F8 {clock.inClock} · FA {clock.inStart} · FB {clock.inContinue} · FC {clock.inStop}
+            </div>
           </div>
           <div className="mono">
-            OUT {clock.outTicks} · {clock.lastOutKind ?? '—'} · {ageLabel(clock.lastOutAt)}
+            OUT {clock.outTicks} · last {clock.lastOutKind ?? '—'} · {ageLabel(clock.lastOutAt)}
+            <div className="muted">
+              F8 {clock.outClock} · FA {clock.outStart} · FB {clock.outContinue} · FC {clock.outStop}
+            </div>
           </div>
           <div className="mono">
             forward {clock.forwarding ? 'ON' : 'OFF'}
             {clockRoute ? ` · route ${clockRoute.enabled ? 'enabled' : 'disabled'}` : ' · no clock route'}
           </div>
         </div>
+        <p className="lead" style={{ marginTop: '0.75rem' }}>
+          {clock.hint}
+        </p>
         {clock.forwarding && !clockRoute ? (
-          <p className="lead" style={{ marginTop: '0.5rem' }}>
+          <p className="muted" style={{ marginTop: '0.5rem' }}>
             Forwarding is ON but no clock route — assign Circuit input + MPC/SP output in Settings,
             then toggle forwarding again.
           </p>

@@ -62,6 +62,11 @@ export function BenchWorkspace() {
                   Send mute CC {MPC_MUTE_LEARN_CC} ch{MPC_MUTE_LEARN_CHANNEL}
                 </button>
               ) : null}
+              {t.id === 'usb-app-clock' ? (
+                <button type="button" onClick={() => actions.sendBenchMpcClockBurst()}>
+                  Send test Start/Clock → MPC
+                </button>
+              ) : null}
             </div>
             <div className="row">
               {(['pass', 'fail', 'unsure'] as const).map((v) => (

@@ -74,6 +74,7 @@ export function useStudioActions() {
     sendBenchSpProgramChange: (n?: number) => runtime.sendBenchSpProgramChange(n),
     sendBenchMpcProgramChange: (n?: number) => runtime.sendBenchMpcProgramChange(n),
     sendBenchMpcMuteCc: () => runtime.sendBenchMpcMuteCc(),
+    sendBenchMpcClockBurst: () => runtime.sendBenchMpcClockBurst(),
     downloadBenchJson: () => runtime.downloadBenchJson(),
     getAssistantTools: () => runtime.assistant.list(),
     getRuntime: () => runtime,

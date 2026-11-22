@@ -1,4 +1,9 @@
-import { AssistantToolRegistry, isClockLike, type MidiMessage } from '@dawlessdaw/core';
+import {
+  AssistantToolRegistry,
+  isClockLike,
+  parseMidiMessage,
+  type MidiMessage,
+} from '@dawlessdaw/core';
 import { StudioEventBus } from '@dawlessdaw/events';
 import {
   FIXTURE_CIRCUIT_GROOVE,
@@ -94,10 +99,20 @@ export interface StudioRuntimeSnapshot {
     lastInKind: string | null;
     lastInAt: number | null;
     inTicks: number;
+    inClock: number;
+    inStart: number;
+    inStop: number;
+    inContinue: number;
     lastOutKind: string | null;
     lastOutAt: number | null;
     outTicks: number;
+    outClock: number;
+    outStart: number;
+    outStop: number;
+    outContinue: number;
     forwarding: boolean;
+    /** Plain-English read of IN/OUT for USB-only clock debug. */
+    hint: string;
   };
 }
 
@@ -167,6 +182,8 @@ export class StudioRuntime {
   private captureTimer: ReturnType<typeof setTimeout> | null = null;
   private clockInTicks = 0;
   private clockOutTicks = 0;
+  private clockInByKind = { clock: 0, start: 0, stop: 0, continue: 0 };
+  private clockOutByKind = { clock: 0, start: 0, stop: 0, continue: 0 };
   private lastClockInKind: string | null = null;
   private lastClockInAt: number | null = null;
   private lastClockOutKind: string | null = null;
@@ -228,10 +245,19 @@ export class StudioRuntime {
         lastInKind: this.lastClockInKind,
         lastInAt: this.lastClockInAt,
         inTicks: this.clockInTicks,
+        inClock: this.clockInByKind.clock,
+        inStart: this.clockInByKind.start,
+        inStop: this.clockInByKind.stop,
+        inContinue: this.clockInByKind.continue,
         lastOutKind: this.lastClockOutKind,
         lastOutAt: this.lastClockOutAt,
         outTicks: this.clockOutTicks,
+        outClock: this.clockOutByKind.clock,
+        outStart: this.clockOutByKind.start,
+        outStop: this.clockOutByKind.stop,
+        outContinue: this.clockOutByKind.continue,
         forwarding: this.routeClockThroughApp,
+        hint: this.clockHint(),
       },
     };
   }
@@ -371,11 +397,12 @@ export class StudioRuntime {
 
   setRouteClockThroughApp(on: boolean): void {
     this.routeClockThroughApp = on;
+    this.resetClockActivity();
     this.applyMyStudioRoutes();
     this.persistSetup();
     this.setStatus(
       on
-        ? 'App clock forwarding ON — usually leave this OFF (use thru box)'
+        ? 'App clock forwarding ON — USB path; Akai MPC may ignore USB clock (prefer DIN thru)'
         : 'App clock forwarding OFF — hardware thru box is clock path',
     );
     this.notify();
@@ -673,6 +700,44 @@ export class StudioRuntime {
     );
   }
 
+  /**
+   * Direct Start + a few Timing Clocks to MPC USB out (bypasses Circuit).
+   * Proves the Mac→MPC Web MIDI out path; if OUT monitor rises but MPC stays
+   * silent, Akai USB-B typically does not accept MIDI Clock (use DIN thru).
+   */
+  sendBenchMpcClockBurst(): void {
+    const mpcOut = portsForRoles(this.assignments).mpcOut;
+    if (!mpcOut) {
+      this.setStatus('MPC output port not assigned');
+      return;
+    }
+    this.activeBenchId = 'usb-app-clock';
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const msgs: Uint8Array[] = [
+      new Uint8Array([0xfa]),
+      ...Array.from({ length: 24 }, () => new Uint8Array([0xf8])),
+      new Uint8Array([0xfc]),
+    ];
+    for (const data of msgs) {
+      this.transport.send(mpcOut, data);
+      const message = parseMidiMessage(
+        data,
+        typeof performance !== 'undefined' ? performance.now() : Date.now(),
+        mpcOut,
+      );
+      this.bus.emit({ type: 'midi:out', message });
+    }
+    void now;
+    this.pushBenchDetection(
+      'usb-app-clock',
+      'sent test FA + 24×F8 + FC → MPC USB out (direct, not via Circuit)',
+    );
+    this.setStatus(
+      'Sent test Start/Clock/Stop → MPC USB — if Patchbay OUT rises but MPC silent, use DIN thru',
+    );
+    this.notify();
+  }
+
   exportBenchJson(): string {
     const stamp = new Date().toISOString().slice(0, 10);
     const payload = buildBenchExport(this.benchResults, this.rawMidiLog.slice(-2000));
@@ -782,6 +847,44 @@ export class StudioRuntime {
     );
   }
 
+  private resetClockActivity(): void {
+    this.clockInTicks = 0;
+    this.clockOutTicks = 0;
+    this.clockInByKind = { clock: 0, start: 0, stop: 0, continue: 0 };
+    this.clockOutByKind = { clock: 0, start: 0, stop: 0, continue: 0 };
+    this.lastClockInKind = null;
+    this.lastClockInAt = null;
+    this.lastClockOutKind = null;
+    this.lastClockOutAt = null;
+    this.clockUiNotifyAt = 0;
+    this.clockLogSample = 0;
+  }
+
+  private bumpKind(
+    bag: { clock: number; start: number; stop: number; continue: number },
+    kind: string,
+  ): void {
+    if (kind === 'clock' || kind === 'start' || kind === 'stop' || kind === 'continue') {
+      bag[kind] += 1;
+    }
+  }
+
+  private clockHint(): string {
+    const p = portsForRoles(this.assignments);
+    if (!this.routeClockThroughApp) {
+      return 'Forwarding OFF — use DIN thru for MPC clock, or turn App clock forwarding ON for USB-only.';
+    }
+    if (!p.circuitIn) return 'Assign Circuit input in Settings (receive-none until then).';
+    if (!p.mpcOut && !p.spOut) return 'Assign MPC (and/or SP) output — nothing to forward to.';
+    if (this.clockInTicks === 0) {
+      return 'receive-none: no F8/FA from Circuit yet — Live MIDI? Clock Tx pad 32 bright? Circuit playing? Correct Circuit In port?';
+    }
+    if (this.clockOutTicks === 0) {
+      return 'receive-but-not-forwarded: IN alive, OUT dead — enable mystudio-clock route / Re-apply My Studio routes.';
+    }
+    return 'receive-and-forwarded: OUT ticks mean Mac→device USB send ran. If MPC still silent, Akai USB-B typically does not accept MIDI Clock — use DIN thru (Circuit Out → thru → MPC In); turn app forwarding OFF.';
+  }
+
   private recordClockActivity(message: MidiMessage): void {
     const now = Date.now();
     const circuitIn = portsForRoles(this.assignments).circuitIn;
@@ -791,38 +894,42 @@ export class StudioRuntime {
     const isOut =
       (mpcOut != null && message.portId === mpcOut) ||
       (spOut != null && message.portId === spOut);
+    const transport =
+      message.kind === 'start' ||
+      message.kind === 'stop' ||
+      message.kind === 'continue';
 
     if (isIn) {
       this.clockInTicks += 1;
+      this.bumpKind(this.clockInByKind, message.kind);
       this.lastClockInKind = message.kind;
       this.lastClockInAt = now;
-      if (
-        this.activeBenchId === 'usb-app-clock' &&
-        (message.kind === 'start' || message.kind === 'stop' || message.kind === 'continue')
-      ) {
+      if (this.activeBenchId === 'usb-app-clock' && transport) {
+        const hex =
+          message.kind === 'start' ? 'FA' : message.kind === 'stop' ? 'FC' : 'FB';
         this.pushBenchDetection(
           'usb-app-clock',
-          `in ${message.kind} (tick #${this.clockInTicks})`,
+          `IN ${message.kind} 0x${hex} (tick #${this.clockInTicks})`,
         );
       }
     }
     if (isOut) {
       this.clockOutTicks += 1;
+      this.bumpKind(this.clockOutByKind, message.kind);
       this.lastClockOutKind = message.kind;
       this.lastClockOutAt = now;
-      if (
-        this.activeBenchId === 'usb-app-clock' &&
-        (message.kind === 'start' || message.kind === 'stop' || message.kind === 'continue')
-      ) {
+      if (this.activeBenchId === 'usb-app-clock' && transport) {
+        const hex =
+          message.kind === 'start' ? 'FA' : message.kind === 'stop' ? 'FC' : 'FB';
         this.pushBenchDetection(
           'usb-app-clock',
-          `out ${message.kind} → ${message.portId.slice(0, 12)}…`,
+          `OUT ${message.kind} 0x${hex} → ${message.portId.slice(0, 16)}`,
         );
       }
     }
 
-    // Throttle React notify so Patchbay can show live clock without 48 Hz re-renders
-    if (now - this.clockUiNotifyAt >= 200) {
+    // Always refresh UI on Start/Stop/Continue; throttle F8 (~5 Hz)
+    if (transport || now - this.clockUiNotifyAt >= 200) {
       this.clockUiNotifyAt = now;
       this.notify();
     }
@@ -852,8 +959,11 @@ export class StudioRuntime {
     }
     if (this.activeBenchId === 'usb-app-clock' && isClockLike(message.kind)) {
       if (message.kind !== 'clock' || this.clockLogSample % 24 === 1) {
+        const hex = Array.from(message.data)
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join(' ');
         this.benchDetections = [
-          `${summary} @ ${message.portId}`,
+          `${message.kind} [${hex}] @ ${message.portId}`,
           ...this.benchDetections,
         ].slice(0, 80);
       }

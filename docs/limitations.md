@@ -6,9 +6,13 @@ Capability statuses used throughout the app: **verified** | **untested** | **exp
 
 | Transport | Status | Notes |
 |-----------|--------|-------|
-| WebMidiTransport | verified (browser API) | Chrome / Edge on macOS; requires user gesture + HTTPS or localhost |
+| WebMidiTransport | verified (browser API) | Chrome / Edge on macOS; requires user gesture + HTTPS or localhost. Timing Clock / Start / Stop are delivered, but on the **main thread** with jitter — not a sample-accurate clock master. |
 | MockMidiTransport | verified | Deterministic fixtures for simulation / tests |
 | NativeBridgeTransport | unavailable | Stub only — no native MIDI bridge in v0.1 |
+
+## USB app clock → MPC One
+
+App clock forwarding (Circuit USB → Mac → MPC USB) can show **OUT ticks** while the MPC stays silent. Akai documents that the MPC **USB-B port does not support receiving MIDI Clock from a DAW**; use **5-pin DIN** (or a USB-MIDI interface into DIN In). Prefer hardware thru for MPC start/tempo; keep app forwarding for diagnostics / SP USB experiments only.
 
 ## Device adapters
 

@@ -78,10 +78,11 @@ export function SettingsWorkspace() {
         <h2>MIDI clock through app</h2>
         <p className="lead">
           Default <strong>OFF</strong> — clock stays on hardware (Circuit MIDI Out → thru → MPC +
-          SP). Turn <strong>ON</strong> only for USB-only sync (no DIN thru): forwards Circuit
-          clock / start / stop to MPC + SP USB outs. Circuit must have Setup <strong>Clock Tx</strong>{' '}
-          (pad 32) bright — that one pad feeds USB and DIN together. Watch Patchbay → USB clock
-          monitor. If you later add DIN thru, turn this OFF again to avoid double clock.
+          SP). Turn <strong>ON</strong> only to forward Circuit clock / start / stop over USB to
+          MPC + SP. Circuit Setup <strong>Clock Tx</strong> (pad 32) must be bright. Watch Patchbay
+          F8/FA counters. <strong>Akai MPC USB-B typically does not accept MIDI Clock from a
+          computer</strong> — if OUT ticks but MPC is silent, use DIN thru and leave this OFF. If
+          you add DIN thru later, turn this OFF to avoid double clock.
         </p>
         <button
           type="button"

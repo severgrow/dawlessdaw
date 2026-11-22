@@ -111,8 +111,8 @@ export const BENCH_TESTS: BenchTestDef[] = [
     id: 'usb-app-clock',
     title: 'k. USB-only: Circuit clock through app → MPC/SP',
     instruction:
-      'Settings → App clock forwarding ON. Circuit Setup (Shift+Save): Clock Tx pad 32 bright. Focus this test, press Play on Circuit. Patchbay clock strip should show IN (start/clock) and OUT ticks. MPC should start if Remote GLOBAL + Receive MIDI Clock are on.',
-    listenHint: 'start/stop/clock on Circuit in; forwarded out to MPC/SP',
+      'Settings → App clock forwarding ON. Circuit Setup (Shift+Save): Clock Tx pad 32 bright. Focus this test, press Play on Circuit. Patchbay should show IN FA/F8 and OUT FA/F8. If OUT rises but MPC stays silent: Akai USB-B typically does not take MIDI Clock — use DIN thru and turn app forwarding OFF. Optional: Send test Start/Clock → MPC (direct) to prove Mac→MPC out without Circuit.',
+    listenHint: 'IN/OUT hex: FA start, F8 clock (sampled), FC stop',
     capabilityKey: 'usb-app-clock',
   },
 ];

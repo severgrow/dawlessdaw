@@ -12,6 +12,11 @@ export function StatusBar() {
         {snap.simulation ? 'Simulation' : 'Live MIDI'}
       </div>
       <span className="muted mono">{snap.transportKind}</span>
+      {snap.routeClockThroughApp ? (
+        <span className="muted mono" title={snap.clockActivity.hint}>
+          clk IN {snap.clockActivity.inTicks}/OUT {snap.clockActivity.outTicks}
+        </span>
+      ) : null}
       <span className="muted" style={{ flex: 1 }}>
         {snap.statusLine}
       </span>

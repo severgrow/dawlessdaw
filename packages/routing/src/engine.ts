@@ -110,8 +110,12 @@ export class MidiRoutingEngine {
 
       if (route.blockKinds?.includes(message.kind)) continue;
 
-      // Channel filter
-      if (message.channel !== undefined && route.channel?.allow?.length) {
+      // Channel filter — never apply to system realtime / song-position (no channel)
+      if (
+        !clockLike &&
+        message.channel !== undefined &&
+        route.channel?.allow?.length
+      ) {
         if (!route.channel.allow.includes(message.channel)) continue;
       }
 
@@ -216,7 +220,11 @@ export class MidiRoutingEngine {
   private rawSend(portId: PortId, data: Uint8Array): void {
     const ts = typeof performance !== 'undefined' ? performance.now() : Date.now();
     this.recentOut.set(portId, ts);
-    this.transport.send(portId, data, ts);
+    const status = data[0] ?? 0;
+    const realtime = status >= 0xf8 && status <= 0xff;
+    // Omit timestamp for system realtime so Web MIDI sends immediately (Start/Clock).
+    if (realtime) this.transport.send(portId, data);
+    else this.transport.send(portId, data, ts);
     // Parse kind so outbound clock/start/stop partition into midi:clock (not UI flood)
     this.bus?.emit({
       type: 'midi:out',

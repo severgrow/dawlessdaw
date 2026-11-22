@@ -175,6 +175,58 @@ describe('MidiRoutingEngine', () => {
     expect(transport.getSent()).toHaveLength(0);
   });
 
+  it('channel allow filters do not eat realtime F8/FA/FB/FC on the clock route', () => {
+    engine.setClockAuthority('mock-circuit-in');
+    engine.setRoutes([
+      {
+        id: 'mystudio-t1',
+        name: 'notes ch1',
+        enabled: true,
+        sourcePortId: 'mock-circuit-in',
+        destinations: [{ portId: 'mock-mpc-out' }],
+        channel: { allow: [1], remap: { 1: 9 } },
+        forwardClock: false,
+      },
+      {
+        id: 'mystudio-clock',
+        name: 'clock',
+        enabled: true,
+        sourcePortId: 'mock-circuit-in',
+        destinations: [{ portId: 'mock-mpc-out' }],
+        forwardClock: true,
+        blockKinds: ['note-on', 'note-off', 'cc', 'program-change'],
+      },
+    ]);
+    for (const status of [0xfa, 0xf8, 0xfb, 0xfc]) {
+      transport.inject('mock-circuit-in', [status]);
+    }
+    expect(transport.getSent().map((s) => s.data[0])).toEqual([0xfa, 0xf8, 0xfb, 0xfc]);
+  });
+
+  it('sends system realtime without a MIDI timestamp argument', () => {
+    engine.setClockAuthority('mock-circuit-in');
+    engine.setRoutes([
+      {
+        id: 'mystudio-clock',
+        name: 'clock',
+        enabled: true,
+        sourcePortId: 'mock-circuit-in',
+        destinations: [{ portId: 'mock-mpc-out' }],
+        forwardClock: true,
+      },
+    ]);
+    const original = transport.send.bind(transport);
+    const calls: { data: number[]; timestamp: number | undefined }[] = [];
+    transport.send = (portId, data, timestamp?) => {
+      calls.push({ data: Array.from(data), timestamp });
+      original(portId, data, timestamp);
+    };
+    transport.inject('mock-circuit-in', [0xfa]);
+    transport.inject('mock-circuit-in', [0xf8]);
+    expect(calls).toHaveLength(2);
+    expect(calls.every((c) => c.timestamp === undefined)).toBe(true);
+  });
+
   it('cleans up note-offs via allNotesOff', () => {
     engine.setRoutes([
       {

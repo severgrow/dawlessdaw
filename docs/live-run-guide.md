@@ -110,7 +110,7 @@ Suggested order:
 
 ### USB-only clock (no DIN thru)
 
-Use this when Circuit clock reaches MPC / SP only over USB through Dawlessdaw.
+Use this when you want Circuit clock through Dawlessdaw over USB. **Important limitation:** Akai’s own KB says the MPC **USB-B port does not support receiving MIDI Clock from a DAW** — they require a **5-pin MIDI → USB interface into the MPC DIN In**. So even when Dawlessdaw correctly forwards FA/F8 to the Mac→MPC USB out, **MPC One may stay silent**. Prefer **DIN thru** for MPC start/tempo.
 
 #### Circuit Rhythm (do this first)
 
@@ -122,7 +122,7 @@ There is **no separate USB vs DIN clock switch**. One Tx pad feeds **both** USB 
 4. Press **Play** to save/exit Setup, then press **Play** again so the project is actually running (Start + Clock only while playing).
 5. Do **not** use the analogue **Sync** 3.5 mm jack for this path — that is not MIDI Clock.
 
-#### Dawlessdaw + MPC
+#### Dawlessdaw + MPC (USB attempt)
 
 1. **Dawlessdaw → Settings → MIDI clock through app** → **App clock forwarding: ON**. Confirm Patchbay lists route **Circuit clock → MPC + SP (app path)**.
 2. **MPC Preferences → MIDI / SYNC:**
@@ -132,14 +132,26 @@ There is **no separate USB vs DIN clock switch**. One Tx pad feeds **both** USB 
    - **INPUT PORTS → Remote** (USB / Mac): **GLOBAL ON** (CONTROL + TRACK stay ON)
    - **INPUT PORTS → MPC** (hardware DIN row): **GLOBAL OFF** while DIN is unused
    - **OUTPUT PORTS → MPC + Remote → SYNC**: both **OFF**
-3. Live on, Circuit **Play** → MPC should run (tempo + start/stop). SP should follow if its USB sync receive is enabled.
-4. **Warn:** if you later add DIN thru (Circuit Out → thru → MPC/SP In), turn **App clock forwarding** back to **OFF** so you do not double-clock.
+3. Live on, Circuit **Play** → watch Patchbay (below). SP may follow USB sync; **MPC often will not** (Akai USB-B clock limitation).
+4. **Warn:** if you add DIN thru, turn **App clock forwarding** **OFF** so you do not double-clock.
 
-#### See clock in Patchbay / Bench
+#### See F8 / FA in Patchbay / Bench (diagnose)
 
-1. **Patchbay → USB clock monitor**: with Circuit playing, **IN** ticks and shows `start` then `clock`. With forwarding ON, **OUT** ticks too. If IN stays `—` while Circuit plays → Clock Tx / USB / Live port assign. If IN live but OUT dead → forwarding OFF or missing MPC/SP out.
-2. **Bench → k. USB-only: Circuit clock through app**: Focus this test, Play on Circuit — detections list `start` / sampled `clock`.
-3. **Export Bench JSON** → `rawMidiLog` summaries include `start` / `clock` / `stop` (F8 is sampled ~1 per quarter).
+| Monitor | Meaning | Next step |
+|---------|---------|-----------|
+| **IN = 0** (receive-none) | App never saw Circuit clock | Live MIDI? Pad 32 bright? Circuit actually playing? Settings → Circuit **In** port correct? |
+| **IN > 0, OUT = 0** | Received but not forwarded | App clock forwarding ON? Route `mystudio-clock` enabled? MPC/SP **Out** assigned? Re-apply My Studio routes. |
+| **IN > 0, OUT > 0**, MPC silent | App did its job (Mac sent FA/F8) | **Akai USB-B typically ignores MIDI Clock** — use **DIN thru fallback** below. Bench → **Send test Start/Clock → MPC** should also raise OUT without starting MPC. |
+| Patchbay counters | `F8` = Timing Clock, `FA` = Start, `FB` = Continue, `FC` = Stop | Bench **k.** Focus → Play; detections show `start [fa]` / sampled `clock [f8]`. |
+
+Chrome Web MIDI honesty: F8/FA arrive on the **main thread** with jitter; fine for coarse start/stop checks, **not** sample-accurate master clock. Prefer DIN for groove.
+
+#### DIN thru fallback (recommended for MPC)
+
+1. Settings → **App clock forwarding: OFF**.
+2. Cable: Circuit **MIDI Out** → thru → MPC **MIDI In** (and SP In if needed).
+3. MPC **INPUT PORTS → MPC → GLOBAL ON**; **Remote GLOBAL** can stay ON for notes but Sync Receive still MIDI Clock.
+4. Circuit Play → MPC should start/follow tempo on the DIN path.
 
 ## 5. After the bench
 
