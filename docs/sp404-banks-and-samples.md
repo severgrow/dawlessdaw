@@ -59,4 +59,9 @@ What you get:
 
 Read-only File System Access only. USB cable alone will not expose the library.
 
-Code: `apps/web/src/sp404/samplePrep.ts` (tested helpers), `apps/web/src/sp404/padStore.ts` (browser storage), `apps/web/src/sp404/sdPadScan.ts` / `sdVolume.ts` (SD project scan), and `apps/web/src/workspaces/SamplesWorkspace.tsx`.
+## Sessions → Export WAV → SP pad
+
+From the Sessions recorder, **Export WAV → SP pad** writes the trimmed take straight into a mounted SD card’s `IMPORT/` as `A01 name.wav` (48 kHz / 16-bit). Reuses the same File System Access volume picker id as Samples (`dawlessdaw-sp404-sd`). Pads do **not** load until you run **SHIFT + pad 14 Import** on the unit. No SysEx; USB cable alone cannot receive the file.
+
+Code: `apps/web/src/sp404/samplePrep.ts` (tested helpers), `apps/web/src/sp404/padStore.ts` (browser storage), `apps/web/src/sp404/sdPadScan.ts` / `sdVolume.ts` (SD project scan), `apps/web/src/sp404/spImportPath.ts` / `spVolumeHandle.ts` (IMPORT write), `apps/web/src/workspaces/SamplesWorkspace.tsx`, and `apps/web/src/workspaces/SessionsWorkspace.tsx`.
+

@@ -25,6 +25,7 @@ ZED over USB = **16-bit / 48 kHz max**. For 24-bit, connect the ZED’s main or 
 - WAV 16 / 24 / 32-float at the recorded sample rate; optional INFO tags (title, date, BPM).
 - MP3 via in-browser encoder (see licence below).
 - Trim / 10 ms fade / normalize apply to the export only — the stored take is never rewritten.
+- **Export WAV → SP pad:** pick bank/pad A01–J16 (same grid language as Samples), write a trimmed **48 kHz / 16-bit** WAV into the granted SP SD volume’s `IMPORT/` folder (File System Access; same picker id as Samples “Open SP volume…”). This is **not** a live USB pad push — after writing, eject the card, put it back in the SP, then **SHIFT + pad 14 Import**. Normal download / folder save stay unchanged.
 
 ## MP3 encoder licence
 

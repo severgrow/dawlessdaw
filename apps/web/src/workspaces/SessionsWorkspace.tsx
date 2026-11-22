@@ -45,6 +45,21 @@ import {
   type WavBitDepth,
 } from '../recorder/types';
 import { minutesRemaining } from '../recorder/stitch';
+import { PADS_PER_BANK, SP_BANKS, padKey, type SpBank } from '../sp404/samplePrep';
+import {
+  SP_IMPORT_HINT,
+  importDestinationLabel,
+  importRelativePath,
+  sampleNameFromTake,
+} from '../sp404/spImportPath';
+import {
+  encodeSpReadyWav,
+  ensureSpVolumeHandle,
+  fileSystemAccessSupported,
+  getCachedSpVolumeHandle,
+  pickSpVolumeDirectory,
+  writeWavToImport,
+} from '../sp404/spVolumeHandle';
 
 function formatTime(sec: number): string {
   const s = Math.max(0, sec);
@@ -111,6 +126,12 @@ export function SessionsWorkspace() {
   const [exportProgress, setExportProgress] = useState<{ ratio: number; label: string } | null>(
     null,
   );
+  const [spBank, setSpBank] = useState<SpBank>('A');
+  const [spPad, setSpPad] = useState(1);
+  const [spVolumeLabel, setSpVolumeLabel] = useState<string | null>(() =>
+    getCachedSpVolumeHandle()?.name ?? null,
+  );
+  const [spBusy, setSpBusy] = useState(false);
   const playRef = useRef<AudioBufferSourceNode | null>(null);
   const waveRef = useRef<HTMLCanvasElement>(null);
   const selectedInputRef = useRef<AudioInputDevice | null>(null);
@@ -404,6 +425,76 @@ export function SessionsWorkspace() {
       setExportProgress(null);
     }
   };
+
+
+  const openSpVolume = async () => {
+    setMsg(null);
+    if (!fileSystemAccessSupported()) {
+      setMsg('SP volume write needs Chrome or Edge on this Mac.');
+      return;
+    }
+    const handle = await pickSpVolumeDirectory({ mode: 'readwrite' });
+    if (!handle) {
+      setMsg('SP volume picker cancelled.');
+      return;
+    }
+    setSpVolumeLabel(handle.name);
+    setMsg(`SP volume ready: “${handle.name}” — pick a pad, then Write to IMPORT.`);
+  };
+
+  const runExportToSpPad = async () => {
+    if (!selected || !audio) return;
+    setMsg(null);
+    if (!fileSystemAccessSupported()) {
+      setMsg('SP volume write needs Chrome or Edge on this Mac.');
+      return;
+    }
+    setSpBusy(true);
+    setExportProgress({ ratio: 0.05, label: 'Preparing SP WAV…' });
+    try {
+      const prepared = prepareForExport(audio, {
+        startFrame: trimStart,
+        endFrame: trimEnd,
+        fadeInOutMs: fadeOn ? DEFAULT_FADE_MS : 0,
+        normalize,
+        snapToMarkers: snapMarkers,
+      });
+      setExportProgress({ ratio: 0.35, label: 'Encoding 48 kHz / 16-bit…' });
+      const buffer = await encodeSpReadyWav(prepared);
+      const sampleName = sampleNameFromTake(selected.name);
+      const blob = new Blob([buffer], { type: 'audio/wav' });
+      setExportProgress({ ratio: 0.55, label: 'Opening SP volume…' });
+      const root = await ensureSpVolumeHandle();
+      if (!root) {
+        setMsg('Open the SP SD volume first (card in a Mac reader), then try again.');
+        return;
+      }
+      setSpVolumeLabel(root.name);
+      setExportProgress({
+        ratio: 0.8,
+        label: `Writing ${importRelativePath(spBank, spPad, sampleName)}…`,
+      });
+      const written = await writeWavToImport(
+        root,
+        { bank: spBank, pad: spPad },
+        sampleName,
+        blob,
+      );
+      setMsg(
+        `Wrote ${written.relativePath} on “${written.volumeName}”. ${SP_IMPORT_HINT}. Eject the card safely, put it back in the SP, then Import onto pad ${padKey(spBank, spPad)}.`,
+      );
+      setExportProgress({ ratio: 1, label: 'Done' });
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSpBusy(false);
+      setExportProgress(null);
+    }
+  };
+
+  const spSampleName = selected ? sampleNameFromTake(selected.name) : 'session';
+  const spDest = importDestinationLabel(spBank, spPad, spSampleName);
+  const canPickSpVolume = fileSystemAccessSupported();
 
   const recording = status.state === 'recording';
   const elapsedSec = status.elapsedMs / 1000;
@@ -738,6 +829,84 @@ export function SessionsWorkspace() {
                 </div>
               ) : null}
               <p className="muted small">{MP3_LICENCE_NOTICE}</p>
+
+              <div className="rec-sp-export" aria-label="Export WAV to SP-404MKII pad">
+                <div className="rec-sp-export-head">
+                  <h3>Export WAV → SP pad</h3>
+                  <span className="rec-sp-hw mono">SP-404MKII · IMPORT</span>
+                </div>
+                <p className="muted small">
+                  Writes a trimmed 48 kHz / 16-bit WAV into the mounted SD card&apos;s{' '}
+                  <span className="mono">IMPORT/</span> folder. USB alone cannot push pads — put
+                  the card in a Mac reader, grant the volume, then Import on the unit.
+                </p>
+                <div className="bank-tabs" role="tablist" aria-label="SP banks">
+                  {SP_BANKS.map((b) => (
+                    <button
+                      key={b}
+                      type="button"
+                      role="tab"
+                      aria-selected={spBank === b}
+                      className={`bank-tab${spBank === b ? ' active' : ''}`}
+                      onClick={() => setSpBank(b)}
+                      disabled={spBusy}
+                    >
+                      {b}
+                    </button>
+                  ))}
+                </div>
+                <div className="sp-grid rec-sp-pad-grid" role="group" aria-label={`Bank ${spBank} pads`}>
+                  {Array.from({ length: PADS_PER_BANK }, (_, i) => {
+                    const pad = i + 1;
+                    const key = padKey(spBank, pad);
+                    const selectedPad = spPad === pad;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`sp-pad${selectedPad ? ' selected' : ''}`}
+                        aria-pressed={selectedPad}
+                        disabled={spBusy}
+                        onClick={() => setSpPad(pad)}
+                      >
+                        <span className="sp-pad-num mono">{key}</span>
+                        <span className="sp-pad-name">{selectedPad ? spSampleName : '—'}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="rec-sp-dest mono" role="status">
+                  <span className="rec-sp-dest-label">Destination</span>
+                  <span className="rec-sp-dest-path">{spDest}</span>
+                  {spVolumeLabel ? (
+                    <span className="rec-sp-dest-vol">volume “{spVolumeLabel}”</span>
+                  ) : (
+                    <span className="rec-sp-dest-vol">no volume yet</span>
+                  )}
+                </div>
+                <p className="rec-sp-hint mono">{SP_IMPORT_HINT}</p>
+                <div className="row wrap">
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={spBusy || !canPickSpVolume}
+                    onClick={() => void openSpVolume()}
+                  >
+                    {spVolumeLabel ? 'Change SP volume…' : 'Open SP volume…'}
+                  </button>
+                  <button
+                    type="button"
+                    className="active rec-sp-write"
+                    disabled={spBusy || !canPickSpVolume}
+                    onClick={() => void runExportToSpPad()}
+                  >
+                    Write to IMPORT · {padKey(spBank, spPad)}
+                  </button>
+                </div>
+                {!canPickSpVolume ? (
+                  <p className="muted small">Folder access needs Chrome or Edge.</p>
+                ) : null}
+              </div>
             </>
           )}
         </div>
