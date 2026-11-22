@@ -93,6 +93,7 @@ export function buildDirectSequencingRoutes(profile: CircuitArrangerProfile): Mi
         sourcePortId: profile.circuitInputPortId,
         destinations: clockDests.map((portId) => ({ portId })),
         forwardClock: true,
+        // Allow clock/start/stop/continue/SPP; block channel voice + SysEx.
         blockKinds: [
           'note-on',
           'note-off',
@@ -100,6 +101,8 @@ export function buildDirectSequencingRoutes(profile: CircuitArrangerProfile): Mi
           'program-change',
           'aftertouch',
           'pitch-bend',
+          'sysex',
+          'unknown',
         ],
       });
     }

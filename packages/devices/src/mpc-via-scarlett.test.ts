@@ -8,7 +8,14 @@ import {
   migrateClockForwarding,
   anyClockForwarding,
 } from './studio-layout';
-import { assignPort, matchPortsToRoles, portsForRoles } from './port-matcher';
+import {
+  assignPort,
+  looksLikeAkaiMpcUsbPort,
+  looksLikeMidiInterfaceOut,
+  matchPortsToRoles,
+  mpcClockPortAdvice,
+  portsForRoles,
+} from './port-matcher';
 
 /**
  * Simulation only — proves routing and settings logic, not that the MPC
@@ -55,11 +62,12 @@ describe('per-device clock routes', () => {
     expect(routes.some((r) => r.destinations.some((d) => d.portId === 'scarlett-out'))).toBe(false);
   });
 
-  it('clock routes block everything except clock / start / stop / continue', () => {
+  it('clock routes block notes/CC/SysEx but allow clock / start / stop / continue / SPP', () => {
     expect(CLOCK_ROUTE_BLOCK_KINDS).toEqual(
       expect.arrayContaining(['note-on', 'note-off', 'cc', 'program-change', 'sysex']),
     );
-    for (const k of ['clock', 'start', 'stop', 'continue']) {
+    expect(CLOCK_ROUTE_BLOCK_KINDS).not.toContain('song-position');
+    for (const k of ['clock', 'start', 'stop', 'continue', 'song-position']) {
       expect(CLOCK_ROUTE_BLOCK_KINDS).not.toContain(k);
     }
   });
@@ -92,11 +100,28 @@ describe('clock forwarding through the engine', () => {
     expect(sentTo('f-out')).toEqual([]);
   });
 
+  it('forwards continue + Song Position (SPP) when Circuit sends them', () => {
+    engine.setRoutes(buildMyStudioRoutes({ ...base, clockToMpc: true }));
+    engine.setClockAuthority('c-in');
+    transport.inject('c-in', [0xfb]); // continue
+    transport.inject('c-in', [0xf2, 0x00, 0x08]); // SPP
+    expect(sentTo('scarlett-out')).toEqual([[0xfb], [0xf2, 0x00, 0x08]]);
+  });
+
   it('notes still go to the MPC once (ch9–12), not doubled by the clock route', () => {
     engine.setRoutes(buildMyStudioRoutes({ ...base, clockToMpc: true }));
     engine.setClockAuthority('c-in');
     transport.inject('c-in', [0x90, 36, 100]); // Circuit T1
     expect(sentTo('scarlett-out')).toEqual([[0x98, 36, 100]]);
+  });
+
+  it('notes + transport coexist: ch9 note and Start both reach Scarlett once each', () => {
+    engine.setRoutes(buildMyStudioRoutes({ ...base, clockToMpc: true }));
+    engine.setClockAuthority('c-in');
+    transport.inject('c-in', [0xfa]);
+    transport.inject('c-in', [0x90, 36, 100]);
+    transport.inject('c-in', [0xf8]);
+    expect(sentTo('scarlett-out')).toEqual([[0xfa], [0x98, 36, 100], [0xf8]]);
   });
 
   it('a clock route never forwards SysEx', () => {
@@ -211,5 +236,25 @@ describe('MPC Out = Scarlett (picked by hand)', () => {
     const again = matchPortsToRoles(studio, a);
     const users = again.filter((x) => x.outputPortId === 'sc-out').map((x) => x.roleId);
     expect(users).toEqual(['mpc']);
+  });
+});
+
+describe('MPC clock port advice (Scarlett DIN vs Akai USB)', () => {
+  it('recognises Scarlett / interface names as DIN-friendly', () => {
+    expect(looksLikeMidiInterfaceOut('Scarlett 2i4 USB')).toBe(true);
+    expect(looksLikeMidiInterfaceOut('Focusrite USB MIDI')).toBe(true);
+    expect(looksLikeAkaiMpcUsbPort('Scarlett 2i4 USB')).toBe(false);
+  });
+
+  it('flags Akai MPC USB names as unsuitable for clock', () => {
+    expect(looksLikeAkaiMpcUsbPort('MPC One')).toBe(true);
+    expect(looksLikeAkaiMpcUsbPort('Akai Professional MPC One')).toBe(true);
+    expect(looksLikeMidiInterfaceOut('MPC One')).toBe(false);
+  });
+
+  it('mpcClockPortAdvice warns on Akai USB and oks Scarlett', () => {
+    expect(mpcClockPortAdvice(null).kind).toBe('unset');
+    expect(mpcClockPortAdvice('MPC One').kind).toBe('warn-akai-usb');
+    expect(mpcClockPortAdvice('Scarlett 2i4 USB').kind).toBe('ok-interface');
   });
 });

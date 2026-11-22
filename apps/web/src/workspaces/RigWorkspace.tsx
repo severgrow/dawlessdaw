@@ -74,11 +74,13 @@ export function RigWorkspace() {
       <AudioPreview />
 
       <div className="panel">
-        <h2>Tempo · app clock</h2>
+        <h2>Tempo · sequencer follow</h2>
         <p className="lead">
-          Each switch sends only Circuit <strong>clock / start / stop</strong> to that device. The SP
-          already gets clock from the thru box. Circuit Setup: <strong>Clock Tx</strong> (pad 32)
-          bright.
+          Each switch forwards only Circuit <strong>clock / start / stop / continue</strong> (and
+          Song Position if Circuit sends it) — never notes. <strong>→ MPC</strong> is &quot;MPC follows
+          Circuit Play&quot;: the MPC sequencer runs with Circuit. Use Scarlett→DIN for MPC Out (USB-B
+          ignores clock). SP already gets clock from the thru box. Circuit:{' '}
+          <strong>Clock Tx</strong> (pad 32) bright.
         </p>
         <div className="switch-row">
           <button type="button" className={snap.clockToMpc ? 'active' : ''} onClick={() => setClockToMpc(!snap.clockToMpc)}>
@@ -99,6 +101,15 @@ export function RigWorkspace() {
         {snap.clockToMpc && snap.mpcNoteMode === 'din-only' ? (
           <p className="warn">
             → MPC does nothing while the MPC is set to &quot;MIDI cable from thru box only&quot; (Setup).
+          </p>
+        ) : null}
+        {snap.clockToMpc ? (
+          <p className="muted small">
+            Full checklist:{' '}
+            <button type="button" className="linklike" onClick={() => setWorkspace('setup')}>
+              Setup › MPC follows Circuit Play
+            </button>
+            .
           </p>
         ) : null}
         <p className="muted mono small">{snap.clockActivity.hint}</p>

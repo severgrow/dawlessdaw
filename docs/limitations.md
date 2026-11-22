@@ -10,9 +10,9 @@ Capability statuses used throughout the app: **verified** | **untested** | **exp
 | MockMidiTransport | verified | Deterministic fixtures for simulation / tests |
 | NativeBridgeTransport | unavailable | Stub only — no native MIDI bridge in v0.1 |
 
-## USB app clock → MPC One
+## USB app clock → MPC One (sequencer follow)
 
-Akai documents that the MPC **USB-B port does not support receiving MIDI Clock from a DAW**. App clock sent to the MPC's USB port can show **OUT ticks** while the MPC stays silent. This studio now reaches the MPC through a **USB-MIDI interface into its DIN In** (Scarlett 2i4), where clock does work: see [mpc-via-scarlett.md](./mpc-via-scarlett.md). Not yet confirmed on this studio's hardware (bench g3).
+Akai documents that the MPC **USB-B port does not support receiving MIDI Clock from a DAW**. App clock sent to the MPC's USB port can show **OUT ticks** while the MPC stays silent — note/sample triggers alone do not start the sequencer. This studio reaches the MPC through a **USB-MIDI interface into its DIN In** (Scarlett 2i4): Setup **MPC follows Circuit Play** forwards Clock + Start/Stop/Continue (+ SPP if Circuit sends it). See [mpc-via-scarlett.md](./mpc-via-scarlett.md). **Hardware untested** until bench **g3** is Pass.
 
 ## Device adapters
 

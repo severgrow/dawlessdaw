@@ -345,9 +345,9 @@ export interface PersistedStudioSetup {
    * Read once by migrateClockForwarding(); newer saves write the per-device flags.
    */
   routeClockThroughApp?: boolean;
-  /** Forward Circuit clock/start/stop to the MPC's assigned output. Default false. */
+  /** Forward Circuit clock/start/stop/continue (+ SPP if sent) to the MPC's assigned output. Default false. */
   clockToMpc?: boolean;
-  /** Forward Circuit clock/start/stop to the SP's output. Default false (SP uses the thru box). */
+  /** Forward Circuit clock/start/stop/continue (+ SPP if sent) to the SP's output. Default false (SP uses the thru box). */
   clockToSp?: boolean;
   lastRoutingPresetId: string;
   /** FM1 firmware profile for routing (default 'skiff'). Optional for older saves. */
@@ -372,7 +372,7 @@ export interface PersistedStudioSetup {
 
 export const STORAGE_KEY_STUDIO_SETUP = 'dawlessdaw.studioSetup.v1';
 
-/** Per-device app clock forwarding (each one: clock/start/stop/continue only). */
+/** Per-device app clock forwarding (clock/start/stop/continue + optional SPP). */
 export interface ClockForwarding {
   mpc: boolean;
   sp: boolean;
@@ -401,7 +401,12 @@ export function anyClockForwarding(c: ClockForwarding): boolean {
   return c.mpc || c.sp || c.fm1;
 }
 
-/** Everything except clock / start / stop / continue — clock routes carry nothing else. */
+/**
+ * Everything except transport timing — clock routes carry only:
+ * clock / start / stop / continue / song-position (SPP).
+ * Notes, CCs, PGM, SysEx stay on the separate track routes.
+ * No MMC — prefer MIDI Clock + Start (Akai USB-B still cannot take clock).
+ */
 export const CLOCK_ROUTE_BLOCK_KINDS = [
   'note-on',
   'note-off',
@@ -409,19 +414,27 @@ export const CLOCK_ROUTE_BLOCK_KINDS = [
   'program-change',
   'aftertouch',
   'pitch-bend',
-  'song-position',
   'sysex',
   'unknown',
 ];
+
+/** Kinds a clock/transport route is allowed to forward. */
+export const CLOCK_ROUTE_FORWARD_KINDS = [
+  'clock',
+  'start',
+  'stop',
+  'continue',
+  'song-position',
+] as const;
 
 export function buildMyStudioRoutes(ports: {
   circuitIn: string;
   mpcOut: string;
   spOut: string;
   fm1Out: string;
-  /** default false — forward Circuit clock/start/stop to the MPC output (e.g. via Scarlett DIN) */
+  /** default false — forward Circuit clock/start/stop/continue (+ SPP) to the MPC output (e.g. via Scarlett DIN) */
   clockToMpc?: boolean;
-  /** default false — forward Circuit clock/start/stop to the SP output (SP normally uses the thru box) */
+  /** default false — forward Circuit clock/start/stop/continue (+ SPP) to the SP output (SP normally uses the thru box) */
   clockToSp?: boolean;
   /** default 'skiff' — Circuit T5–T8 → FM1 with macro CC translation */
   fm1Firmware?: Fm1Firmware;
@@ -521,6 +534,7 @@ export function buildMyStudioRoutes(ports: {
     }
   }
 
+  // Transport-only routes: never notes. Coexist with track note routes on the same port.
   const clockRoute = (id: string, name: string, portId: string): MidiRoute => ({
     id,
     name,
@@ -533,14 +547,20 @@ export function buildMyStudioRoutes(ports: {
 
   // "MIDI cable from thru box only" means the app sends the MPC nothing — clock included.
   if (ports.clockToMpc && mpcNoteMode !== 'din-only') {
-    routes.push(clockRoute('mystudio-clock-mpc', 'Circuit clock → MPC', ports.mpcOut));
+    routes.push(
+      clockRoute(
+        'mystudio-clock-mpc',
+        'Circuit transport → MPC (clock/start/stop · sequencer follow)',
+        ports.mpcOut,
+      ),
+    );
   }
   if (ports.clockToSp) {
-    routes.push(clockRoute('mystudio-clock-sp', 'Circuit clock → SP', ports.spOut));
+    routes.push(clockRoute('mystudio-clock-sp', 'Circuit transport → SP', ports.spOut));
   }
   if (ports.forwardClockToFm1) {
     routes.push(
-      clockRoute('mystudio-clock-fm1', 'Circuit clock → FM1 (Skiff CLOCK = USB)', ports.fm1Out),
+      clockRoute('mystudio-clock-fm1', 'Circuit transport → FM1 (Skiff CLOCK = USB)', ports.fm1Out),
     );
   }
 

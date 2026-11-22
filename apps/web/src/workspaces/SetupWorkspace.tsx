@@ -1,5 +1,6 @@
 import {
   MY_STUDIO_ROLES,
+  mpcClockPortAdvice,
   roleUsingPort,
   unmatchedConnectedPorts,
   type PortAssignment,
@@ -47,12 +48,19 @@ function PortSelect({
 
 export function SetupWorkspace() {
   const snap = useStudioStore();
-  const { rescanMidiPorts, setFm1Firmware, setMpcNoteMode, applyMyStudioRoutes, enableRoute } =
-    useStudioActions();
+  const {
+    rescanMidiPorts,
+    setFm1Firmware,
+    setMpcNoteMode,
+    setClockToMpc,
+    applyMyStudioRoutes,
+    enableRoute,
+  } = useStudioActions();
   const unmatched = unmatchedConnectedPorts(snap.ports, snap.assignments);
   const connected = snap.ports.filter((p) => p.state === 'connected');
   const mpc = snap.assignments.find((a) => a.roleId === 'mpc');
   const clock = snap.clockActivity;
+  const clockAdvice = mpcClockPortAdvice(mpc?.outputPortName ?? null);
 
   return (
     <div className="section-enter">
@@ -127,8 +135,64 @@ export function SetupWorkspace() {
         </div>
         <p className="muted small">
           {snap.mpcNoteMode === 'usb'
-            ? `The app sends the MPC its tracks (Rig tab) and clock through MPC Out = ${mpc?.outputPortName ?? 'not assigned'}${mpc?.outputManual && !mpc.outputPortId ? ' (unplugged)' : ''}. Via the Scarlett this is a DIN cable, so the MPC accepts clock.`
+            ? `Note routes (Circuit T1–T4 → MPC ch9–12) go through MPC Out = ${mpc?.outputPortName ?? 'not assigned'}${mpc?.outputManual && !mpc.outputPortId ? ' (unplugged)' : ''}. Transport is separate — see “MPC follows Circuit Play” below.`
             : 'The app sends the MPC nothing (notes or clock). Use only if the MPC is back on the thru box, with MPC tracks 1–4 on channels 1–4.'}
+        </p>
+      </div>
+
+      <div className="panel">
+        <h2>MPC follows Circuit Play</h2>
+        <p className="lead">
+          Makes the <strong>MPC sequencer</strong> run with Circuit tempo — not just pad/sample hits.
+          The app forwards MIDI Clock + Start / Stop / Continue (and Song Position if Circuit sends
+          it) to <strong>MPC Out</strong>. Prefer a Scarlett / MIDI interface → MPC DIN In. The MPC
+          USB-B port does <strong>not</strong> accept clock from a computer.
+        </p>
+        <div className="switch-row">
+          <button
+            type="button"
+            className={snap.clockToMpc ? 'active' : ''}
+            onClick={() => setClockToMpc(!snap.clockToMpc)}
+            disabled={snap.mpcNoteMode === 'din-only'}
+          >
+            {snap.clockToMpc ? 'On — transport → MPC' : 'Off'}
+          </button>
+        </div>
+        {snap.mpcNoteMode === 'din-only' ? (
+          <p className="warn">
+            Switch MPC connection to &quot;App sends notes&quot; first — thru-box-only mode blocks app
+            transport too.
+          </p>
+        ) : null}
+        <p className={clockAdvice.kind === 'warn-akai-usb' ? 'warn' : 'muted small'}>
+          {clockAdvice.message}
+        </p>
+        <p className="muted small">
+          Clock/transport port = <strong>Ports › Akai MPC One › MIDI out</strong> above. Pick the
+          Scarlett (or any interface), not &quot;MPC One&quot;. Notes and transport share that port but use
+          separate routes, so both can stay on.
+        </p>
+        <ol className="steps">
+          <li>
+            <b>Cable</b> Scarlett MIDI Out → MPC MIDI In (3.5 mm adapter on the MPC).
+          </li>
+          <li>
+            <b>Setup › Ports</b> — MPC Out = Scarlett (by hand if needed).
+          </li>
+          <li>
+            <b>This switch On</b> — Circuit Clock Tx (pad 32) bright.
+          </li>
+          <li>
+            <b>MPC</b> Preferences → MIDI / Sync: MIDI In row on · Receive = MIDI Clock · send clock
+            off.
+          </li>
+          <li>
+            Press <b>Play</b> on Circuit — MPC sequence should start and follow tempo; Stop stops it.
+          </li>
+        </ol>
+        <p className="muted small">
+          Untested on your firmware until Bench <strong>g3</strong> is Pass. No MMC invented — Clock
+          + Start only.
         </p>
       </div>
 

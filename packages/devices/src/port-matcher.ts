@@ -387,5 +387,56 @@ export function unmatchedConnectedPorts(
   return ports.filter((p) => p.state === 'connected' && !claimed.has(p.id));
 }
 
+/**
+ * USB-MIDI interfaces that can drive an MPC DIN In (clock works).
+ * The Akai MPC USB-B port itself does NOT accept MIDI Clock from a host.
+ */
+export function looksLikeMidiInterfaceOut(name: string | null | undefined): boolean {
+  if (!name) return false;
+  return /scarlett|focusrite|2i[24]|4i4|8i6|18i|mio\b|esi\b|motu|um.?one|umone|midisport|usb.?midi|interface/i.test(
+    name,
+  );
+}
+
+/** Port name looks like the MPC's own USB class-compliant port (clock will not start the sequencer). */
+export function looksLikeAkaiMpcUsbPort(name: string | null | undefined): boolean {
+  if (!name) return false;
+  if (looksLikeMidiInterfaceOut(name)) return false;
+  return /\bmpc\b|akai/i.test(name);
+}
+
+/**
+ * Advice for the MPC Out slot when using "MPC follows Circuit Play".
+ * Prefer a Scarlett / interface → DIN cable; never rely on MPC USB for clock.
+ */
+export function mpcClockPortAdvice(outputPortName: string | null | undefined): {
+  kind: 'ok-interface' | 'warn-akai-usb' | 'unset' | 'unknown';
+  message: string;
+} {
+  if (!outputPortName) {
+    return {
+      kind: 'unset',
+      message:
+        'Pick the Scarlett (or any USB-MIDI interface) as MPC Out — not the “MPC One” USB port. Cable that interface’s MIDI Out → MPC MIDI In (DIN / 3.5 mm).',
+    };
+  }
+  if (looksLikeAkaiMpcUsbPort(outputPortName)) {
+    return {
+      kind: 'warn-akai-usb',
+      message: `“${outputPortName}” looks like the MPC USB port. Akai USB-B does not accept MIDI Clock from a computer — the sequencer will not start. Switch MPC Out to Scarlett / a MIDI interface whose DIN Out feeds the MPC MIDI In.`,
+    };
+  }
+  if (looksLikeMidiInterfaceOut(outputPortName)) {
+    return {
+      kind: 'ok-interface',
+      message: `MPC Out = “${outputPortName}” — good for clock: interface MIDI Out → MPC MIDI In. Notes (ch9–12) and transport share this port but use separate routes.`,
+    };
+  }
+  return {
+    kind: 'unknown',
+    message: `MPC Out = “${outputPortName}”. For sequencer follow, this must reach the MPC over DIN (not Akai USB-B). Confirm the cable goes interface MIDI Out → MPC MIDI In.`,
+  };
+}
+
 // Re-export for tests that still call the old private helper shape
 export { scoreName };

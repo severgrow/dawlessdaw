@@ -54,6 +54,7 @@ import {
   setTrackSend as withTrackSend,
   trackPreset,
   migrateClockForwarding,
+  mpcClockPortAdvice,
   MY_STUDIO_CHANNEL_REMAP,
   normalizePortId,
   portsForRoles,
@@ -119,9 +120,9 @@ export interface StudioRuntimeSnapshot {
   recentUiEvents: { type: string; summary: string; at: number }[];
   lastCircuitGesture: CircuitInterpretation | null;
   assignments: PortAssignment[];
-  /** App forwards Circuit clock/start/stop to the MPC's output (e.g. Scarlett → MPC DIN In). */
+  /** App forwards Circuit clock/start/stop/continue (+ SPP) to the MPC's output (e.g. Scarlett → MPC DIN In). */
   clockToMpc: boolean;
-  /** App forwards Circuit clock/start/stop to the SP (normally off: SP uses the thru box). */
+  /** App forwards Circuit clock/start/stop/continue (+ SPP) to the SP (normally off: SP uses the thru box). */
   clockToSp: boolean;
   /** True when any device gets app clock (Circuit input is then the clock authority). */
   anyClockForwarding: boolean;
@@ -586,7 +587,7 @@ export class StudioRuntime {
     this.notify();
   }
 
-  /** Circuit clock/start/stop → MPC output (via the Scarlett this is DIN, so the MPC accepts it). */
+  /** Circuit transport → MPC Out (Scarlett→DIN): clock/start/stop/continue + SPP if Circuit sends it. */
   setClockToMpc(on: boolean): void {
     this.clockToMpc = on;
     this.resetClockActivity();
@@ -595,14 +596,14 @@ export class StudioRuntime {
     this.setStatus(
       on
         ? this.mpcNoteMode === 'din-only'
-          ? 'Circuit clock → MPC is ON but has no effect: MPC is set to "MIDI cable from thru box only"'
-          : 'Circuit clock → MPC ON (MPC: Receive = MIDI Clock on its MIDI In)'
-        : 'Circuit clock → MPC OFF',
+          ? 'MPC follows Circuit Play is ON but has no effect: MPC is set to "MIDI cable from thru box only"'
+          : 'MPC follows Circuit Play ON — transport on MPC Out (use Scarlett→DIN; Receive MIDI Clock on MPC MIDI In)'
+        : 'MPC follows Circuit Play OFF',
     );
     this.notify();
   }
 
-  /** Circuit clock/start/stop → SP output. Off by default: the SP gets clock from the thru box. */
+  /** Circuit transport → SP output. Off by default: the SP gets clock from the thru box. */
   setClockToSp(on: boolean): void {
     this.clockToSp = on;
     this.resetClockActivity();
@@ -610,8 +611,8 @@ export class StudioRuntime {
     this.persistSetup();
     this.setStatus(
       on
-        ? 'Circuit clock → SP ON — SP may get double clock if it is still on the thru box'
-        : 'Circuit clock → SP OFF (SP follows the thru box)',
+        ? 'Circuit transport → SP ON — SP may get double clock if it is still on the thru box'
+        : 'Circuit transport → SP OFF (SP follows the thru box)',
     );
     this.notify();
   }
@@ -1480,23 +1481,28 @@ export class StudioRuntime {
 
   private clockHint(): string {
     const p = portsForRoles(this.assignments);
+    const mpcName = this.assignments.find((a) => a.roleId === 'mpc')?.outputPortName ?? null;
     if (!this.anyClockForwarding()) {
-      return 'App clock OFF — the SP follows the thru box; turn on Circuit clock → MPC for the MPC via the Scarlett.';
+      return 'App clock OFF — turn on “MPC follows Circuit Play” (Setup or Rig → Tempo) so the MPC sequencer follows Circuit via Scarlett→DIN.';
     }
-    if (!p.circuitIn) return 'Assign Circuit input in Settings (receive-none until then).';
+    if (!p.circuitIn) return 'Assign Circuit input in Setup (receive-none until then).';
     const targets = [
       this.clockToMpc && !p.mpcOut ? 'MPC' : null,
       this.clockToSp && !p.spOut ? 'SP' : null,
       this.forwardClockToFm1 && !p.fm1Out ? 'FM1' : null,
     ].filter(Boolean);
     if (targets.length) return `Assign an output for ${targets.join(' + ')} — nothing to forward to.`;
+    if (this.clockToMpc) {
+      const advice = mpcClockPortAdvice(mpcName);
+      if (advice.kind === 'warn-akai-usb' || advice.kind === 'unset') return advice.message;
+    }
     if (this.clockInTicks === 0) {
       return 'receive-none: no F8/FA from Circuit yet — Clock Tx (pad 32) bright? Circuit playing? Correct Circuit In port?';
     }
     if (this.clockOutTicks === 0) {
-      return 'receive-but-not-forwarded: IN alive, OUT dead — press Re-apply My Studio routes.';
+      return 'receive-but-not-forwarded: IN alive, OUT dead — press Rebuild routes in Setup › Troubleshooting.';
     }
-    return 'receive-and-forwarded: the app is sending clock. If the MPC does not follow, check MPC Preferences → MIDI/Sync: its MIDI In row on, Receive = MIDI Clock.';
+    return 'receive-and-forwarded: app is sending clock/start/stop. If the MPC sequence does not run, check Preferences → MIDI/Sync: MIDI In on, Receive = MIDI Clock (DIN path — not USB-B).';
   }
 
   private recordClockActivity(message: MidiMessage): void {
