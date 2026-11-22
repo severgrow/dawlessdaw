@@ -20,6 +20,14 @@ npm install
 npm run dev
 ```
 
+If `npm install` fails with `Cannot find module @rollup/rollup-darwin-arm64` (npm optional-deps flake on Apple Silicon):
+
+```bash
+rm -rf node_modules package-lock.json && npm install
+```
+
+Then pull again later so you pick up the lockfile that already lists the darwin rollup/esbuild binaries. Prefer a fresh clone/pull of this branch over deleting the lockfile when the fixed lockfile is available.
+
 Open **http://localhost:5173**.
 
 1. Start in Simulation to confirm the UI loads.

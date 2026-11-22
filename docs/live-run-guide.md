@@ -36,6 +36,14 @@ npm install
 npm run dev
 ```
 
+If install errors with `Cannot find module @rollup/rollup-darwin-arm64`:
+
+```bash
+rm -rf node_modules package-lock.json && npm install
+```
+
+(Prefer `git pull` of this branch first — the lockfile now includes darwin optional binaries.)
+
 If GitHub is still empty, use the Phase 2 bundle instead:
 
 ```bash
