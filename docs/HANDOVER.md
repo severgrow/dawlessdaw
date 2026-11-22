@@ -32,7 +32,7 @@ For the next agent. Read this, then `README.md`, then the docs it links to. Lock
 | Branch / PR | State |
 |---|---|
 | `main` | Includes merged [#13](https://github.com/severgrow/dawlessdaw/pull/13) (`69b6354`) and [#14](https://github.com/severgrow/dawlessdaw/pull/14) (`094a00b`). |
-| `claude/circuit-controller` | Controller feature branch, rebased onto post-#14 `main`. Open a PR when ready; **ask before merging**. |
+| `claude/circuit-controller` | [#16](https://github.com/severgrow/dawlessdaw/pull/16) — open, rebased onto post-#14 `main`. **Ask before merging.** |
 
 Stale branches that are already merged (`claude/fix-typecheck-script`, `claude/remove-simulation`, `claude/skiff-*`, `claude/sp404-banks-and-sample-prep`, `cursor/*`, `phase-2-live-bench`, `claude/bench-label-fix`, `claude/never-forward-sysex`, `claude/mpc-via-scarlett`, `claude/lit-button-hover`, `claude/ux-tighten`, `claude/brand-style`) can be deleted. Sessions here couldn't delete remote branches (403), so the owner does it on the GitHub Branches page.
 
@@ -71,7 +71,7 @@ Spec + model + screen: see [circuit-controller.md](./circuit-controller.md).
 
 **Still for the human / next agent:**
 1. Owner screenshot check of burgundy `#9a2a45` on black (small labels).
-2. Browser smoke on the owner's Mac (or finish cloud Playwright fake-MIDI pass if not done).
+2. ~~Cloud Playwright fake-MIDI smoke~~ done (Controller UI + Advanced + 390px). Owner Mac Live check still useful.
 3. Hardware Step 3 (Scarlett → MPC) — see below; **unverified**.
 4. Bench h6 (SP effect CTRL mapping) and Skiff channel 1–4 confirmation on the FM1 box.
 5. Ask before merging the Controller PR to `main`.
