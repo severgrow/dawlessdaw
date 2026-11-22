@@ -89,6 +89,9 @@ export function SessionsWorkspace() {
       return false;
     }
   });
+  const [monitorInput, setMonitorInput] = useState(
+    () => getCaptureEngine().getMonitorInput(),
+  );
   const [status, setStatus] = useState<CaptureStatus>(() => getCaptureEngine().status());
   const [takes, setTakes] = useState<TakeMeta[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -156,7 +159,14 @@ export function SessionsWorkspace() {
     }
   }, [refreshTakes]);
 
-  useEffect(() => getCaptureEngine().subscribe(setStatus), []);
+  useEffect(
+    () =>
+      getCaptureEngine().subscribe((s) => {
+        setStatus(s);
+        setMonitorInput(s.monitorInput);
+      }),
+    [],
+  );
 
   // Load audio when selection changes
   useEffect(() => {
@@ -332,6 +342,12 @@ export function SessionsWorkspace() {
     }
   };
 
+  const toggleMonitorInput = () => {
+    const next = !monitorInput;
+    setMonitorInput(next);
+    getCaptureEngine().setMonitorInput(next);
+  };
+
   const playRegion = (from: number, to: number, loop = false) => {
     if (!audio) return;
     const ctx = new AudioContext({ sampleRate: audio.sampleRate });
@@ -482,6 +498,14 @@ export function SessionsWorkspace() {
           </button>
           <button
             type="button"
+            className={monitorInput ? 'active' : ''}
+            onClick={toggleMonitorInput}
+            title="Play the live input through the computer speakers. Off by default — with echo cancel off, monitoring feeds back into the take."
+          >
+            Monitor input {monitorInput ? 'on' : 'off'}
+          </button>
+          <button
+            type="button"
             className="ghost"
             disabled={!recording}
             onClick={() => {
@@ -492,6 +516,11 @@ export function SessionsWorkspace() {
             Marker (M)
           </button>
         </div>
+        <p className="muted small">
+          {monitorInput
+            ? 'Monitor input is on — the live input plays through these speakers. Use headphones or turn it off if you hear ringing.'
+            : 'Monitoring is off so the room doesn\u2019t feed back into the take.'}
+        </p>
         <p className="muted small">
           Capture is raw PCM via AudioWorklet (not MediaRecorder). Echo cancel / noise suppress /
           auto gain stay off. Clip lights at −0.3 dBFS and hold 2 s. Auto-markers on Circuit
