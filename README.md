@@ -22,7 +22,7 @@ npm run build
 
 ## Your studio plan (My Studio)
 
-Routing lives on the **Controller** tab (see [docs/circuit-controller.md](docs/circuit-controller.md)). Locked decisions: [docs/DECISIONS.md](docs/DECISIONS.md). Circuit **Mixer** Level (CC29) / Pan (CC30) also remap to destination Volume/Pan (CC7/CC10) on each routed track — see [docs/skiff-fm1.md](docs/skiff-fm1.md).
+Routing lives on the **Controller** tab (see [docs/circuit-controller.md](docs/circuit-controller.md)). The **Sequencer** tab is an 8×16 Dawlessdaw pattern grid that reuses those destinations (not Circuit’s internal patterns) — see [docs/sequencer.md](docs/sequencer.md). Locked decisions: [docs/DECISIONS.md](docs/DECISIONS.md). Circuit **Mixer** Level (CC29) / Pan (CC30) also remap to destination Volume/Pan (CC7/CC10) on each routed track — see [docs/skiff-fm1.md](docs/skiff-fm1.md).
 
 **FM1 / Skiff:** Circuit T5–T8 → Skiff tracks 1–4 over USB (port often named Felucca). App out channels **1–4** (Skiff default) — set FM1 MENU › MIDI › T1–T4 CHANNEL to match. Macro knobs → Brightness…Reverb + **Level**. See [docs/skiff-fm1.md](docs/skiff-fm1.md).
 

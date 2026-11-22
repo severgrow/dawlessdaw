@@ -15,6 +15,7 @@ export default defineConfig({
       '@dawlessdaw/scenes': path.resolve(__dirname, '../../packages/scenes/src'),
       '@dawlessdaw/sessions': path.resolve(__dirname, '../../packages/sessions/src'),
       '@dawlessdaw/storage': path.resolve(__dirname, '../../packages/storage/src'),
+      '@dawlessdaw/sequencer': path.resolve(__dirname, '../../packages/sequencer/src'),
     },
   },
   server: {

@@ -87,6 +87,14 @@ export class MidiRoutingEngine {
     if (route) route.enabled = enabled;
   }
 
+  /**
+   * Inject a synthetic source message through the same route table
+   * (used by the Dawlessdaw sequencer — no duplicate destination map).
+   */
+  inject(message: MidiMessage): void {
+    this.handleIncoming(message);
+  }
+
   handleIncoming(message: MidiMessage): void {
     // Feedback loop prevention
     const lastOut = this.recentOut.get(message.portId);
@@ -131,7 +139,7 @@ export class MidiRoutingEngine {
         const transformed = this.transform(message, route, dest.portId);
         if (!transformed) continue;
 
-        this.sendOut(dest.portId, transformed, route.id);
+        this.sendOut(dest.portId, transformed, route.id, message.timestamp);
       }
     }
   }
@@ -214,8 +222,8 @@ export class MidiRoutingEngine {
     return data;
   }
 
-  private sendOut(portId: PortId, data: Uint8Array, routeId: string): void {
-    this.rawSend(portId, data);
+  private sendOut(portId: PortId, data: Uint8Array, routeId: string, timestamp?: number): void {
+    this.rawSend(portId, data, timestamp);
 
     const parsedKind = data[0]!;
     const isNoteOn = (parsedKind & 0xf0) === 0x90 && (data[2] ?? 0) > 0;
@@ -241,9 +249,12 @@ export class MidiRoutingEngine {
     });
   }
 
-  private rawSend(portId: PortId, data: Uint8Array): void {
-    const ts = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    this.recentOut.set(portId, ts);
+  private rawSend(portId: PortId, data: Uint8Array, timestamp?: number): void {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    // Prefer scheduled timestamp (sequencer look-ahead); fall back to now.
+    const ts =
+      timestamp != null && Number.isFinite(timestamp) && timestamp >= now - 5 ? timestamp : now;
+    this.recentOut.set(portId, now);
     const status = data[0] ?? 0;
     const realtime = status >= 0xf8 && status <= 0xff;
     // Omit timestamp for system realtime so Web MIDI sends immediately (Start/Clock).

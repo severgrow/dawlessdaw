@@ -18,6 +18,7 @@
     "@dawlessdaw/routing": "*",
     "@dawlessdaw/scenes": "*",
     "@dawlessdaw/sessions": "*",
+    "@dawlessdaw/sequencer": "*",
     "@dawlessdaw/storage": "*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

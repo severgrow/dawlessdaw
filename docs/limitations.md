@@ -7,6 +7,7 @@ Capability statuses used throughout the app: **verified** | **untested** | **exp
 | Transport | Status | Notes |
 |-----------|--------|-------|
 | WebMidiTransport | verified (browser API) | Chrome / Edge on macOS; requires user gesture + HTTPS or localhost. Timing Clock / Start / Stop are delivered, but on the **main thread** with jitter — not a sample-accurate clock master. |
+| Dawlessdaw 8×16 sequencer | experimental (browser) | Follows Circuit clock by default; optional internal BPM. Uses Web MIDI output timestamps + main-thread look-ahead — **not** sample-accurate. Does **not** display Circuit internal patterns (Circuit Pattern Unavailable). See [sequencer.md](./sequencer.md). |
 | MockMidiTransport | verified | Deterministic fixtures for simulation / tests |
 | NativeBridgeTransport | unavailable | Stub only — no native MIDI bridge in v0.1 |
 
