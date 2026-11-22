@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { CIRCUIT_DEEP_SYNC_CAPABILITIES } from '@dawlessdaw/devices';
+import { CIRCUIT_DEEP_SYNC_CAPABILITIES } from '@dawlessdaw/devices/circuit-deep-sync';
 import { deepSyncController } from './deepSyncController';
 
 function useDeepSync() {

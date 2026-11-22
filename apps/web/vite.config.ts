@@ -12,6 +12,13 @@ export default defineConfig({
       '@dawlessdaw/routing': path.resolve(__dirname, '../../packages/routing/src'),
       '@dawlessdaw/focus': path.resolve(__dirname, '../../packages/focus/src'),
       '@dawlessdaw/devices': path.resolve(__dirname, '../../packages/devices/src'),
+      // Subpath alias so Circuit Deep Sync does not depend solely on the devices
+      // barrel — Vite can serve a stale pre-merge index.ts after git pull while
+      // `npm run dev` stays up (white screen: missing StockFileProtocolClient).
+      '@dawlessdaw/devices/circuit-deep-sync': path.resolve(
+        __dirname,
+        '../../packages/devices/src/circuit-deep-sync',
+      ),
       '@dawlessdaw/scenes': path.resolve(__dirname, '../../packages/scenes/src'),
       '@dawlessdaw/sessions': path.resolve(__dirname, '../../packages/sessions/src'),
       '@dawlessdaw/storage': path.resolve(__dirname, '../../packages/storage/src'),

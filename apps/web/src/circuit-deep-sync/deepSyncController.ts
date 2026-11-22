@@ -17,7 +17,7 @@ import {
   type ParsedSession,
   type ProtocolLogEntry,
   type RawMidiMonitorEntry,
-} from '@dawlessdaw/devices';
+} from '@dawlessdaw/devices/circuit-deep-sync';
 
 export type DeepSyncPort = { id: string; name: string; type: 'input' | 'output' };
 

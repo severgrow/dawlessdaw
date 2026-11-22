@@ -30,6 +30,22 @@ Then pull again later so you pick up the lockfile that already lists the darwin 
 
 Open **http://localhost:5173**.
 
+### White screen after `git pull` (Vite still running)
+
+If Chrome shows a blank page after pulling (especially after package merges), stop the
+dev server, clear Vite’s transform cache, and restart:
+
+```bash
+git checkout main
+git pull origin main
+# stop npm run / vite (Ctrl-C)
+rm -rf apps/web/node_modules/.vite
+npm run dev:fresh
+```
+
+Then hard-refresh Chrome (Cmd+Shift+R). Typical console clue:
+`does not provide an export named '…'` from `@dawlessdaw/devices` — stale barrel, not bad source.
+
 1. Start in Simulation to confirm the UI loads.
 2. Click **Switch to Live** and allow MIDI access.
 3. Open **Patchbay → Ports** — this is the raw Chrome list. Expect Circuit, SP-404, and often **Felucca** (FM1 CDC name). If **MPC One** is missing here, open **Audio MIDI Setup** first — if MIDI Studio has no MPC, the app cannot help. Then unplug/replug, quit competing DAWs/MPC software, and use **Rescan MIDI ports**. Full checklist: [mpc-one-mac-midi-missing.md](./mpc-one-mac-midi-missing.md).
