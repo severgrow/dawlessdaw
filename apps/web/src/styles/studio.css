@@ -4188,6 +4188,166 @@ button.send-add {
   font-size: 0.85rem;
 }
 
+
+/* ─── FLIP lane (under 8 MIDI tracks) ───────────────────────── */
+
+.flip-lane {
+  margin: 1rem 0 1.25rem;
+  padding: 0.85rem 1rem 1rem;
+  border: 1px solid var(--line-hard);
+  border-left: 3px solid var(--accent);
+  background:
+    linear-gradient(135deg, rgba(154, 42, 69, 0.08), transparent 42%),
+    linear-gradient(180deg, rgba(181, 234, 211, 0.04), transparent 55%);
+}
+
+.flip-lane-head { margin-bottom: 0.55rem; }
+
+.flip-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.55rem 0.85rem;
+}
+
+.flip-title {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.flip-brand { letter-spacing: 0.02em; }
+
+.flip-phase {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--line-hard);
+  color: var(--bone);
+}
+
+.flip-phase-recording,
+.flip-phase-waiting_boundary {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.flip-phase-ready {
+  border-color: var(--alert-hi);
+  color: var(--alert-hi);
+}
+
+.flip-phase-error,
+.flip-phase-cancelled {
+  border-color: var(--warn, #c47a3a);
+  color: var(--warn, #c47a3a);
+}
+
+.flip-lead { margin: 0.25rem 0 0; max-width: 52rem; }
+
+.flip-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 0.45rem;
+}
+
+.flip-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--muted, #9a958c);
+  user-select: none;
+}
+
+.flip-progress { color: var(--accent); margin: 0.35rem 0; }
+.flip-warn { margin: 0.4rem 0; }
+.flip-hint { margin: 0.25rem 0 0.4rem; max-width: 48rem; }
+
+.flip-ready {
+  margin-top: 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.flip-align {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.65rem;
+  align-items: baseline;
+}
+
+.flip-badge {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  padding: 0.12rem 0.4rem;
+  border: 1px solid var(--line-hard);
+}
+
+.flip-badge.align-aligned { border-color: var(--alert-hi); color: var(--alert-hi); }
+.flip-badge.align-offset_applied { border-color: var(--bone); color: var(--bone); }
+.flip-badge.align-unaligned,
+.flip-badge.align-unknown { border-color: var(--warn, #c47a3a); color: var(--warn, #c47a3a); }
+.flip-badge.conf-high { color: var(--alert-hi); }
+.flip-badge.conf-none,
+.flip-badge.conf-low { opacity: 0.85; }
+
+.flip-wave {
+  width: 100%;
+  max-width: 100%;
+  height: 72px;
+  display: block;
+  cursor: ew-resize;
+  border: 1px solid var(--line-hard);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.flip-play-row,
+.flip-chop-row,
+.flip-export-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+}
+
+.flip-slice-seq {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+  margin-left: 0.35rem;
+}
+
+.flip-slice-pad {
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  font-size: 0.65rem;
+  font-family: var(--mono, ui-monospace, monospace);
+  border: 1px solid var(--line-hard);
+  background: transparent;
+  color: var(--muted, #9a958c);
+  cursor: pointer;
+}
+
+.flip-slice-pad.lit {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.flip-slice-pad:hover { border-color: var(--alert-hi); }
+
 @media (max-width: 720px) {
   .seq-step-nums,
   .seq-row {
@@ -4201,6 +4361,10 @@ button.send-add {
 
   .seq-dest {
     display: none;
+  }
+
+  .flip-controls {
+    gap: 0.45rem;
   }
 }
 

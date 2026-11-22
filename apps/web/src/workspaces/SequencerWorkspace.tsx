@@ -1,5 +1,6 @@
 import { destBadge } from '@dawlessdaw/devices';
 import { MoreInfo } from '../components/MoreInfo';
+import { FlipLane } from '../flip/FlipLane';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -209,6 +210,13 @@ export function SequencerWorkspace() {
           })}
         </div>
       </div>
+
+      <FlipLane
+        bpm={pattern.bpm}
+        playhead={seq.playhead}
+        playing={seq.playing}
+        clockSource={seq.bank.clockSource}
+      />
 
       {selStep ? (
         <div className="panel seq-edit">

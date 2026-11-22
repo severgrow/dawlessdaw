@@ -8,6 +8,7 @@ Capability statuses used throughout the app: **verified** | **untested** | **exp
 |-----------|--------|-------|
 | WebMidiTransport | verified (browser API) | Chrome / Edge on macOS; requires user gesture + HTTPS or localhost. Timing Clock / Start / Stop are delivered, but on the **main thread** with jitter — not a sample-accurate clock master. |
 | Dawlessdaw 8×16 sequencer | experimental (browser) | Follows Circuit clock by default; optional internal BPM. Uses Web MIDI output timestamps + main-thread look-ahead — **not** sample-accurate. Does **not** display Circuit internal patterns (Circuit Pattern Unavailable). See [sequencer.md](./sequencer.md). |
+| FLIP capture lane | experimental (browser) | Hardware stereo loop under the 8 MIDI tracks via Session Recorder AudioWorklet. Quantised start vs sequencer clock is **not** sample-accurate; unaligned takes are labelled; **no** silent time-stretch. Circuit audio unused. Live Scarlett/ZED capture **unverified**. See [flip.md](./flip.md). |
 | MockMidiTransport | verified | Deterministic fixtures for simulation / tests |
 | NativeBridgeTransport | unavailable | Stub only — no native MIDI bridge in v0.1 |
 
@@ -30,6 +31,7 @@ Akai documents that the MPC **USB-B port does not support receiving MIDI Clock f
 
 - No invented firmware remote control for unverified sysex / proprietary protocols
 - No claim of live Circuit pattern sync from stock USB MIDI (saved project files ≠ unsaved sequencer RAM)
+- No fake Circuit mute / stem isolation from a stereo mix (FLIP Phase C — design only)
 - No fake Circuit **Scene** sync (Project PGM observe ≠ Scene MIDI)
 - No MPC Plugin SDK “companion” that exports global MPC state (plugins cannot send MIDI to host)
 - No dependency on DOOM OS / Arrhythmia / MidiHax firmware
