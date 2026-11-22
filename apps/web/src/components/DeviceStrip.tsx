@@ -1,5 +1,14 @@
 import { MY_STUDIO_ROLES, unmatchedConnectedPorts } from '@dawlessdaw/devices';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
+import { DeviceArt, type DeviceKind } from './DeviceArt';
+
+const ART: Record<string, DeviceKind> = {
+  circuit: 'circuit',
+  mpc: 'mpc',
+  sp404: 'sp',
+  fm1: 'fm1',
+  zed: 'zed',
+};
 
 function midiStripStatus(
   connected: boolean,
@@ -57,6 +66,22 @@ export function DeviceStrip() {
             onClick={() => setWorkspace('setup')}
             title={connected ? `${assignment?.inputPortName ?? '—'} in · ${assignment?.outputPortName ?? '—'} out — click for Setup` : `${status.title} — click for Setup`}
           >
+            <DeviceArt
+              kind={ART[role.id] ?? 'mac'}
+              lit={!role.midi || connected}
+              pulse={
+                role.id === 'circuit'
+                  ? Math.max(0, ...snap.trackActivity)
+                  : role.id === 'mpc'
+                    ? snap.destActivity.mpc
+                    : role.id === 'sp404'
+                      ? snap.destActivity.sp
+                      : role.id === 'fm1'
+                        ? snap.destActivity.fm1
+                        : 0
+              }
+              className="chip-art"
+            />
             <span className="name">{role.label}</span>
             <span className="meta">{via ?? status.label}</span>
           </button>
