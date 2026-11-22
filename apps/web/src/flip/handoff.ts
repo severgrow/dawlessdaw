@@ -25,7 +25,10 @@ export const DEFAULT_HANDOFF: FlipHandoffConfig = {
 };
 
 export const HANDOFF_LIMITS =
-  'Mutes Dawlessdaw Pattern tracks only (stops outbound sequencer notes to Controller destinations). Does not mute Circuit’s internal sequencer, does not isolate a stem from the stereo mix, and does not change hardware mute on Circuit / MPC / SP.';
+  'Dawlessdaw Pattern mute only — not Circuit internal mute, not stem isolation.';
+
+export const HANDOFF_LIMITS_DETAIL =
+  'While PLAY LOOP runs, selected T1–T8 stop sending outbound sequencer notes to Controller destinations. STOP / UNDO MUTES restores prior mute flags. Does not mute Circuit’s internal sequencer, does not isolate a stem from the stereo mix, and does not change hardware mute on Circuit / MPC / SP.';
 
 export function isFlipHandoffTrack(n: number): n is FlipHandoffTrack {
   return Number.isInteger(n) && n >= 1 && n <= 8;

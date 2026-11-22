@@ -20,6 +20,7 @@ import { getFlipEngine, type FlipEngineStatus } from './flipEngine';
 import {
   FLIP_HANDOFF_TRACKS,
   HANDOFF_LIMITS,
+  HANDOFF_LIMITS_DETAIL,
   toggleHandoffTrack,
   type FlipHandoffTrack,
 } from './handoff';
@@ -417,6 +418,9 @@ export function FlipLane({
               </div>
             ) : null}
             <p className="muted small flip-handoff-note">{HANDOFF_LIMITS}</p>
+            <MoreInfo label="Handoff limits">
+              <p className="muted small">{HANDOFF_LIMITS_DETAIL}</p>
+            </MoreInfo>
           </div>
 
           <div className="flip-play-row">
