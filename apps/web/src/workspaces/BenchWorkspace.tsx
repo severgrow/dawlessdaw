@@ -32,8 +32,8 @@ export function BenchWorkspace() {
         return (
           <div
             key={t.id}
-            className="panel"
-            style={{ borderTop: '1px solid var(--line-soft)', paddingTop: '0.75rem' }}
+            className="panel bench-card"
+            data-verdict={result?.verdict ?? 'pending'}
           >
             <h2>{t.title}</h2>
             <p className="lead">{t.instruction}</p>
@@ -73,7 +73,7 @@ export function BenchWorkspace() {
                 <button
                   key={v}
                   type="button"
-                  className={result?.verdict === v ? 'active' : ''}
+                  className={`verdict-${v} ${result?.verdict === v ? 'active' : ''}`}
                   onClick={() => actions.markBench(t.id, v)}
                 >
                   {v}
@@ -87,7 +87,7 @@ export function BenchWorkspace() {
                   <li key={i}>{d}</li>
                 ))}
             </ul>
-            <p className="muted mono">Status: {result?.verdict ?? 'pending'}</p>
+            <p className="muted mono bench-status">Status: {result?.verdict ?? 'pending'}</p>
           </div>
         );
       })}

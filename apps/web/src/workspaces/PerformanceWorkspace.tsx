@@ -28,7 +28,7 @@ export function PerformanceWorkspace() {
         {snap.devices
           .filter((d) => d.midiEnabled)
           .map((d) => (
-            <div key={d.id} className="panel" style={{ borderTop: '1px solid var(--line-soft)' }}>
+            <div key={d.id} className="panel">
               <h2>{d.displayName}</h2>
               <p className="muted mono">
                 {snap.focus.activeDeviceId === d.id ? 'FOCUS' : 'idle'}

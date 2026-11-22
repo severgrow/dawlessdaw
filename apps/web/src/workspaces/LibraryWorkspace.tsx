@@ -47,7 +47,7 @@ function DevicePanel({ deviceId }: { deviceId: string }) {
   const d = snap.devices.find((x) => x.id === deviceId);
   if (!d) return null;
   return (
-    <div className="panel" style={{ borderTop: '1px solid var(--line-soft)', paddingTop: '0.75rem' }}>
+    <div className="panel">
       <h2>{d.displayName}</h2>
       <p className="muted">
         {d.midiEnabled

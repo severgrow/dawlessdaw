@@ -42,9 +42,9 @@ export function App() {
         <ActiveContext />
       </div>
       <footer className="footer-bar">
-        <span>Dawlessdaw · local-first hardware studio</span>
-        <span className="mono">
-          {simulation ? 'SIMULATION — not live hardware' : 'LIVE WEB MIDI'}
+        <span>dawlessdaw · local-first hardware studio · no sysex · no firmware writes</span>
+        <span className={`mono ${simulation ? 'sim' : 'live'}`}>
+          {simulation ? '● simulation — not live hardware' : '● live web midi'}
         </span>
       </footer>
     </div>
