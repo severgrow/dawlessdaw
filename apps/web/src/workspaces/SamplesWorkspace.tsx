@@ -25,6 +25,7 @@ import {
   type SdVolumeScanResult,
 } from '../sp404/sdVolume';
 import { MoreInfo } from '../components/MoreInfo';
+import { SpUsbPanel, spUsbPanelEnabled } from '../sp404/usb';
 import { useStudioStore } from '../store/useStudioStore';
 
 type Slots = Record<string, StoredPad>;
@@ -153,6 +154,7 @@ export function SamplesWorkspace() {
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const bankTracks = useBankTracks();
   const canPickFolder = fileSystemAccessSupported();
+  const showSpUsb = spUsbPanelEnabled();
 
   const sdProject: SdProjectScan | null = useMemo(() => {
     if (!sdResult?.projects.length) return null;
@@ -474,6 +476,8 @@ export function SamplesWorkspace() {
           </p>
         </MoreInfo>
       </div>
+
+      {showSpUsb ? <SpUsbPanel /> : null}
 
       <div className="panel">
         <h2>Bank {bank}</h2>

@@ -52,16 +52,16 @@ What you get:
 
 | Visible | Not visible |
 |---------|-------------|
-| Occupied vs empty for A01–J16 from `PADCONF.BIN` / `SMPL/` | Live pads over USB without exporting |
+| Occupied vs empty for A01–J16 from `PADCONF.BIN` / `SMPL/` | Writing or changing anything on the card |
 | Pad names from `PADCONF.BIN` | Full-system `BKUP/*.bin` contents |
-| `.SMP` filename + length/channels from RFWV header when present | Reliable audio preview / play-from-card |
-| Import-staged `IMPORT/PROJECT_*` kits the same way | Writing or changing anything on the card |
+| `.SMP` filename + length/channels from RFWV header when present | Reliable audio preview / play-from-card (SD path) |
+| Import-staged `IMPORT/PROJECT_*` kits the same way | |
 
-Read-only File System Access only. USB cable alone will not expose the library.
+Read-only File System Access for the SD path. **Experimental:** Samples → **SP USB (experimental)** (or `?spUsb=1`) can list banks A–D and export one pad as WAV over USB CDC via Chrome Web Serial — card stays in the SP. **Back up the SD and quit the Roland app first.** Protocol notes: [`sp404-usb-protocol.md`](./sp404-usb-protocol.md). Firmware open404-tested: **5.51** only.
 
 ## Sessions → Export WAV → SP pad
 
 From the Sessions recorder, **Export WAV → SP pad** writes the trimmed take straight into a mounted SD card’s `IMPORT/` as `A01 name.wav` (48 kHz / 16-bit). Reuses the same File System Access volume picker id as Samples (`dawlessdaw-sp404-sd`). **Chrome / Edge only.** Grant the SD **card root** (or the `IMPORT` folder itself — the app will not nest `IMPORT/IMPORT/`). The grant is persisted in this browser; writes are size-verified; on failure the pad WAV downloads so you can copy it by hand. Pads do **not** load until you run **SHIFT + pad 14 Import** on the unit. No SysEx; USB cable alone cannot receive the file.
 
-Code: `apps/web/src/sp404/samplePrep.ts` (tested helpers), `apps/web/src/sp404/padStore.ts` (browser storage), `apps/web/src/sp404/sdPadScan.ts` / `sdVolume.ts` (SD project scan), `apps/web/src/sp404/spImportPath.ts` / `spVolumeHandle.ts` (IMPORT write), `apps/web/src/workspaces/SamplesWorkspace.tsx`, and `apps/web/src/workspaces/SessionsWorkspace.tsx`.
+Code: `apps/web/src/sp404/samplePrep.ts` (tested helpers), `apps/web/src/sp404/padStore.ts` (browser storage), `apps/web/src/sp404/sdPadScan.ts` / `sdVolume.ts` (SD project scan), `apps/web/src/sp404/spImportPath.ts` / `spVolumeHandle.ts` (IMPORT write), `apps/web/src/sp404/usb/` (Web Serial read-only spike), `apps/web/src/workspaces/SamplesWorkspace.tsx`, and `apps/web/src/workspaces/SessionsWorkspace.tsx`.
 
