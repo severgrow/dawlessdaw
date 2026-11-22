@@ -28,6 +28,13 @@ export interface CcRemap {
    * Used so only translated knob CCs reach a destination (e.g. Circuit macros → Skiff).
    */
   dropUnmapped?: boolean;
+  /**
+   * Turn one incoming CC (an absolute knob, 0–127) into Program Change on the
+   * same (remapped) channel. The knob range is split into `steps` equal zones;
+   * zone n sends Program Change n. A PC is only sent when the zone changes, so
+   * sweeping the knob never floods the destination.
+   */
+  toProgramChange?: { controller: number; steps: number };
 }
 
 export interface RouteDestination {

@@ -152,7 +152,14 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
         id: 'skiff-standard-cc',
         label: 'Skiff standard CCs (7 level, 10 pan, 74 brightness, 71 res, 73/75/72 env, 91/93/94 sends)',
         status: 'untested',
-        notes: 'Skiff README. Circuit macros 21–28 are translated to these by My Studio routes.',
+        notes: 'Skiff README. Circuit macros 21–27 are translated to these by My Studio routes.',
+      },
+      {
+        id: 'skiff-program-change',
+        label: 'Skiff Program Change loads the track\'s nth sound of its engine (since 1.3)',
+        status: 'untested',
+        notes:
+          'Skiff README. Circuit macro 8 (CC28) is split into 8 zones; each zone sends one Program Change on the track channel (ch5–8). PC number base and behaviour past the engine\'s last sound are undocumented — confirm with bench test h4.',
       },
       {
         id: 'skiff-usb-clock',

@@ -95,9 +95,17 @@ export const BENCH_TESTS: BenchTestDef[] = [
     id: 'fm1-skiff-knobs',
     title: 'h2. Circuit macro knobs → Skiff settings',
     instruction:
-      'Circuit Setup: CC Tx on. Select track 5 and turn each macro knob. Expected on Skiff track 1: macro 1 brightness, 2 resonance, 3 attack, 4 decay, 5 release, 6 delay send, 7 reverb send, 8 level. Repeat on tracks 6–8. Note any knob that does nothing or moves the wrong thing.',
-    listenHint: 'CC 21–28 in on ch5–8 → CC 74/71/73/75/72/94/91/7 out to FM1',
+      'Circuit Setup: CC Tx on. Select track 5 and turn each macro knob. Expected on Skiff track 1: macro 1 brightness, 2 resonance, 3 attack, 4 decay, 5 release, 6 delay send, 7 reverb send (macro 8 is the sound knob — see h4). Repeat on tracks 6–8. Note any knob that does nothing or moves the wrong thing.',
+    listenHint: 'CC 21–27 in on ch5–8 → CC 74/71/73/75/72/94/91 out to FM1',
     capabilityKey: 'skiff-standard-cc',
+  },
+  {
+    id: 'fm1-skiff-sound-knob',
+    title: 'h4. Circuit macro 8 steps Skiff sounds',
+    instruction:
+      'Select Circuit track 5 and slowly turn macro 8 from fully left to fully right while a note plays. Skiff track 1 should change sound about 8 times, one sound per click zone, and the FM1 screen should show the new sound name. Then select track 6 and do the same: only Skiff track 2 should change. Note what happens at the far right (does it stop on a sound, or jump to another engine?).',
+    listenHint: 'CC28 in on ch5–8 → Program Change 0–7 out to FM1 on the same channel',
+    capabilityKey: 'skiff-program-change',
   },
   {
     id: 'fm1-skiff-clock',

@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { MidiPortInfo } from '@dawlessdaw/core';
 import { MockMidiTransport } from '@dawlessdaw/midi';
 import { MidiRoutingEngine } from '@dawlessdaw/routing';
-import { buildMyStudioRoutes, CIRCUIT_MACRO_TO_SKIFF_CC } from './studio-layout';
+import {
+  buildMyStudioRoutes,
+  CIRCUIT_MACRO_TO_SKIFF_CC,
+  SKIFF_SOUND_KNOB_CC,
+  SKIFF_SOUND_KNOB_STEPS,
+} from './studio-layout';
 import { matchPortsToRoles, portsForRoles } from './port-matcher';
 
 /**
@@ -65,8 +70,39 @@ describe('Circuit → FM1 (Skiff) routing', () => {
       25: 72,
       26: 94,
       27: 91,
-      28: 7,
     });
+  });
+
+  it('macro 8 steps the Skiff track sound with Program Change on its own channel', () => {
+    expect(SKIFF_SOUND_KNOB_CC).toBe(28);
+    expect(SKIFF_SOUND_KNOB_STEPS).toBe(8);
+    transport.inject('mock-circuit-in', [0xb4, 28, 0]); // ch5 → sound 1
+    transport.inject('mock-circuit-in', [0xb5, 28, 127]); // ch6 → sound 8
+    transport.inject('mock-circuit-in', [0xb6, 28, 64]); // ch7 → sound 5
+    transport.inject('mock-circuit-in', [0xb7, 28, 15]); // ch8 → sound 1
+    expect(sentTo('mock-fm1-out')).toEqual([
+      [0xc4, 0],
+      [0xc5, 7],
+      [0xc6, 4],
+      [0xc7, 0],
+    ]);
+  });
+
+  it('only sends a Program Change when the sound knob crosses into a new sound', () => {
+    for (let v = 0; v <= 127; v++) transport.inject('mock-circuit-in', [0xb4, 28, v]);
+    expect(sentTo('mock-fm1-out')).toEqual([0, 1, 2, 3, 4, 5, 6, 7].map((p) => [0xc4, p]));
+    // Turning back down re-sends as each zone is re-entered
+    transport.inject('mock-circuit-in', [0xb4, 28, 0]);
+    expect(sentTo('mock-fm1-out').at(-1)).toEqual([0xc4, 0]);
+  });
+
+  it('each track remembers its own sound (ch5 does not block ch6)', () => {
+    transport.inject('mock-circuit-in', [0xb4, 28, 40]);
+    transport.inject('mock-circuit-in', [0xb5, 28, 40]);
+    expect(sentTo('mock-fm1-out')).toEqual([
+      [0xc4, 2],
+      [0xc5, 2],
+    ]);
   });
 
   it('drops any other CC so it cannot change Skiff by accident', () => {

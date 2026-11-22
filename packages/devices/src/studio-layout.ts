@@ -125,8 +125,19 @@ export const CIRCUIT_MACRO_TO_SKIFF_CC: Readonly<Record<number, number>> = {
   25: 72, // macro 5 → release
   26: 94, // macro 6 → delay send
   27: 91, // macro 7 → reverb send
-  28: 7, // macro 8 → level
+  // macro 8 (CC28) is the sound knob → Program Change (SKIFF_SOUND_KNOB_CC)
 };
+
+/**
+ * Skiff "sound knob": this Circuit macro steps the track's Skiff sound.
+ * Skiff 1.3+ loads "the track's nth preset of its engine" on Program Change,
+ * per track channel (Skiff README, MIDI implementation). The knob is split into
+ * SKIFF_SOUND_KNOB_STEPS zones; each zone sends one Program Change on ch5–8.
+ * Every Skiff engine has at least 8 sounds, so 8 steps is the safe default.
+ * Untested on this studio until bench test h4 passes.
+ */
+export const SKIFF_SOUND_KNOB_CC = 28; // Circuit macro 8
+export const SKIFF_SOUND_KNOB_STEPS = 8;
 
 /** Circuit tracks routed to the FM1 for each firmware. */
 export const FM1_TRACKS_BY_FIRMWARE: Readonly<Record<Fm1Firmware, number[]>> = {
@@ -229,7 +240,12 @@ export function buildMyStudioRoutes(ports: {
         destinations: [{ portId: ports.fm1Out }],
         channel: { allow: [track], remap: { [track]: track } },
         // Only translated macro knobs reach Skiff; every other CC is dropped.
-        cc: { map: { ...CIRCUIT_MACRO_TO_SKIFF_CC }, dropUnmapped: true },
+        // Macro 8 steps through the track's Skiff sounds via Program Change.
+        cc: {
+          map: { ...CIRCUIT_MACRO_TO_SKIFF_CC },
+          dropUnmapped: true,
+          toProgramChange: { controller: SKIFF_SOUND_KNOB_CC, steps: SKIFF_SOUND_KNOB_STEPS },
+        },
         forwardClock: false,
         blockKinds: ['program-change'],
       });
