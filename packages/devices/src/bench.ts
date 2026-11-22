@@ -140,6 +140,15 @@ export const BENCH_TESTS: BenchTestDef[] = [
     capabilityKey: 'skiff-standard-cc',
   },
   {
+    id: 'circuit-mixer-levels',
+    group: 'fm1',
+    title: 'h7. Circuit Mixer Level → destination Volume (CC7)',
+    instruction:
+      'Circuit Setup: CC Tx on. Press Mixer so ▼ is lit (macros = Level). Play a looped note on a track routed to FM1 (T5–T8) or MPC/SP (T1–T4). Turn that track’s Macro — Skiff should change LEVEL (CC7); for MPC/SP listen for volume or MIDI Learn CC7 on that channel. Mark Pass only when you hear the level change on the destination.',
+    listenHint: 'CC29 in on track ch → CC7 Volume out on remapped dest channel (sim verified; hardware Pass pending)',
+    capabilityKey: 'mixer-level-tx',
+  },
+  {
     id: 'fm1-skiff-sound-knob',
     group: 'fm1',
     title: 'h4. Circuit macro 8 steps Skiff sounds',

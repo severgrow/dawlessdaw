@@ -22,7 +22,7 @@ npm run build
 
 ## Your studio plan (My Studio)
 
-**FM1 jam focus:** Circuit T5–T8 → FM1 running **Skiff** over USB (port often named Felucca); Circuit macro knobs are translated to Skiff's CCs. MPC can take notes over USB or straight from the thru-box cable (Settings → MPC connection). See [docs/skiff-fm1.md](docs/skiff-fm1.md).
+**FM1 jam focus:** Circuit T5–T8 → FM1 running **Skiff** over USB (port often named Felucca); Circuit macro knobs are translated to Skiff's CCs. Circuit **Mixer** Level (CC29) / Pan (CC30) remap to destination Volume/Pan (CC7/CC10) on each routed track. MPC can take notes over USB or straight from the thru-box cable (Settings → MPC connection). See [docs/skiff-fm1.md](docs/skiff-fm1.md).
 
 **SP-404:** Circuit tracks 1–4 can play SP banks A–D (SP MIDI Mode A), and the **Samples** tab prepares pad-named WAVs for all 10 banks. See [docs/sp404-banks-and-samples.md](docs/sp404-banks-and-samples.md).
 

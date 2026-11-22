@@ -5,6 +5,7 @@ import { MidiRoutingEngine } from '@dawlessdaw/routing';
 import {
   buildMyStudioRoutes,
   CIRCUIT_MACRO_TO_SKIFF_CC,
+  CIRCUIT_TO_SKIFF_CC,
   SKIFF_SOUND_KNOB_CC,
   SKIFF_SOUND_KNOB_STEPS,
 } from './studio-layout';
@@ -71,6 +72,8 @@ describe('Circuit → FM1 (Skiff) routing', () => {
       26: 94,
       27: 91,
     });
+    expect(CIRCUIT_TO_SKIFF_CC[29]).toBe(7);
+    expect(CIRCUIT_TO_SKIFF_CC[30]).toBe(10);
   });
 
   it('macro 8 steps the Skiff track sound with Program Change on its own channel', () => {
@@ -105,10 +108,11 @@ describe('Circuit → FM1 (Skiff) routing', () => {
     ]);
   });
 
-  it('drops any other CC so it cannot change Skiff by accident', () => {
-    transport.inject('mock-circuit-in', [0xb4, 29, 100]); // mixer CC on ch5
+  it('maps Mixer Level CC29 → Skiff LEVEL CC7; drops unmapped CCs', () => {
+    transport.inject('mock-circuit-in', [0xb4, 29, 100]); // mixer level on ch5
     transport.inject('mock-circuit-in', [0xb4, 74, 100]); // already a Skiff CC — still dropped
-    expect(sentTo('mock-fm1-out')).toEqual([]);
+    transport.inject('mock-circuit-in', [0xb4, 31, 50]); // reverb send — dropped
+    expect(sentTo('mock-fm1-out')).toEqual([[0xb4, 7, 100]]);
   });
 
   it('never forwards Circuit Program Change to the FM1', () => {

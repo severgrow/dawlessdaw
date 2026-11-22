@@ -189,9 +189,10 @@ export function RigWorkspace() {
         ) : null}
         <p className="muted small">
           The Circuit sends track 1–8 on MIDI channels 1–8. Notes and knobs go to the MPC; the SP
-          gets notes only (MIDI Mode A: bank A–J = ch1–10); the FM1 gets notes and the Skiff knob
-          map ({snap.fm1Firmware === 'skiff' ? 'Skiff' : 'h1: notes only'}). Program changes are
-          never passed on.
+          gets notes plus Mixer Level as MIDI volume (MIDI Mode A: bank A–J = ch1–10); the FM1 gets
+          notes and the Skiff knob map ({snap.fm1Firmware === 'skiff' ? 'Skiff' : 'h1: notes only'}).
+          Circuit Mixer (▼ macros) Level CC29 → Volume CC7 on each routed out — turn Circuit CC Tx
+          on in Setup. Program changes are never passed on.
         </p>
       </div>
 

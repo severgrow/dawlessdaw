@@ -144,7 +144,7 @@ export function SetupWorkspace() {
         </div>
         <p className="muted small">
           {snap.fm1Firmware === 'skiff'
-            ? 'Skiff: tracks sent to the FM1 also carry the macro knobs (1–7 → sound settings, 8 → steps sounds). On the FM1: MENU › MIDI › T1–T4 CHANNEL = 5, 6, 7, 8. Keep the FM1 off the thru box.'
+            ? 'Skiff: tracks sent to the FM1 also carry the macro knobs (1–7 → sound settings, 8 → steps sounds) and Circuit Mixer Level/Pan (CC29/30 → Skiff LEVEL/PAN). On the FM1: MENU › MIDI › T1–T4 CHANNEL = 5, 6, 7, 8. Keep the FM1 off the thru box.'
             : 'h1: notes only, and h1 plays every channel — never put it on the thru box.'}
         </p>
       </div>

@@ -126,6 +126,13 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
         status: 'experimental',
         notes: 'Dawlessdaw routes track channels → external devices (sim verified)',
       },
+      {
+        id: 'mixer-level-tx',
+        label: 'Mixer Level CC29 / Pan CC30 per track channel (PRG v5)',
+        status: 'untested',
+        notes:
+          'Confirmed CC numbers in Programmer’s Reference. My Studio remaps Level→CC7 Volume and Pan→CC10 on each destination route. Live Mixer-view TX needs Circuit CC Tx ON; hardware Pass pending.',
+      },
     ],
   },
   'm-vave-fm1': {
@@ -165,7 +172,8 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
         id: 'skiff-standard-cc',
         label: 'Skiff standard CCs (7 level, 10 pan, 74 brightness, 71 res, 73/75/72 env, 91/93/94 sends)',
         status: 'untested',
-        notes: 'Skiff README. Circuit macros 21–27 are translated to these by My Studio routes.',
+        notes:
+          'Skiff README. Circuit macros 21–27 and Mixer Level/Pan (CC29/30 → CC7/10) are translated by My Studio routes.',
       },
       {
         id: 'skiff-program-change',
