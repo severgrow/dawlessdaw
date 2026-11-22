@@ -92,9 +92,9 @@ export function SettingsWorkspace() {
       <div className="panel">
         <h2>All Web MIDI ports (raw)</h2>
         <p className="lead">
-          Every input/output Chrome reports — including names that did not auto-match. If MPC or
-          FM1 show NOT CONNECTED on the strip but appear here under an odd name, assign them
-          manually below and paste these exact names when reporting issues.
+          Same inventory as Patchbay Ports: every input/output Chrome reports. FM1 often appears as
+          Felucca (auto-matched). If the strip says unassigned / no Web MIDI port but a name is
+          here, assign it below. If MPC is missing here entirely, fix USB / Audio MIDI Setup first.
         </p>
         {allConnected.length === 0 ? (
           <p className="muted mono">
