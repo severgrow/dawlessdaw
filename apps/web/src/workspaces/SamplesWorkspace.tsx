@@ -16,6 +16,14 @@ import {
   type SpBank,
 } from '../sp404/samplePrep';
 import { deletePad, loadPads, savePad, type StoredPad } from '../sp404/padStore';
+import { formatPadDuration, type SdPadSlot, type SdProjectScan } from '../sp404/sdPadScan';
+import {
+  fileSystemAccessSupported,
+  pickSpVolumeDirectory,
+  scanSpVolume,
+  type FsDirectoryHandle,
+  type SdVolumeScanResult,
+} from '../sp404/sdVolume';
 import { useStudioStore } from '../store/useStudioStore';
 
 type Slots = Record<string, StoredPad>;
@@ -135,9 +143,75 @@ export function SamplesWorkspace() {
   const [status, setStatus] = useState('');
   const [exported, setExported] = useState<string[]>([]);
   const [dragPad, setDragPad] = useState<string | null>(null);
+  const [sdResult, setSdResult] = useState<SdVolumeScanResult | null>(null);
+  const [sdProjectId, setSdProjectId] = useState<string | null>(null);
+  const [sdBusy, setSdBusy] = useState(false);
+  const [sdStatus, setSdStatus] = useState('');
+  const sdHandle = useRef<FsDirectoryHandle | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const bankTracks = useBankTracks();
+  const canPickFolder = fileSystemAccessSupported();
+
+  const sdProject: SdProjectScan | null = useMemo(() => {
+    if (!sdResult?.projects.length) return null;
+    return (
+      sdResult.projects.find((p) => p.path === sdProjectId || p.id === sdProjectId) ??
+      sdResult.projects[0]!
+    );
+  }, [sdResult, sdProjectId]);
+
+  const sdByKey = useMemo(() => {
+    const map: Record<string, SdPadSlot> = {};
+    if (!sdProject) return map;
+    for (const p of sdProject.pads) map[p.key] = p;
+    return map;
+  }, [sdProject]);
+
+  const runSdScan = useCallback(async (handle: FsDirectoryHandle) => {
+    setSdBusy(true);
+    setSdStatus('Scanning…');
+    try {
+      const result = await scanSpVolume(handle, { onProgress: setSdStatus });
+      setSdResult(result);
+      setSdProjectId((prev) => {
+        if (prev && result.projects.some((p) => p.path === prev || p.id === prev)) return prev;
+        return result.projects[0]?.path ?? null;
+      });
+      const n = result.projects.reduce((acc, p) => acc + p.occupiedCount, 0);
+      setSdStatus(
+        result.projects.length
+          ? `Found ${result.projects.length} project${result.projects.length === 1 ? '' : 's'} · ${n} occupied pad${n === 1 ? '' : 's'} on “${result.rootName}”.`
+          : `Opened “${result.rootName}” — no project pads found.`,
+      );
+    } catch (err) {
+      setSdStatus(err instanceof Error ? err.message : 'Could not read that folder.');
+    } finally {
+      setSdBusy(false);
+    }
+  }, []);
+
+  const openSpVolume = async () => {
+    if (!canPickFolder) {
+      setSdStatus('Chrome or Edge is needed to open a folder on your Mac.');
+      return;
+    }
+    const handle = await pickSpVolumeDirectory();
+    if (!handle) {
+      setSdStatus('Folder access cancelled.');
+      return;
+    }
+    sdHandle.current = handle;
+    await runSdScan(handle);
+  };
+
+  const refreshSpVolume = async () => {
+    if (!sdHandle.current) {
+      await openSpVolume();
+      return;
+    }
+    await runSdScan(sdHandle.current);
+  };
 
   // Restore pads saved in this browser.
   useEffect(() => {
@@ -312,6 +386,12 @@ export function SamplesWorkspace() {
 
   const duration = slot ? durationSeconds(slot.audio) : 0;
   const tracks = bankTracks[bank];
+  const sdBankCount = (b: SpBank) =>
+    sdProject
+      ? Array.from({ length: PADS_PER_BANK }, (_, i) => sdByKey[padKey(b, i + 1)]).filter((p) => p?.occupied)
+          .length
+      : 0;
+  const selectedSd = sdByKey[key];
 
   return (
     <div className="section-enter samples">
@@ -319,6 +399,12 @@ export function SamplesWorkspace() {
         <h1>samples</h1>
         <span className="readout">
           loaded <b>{all.length}</b>/160 · {restored ? 'saved in this browser' : 'loading…'}
+          {sdProject ? (
+            <>
+              {' '}
+              · on SD <b>{sdProject.occupiedCount}</b>/160
+            </>
+          ) : null}
         </span>
       </div>
 
@@ -333,13 +419,82 @@ export function SamplesWorkspace() {
           <b>Save</b> — write 48 kHz WAVs named by pad (e.g. <span className="mono">A01 kick.wav</span>) and
           import them on the SP.
         </li>
+        <li>
+          <b>See the SP</b> — open the SD card volume to list which pads already have samples (export first on the unit).
+        </li>
       </ol>
+
+      <div className="panel">
+        <h2>Pads already on the SP</h2>
+        <p className="muted small">
+          A USB cable alone will <strong>not</strong> show the library — the SP only offers audio and MIDI over USB.
+          Pull the SD card, put it in a Mac card reader, then grant this page folder access. You must{' '}
+          <strong>export the project</strong> on the SP first (SHIFT + pad 14 → EXPORT to SD-CARD → PROJECT), or open an{' '}
+          <span className="mono">IMPORT/PROJECT_*</span> folder. This never writes the card and never talks to the SP
+          over MIDI.
+        </p>
+        <div className="row">
+          <button type="button" disabled={sdBusy || !canPickFolder} onClick={() => void openSpVolume()}>
+            {sdHandle.current ? 'Choose folder…' : 'Open SP volume…'}
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={sdBusy || !sdHandle.current}
+            onClick={() => void refreshSpVolume()}
+          >
+            Refresh
+          </button>
+          {sdResult?.projects.length && sdResult.projects.length > 1 ? (
+            <label className="sd-project-pick">
+              Project
+              <select
+                value={sdProject?.path ?? ''}
+                onChange={(e) => setSdProjectId(e.target.value)}
+                disabled={sdBusy}
+              >
+                {sdResult.projects.map((p) => (
+                  <option key={p.path} value={p.path}>
+                    {p.projectName || p.id} ({p.occupiedCount} pads) · {p.path}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+        </div>
+        {!canPickFolder ? (
+          <p className="muted small">Folder access needs Chrome or Edge on this Mac.</p>
+        ) : null}
+        {sdStatus ? <p className="mono small status-line-inline">{sdBusy ? `… ${sdStatus}` : sdStatus}</p> : null}
+        {sdResult?.warnings.map((w) => (
+          <p key={w} className="muted small">
+            {w}
+          </p>
+        ))}
+        {sdProject ? (
+          <p className="muted small">
+            Showing <span className="mono">{sdProject.projectName}</span>
+            {sdProject.path ? (
+              <>
+                {' '}
+                from <span className="mono">{sdProject.path}</span>
+              </>
+            ) : null}
+            {' '}
+            ({sdProject.source === 'export' ? 'exported project' : sdProject.source === 'import' ? 'import folder' : 'project folder'}
+            ). Occupied pads get an <span className="sp-on-sd-mark" aria-hidden>SD</span> mark on the grid. Names come
+            from <span className="mono">PADCONF.BIN</span>; length from <span className="mono">.SMP</span> headers when
+            present. Live preview of SD audio is not offered.
+          </p>
+        ) : null}
+      </div>
 
       <div className="panel">
         <h2>Bank {bank}</h2>
         <div className="bank-tabs" role="tablist" aria-label="SP banks">
           {SP_BANKS.map((b) => {
             const n = bankCount(b);
+            const sn = sdBankCount(b);
             return (
               <button
                 key={b}
@@ -350,7 +505,10 @@ export function SamplesWorkspace() {
                 onClick={() => setBank(b)}
               >
                 {b}
-                <span className="bank-count">{n || ''}</span>
+                <span className="bank-count">
+                  {n || ''}
+                  {sn ? <span className="bank-count-sd">/{sn}</span> : null}
+                </span>
               </button>
             );
           })}
@@ -359,18 +517,26 @@ export function SamplesWorkspace() {
           {tracks?.length
             ? `Played by Circuit track ${tracks.join(' & ')} (Rig tab, SP in MIDI Mode A).`
             : 'No Circuit track plays this bank right now — set one in the Rig tab if you want it.'}
+          {sdProject ? ' Bank counts show browser pads / occupied on SD.' : null}
         </p>
 
         <div className="sp-grid" role="grid" aria-label={`Bank ${bank} pads`}>
           {Array.from({ length: PADS_PER_BANK }, (_, i) => i + 1).map((pad) => {
             const k = padKey(bank, pad);
             const s = slots[k];
+            const onSd = sdByKey[k];
+            const sdOcc = Boolean(onSd?.occupied);
+            const label = s
+              ? s.edit.name
+              : sdOcc
+                ? onSd?.name || onSd?.fileName || 'on SP'
+                : 'drop audio';
             return (
               <button
                 key={pad}
                 type="button"
                 draggable={Boolean(s)}
-                className={`sp-pad${selected === pad ? ' selected' : ''}${s ? ' filled' : ''}${dragPad && dragPad !== k ? ' drop-ok' : ''}`}
+                className={`sp-pad${selected === pad ? ' selected' : ''}${s ? ' filled' : ''}${sdOcc ? ' on-sd' : ''}${!s && sdOcc ? ' sd-only' : ''}${dragPad && dragPad !== k ? ' drop-ok' : ''}`}
                 onClick={() => {
                   setSelected(pad);
                   if (s) playAudio(applyEdit(s.audio, s.edit));
@@ -395,10 +561,20 @@ export function SamplesWorkspace() {
                     void loadFiles(e.dataTransfer.files, pad);
                   }
                 }}
-                aria-label={`Pad ${pad}${s ? `: ${s.edit.name}` : ', empty'}`}
+                aria-label={`Pad ${pad}${s ? `: ${s.edit.name}` : sdOcc ? `, on SP: ${onSd?.name || onSd?.fileName || 'sample'}` : ', empty'}`}
               >
-                <span className="sp-pad-num mono">{k}</span>
-                <span className="sp-pad-name">{s ? s.edit.name : 'drop audio'}</span>
+                <span className="sp-pad-num mono">
+                  {k}
+                  {sdOcc ? <span className="sp-on-sd-mark" title="Occupied on the SP project from the SD card">SD</span> : null}
+                </span>
+                <span className="sp-pad-name">{label}</span>
+                {sdOcc && !s ? (
+                  <span className="sp-pad-sd-meta mono">
+                    {[formatPadDuration(onSd?.durationSec), onSd?.channels === 1 ? 'mono' : onSd?.channels === 2 ? 'stereo' : '']
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                ) : null}
               </button>
             );
           })}
@@ -501,6 +677,24 @@ export function SamplesWorkspace() {
               Saves as {padFileName(slot.bank, slot.pad, slot.edit.name)} · {durationSeconds(edited).toFixed(2)} s ·{' '}
               {slot.audio.channels.length === 1 ? 'mono' : 'stereo'} · source {slot.audio.sampleRate} Hz → 48 kHz 16-bit
             </p>
+            {selectedSd?.occupied ? (
+              <p className="muted small">
+                Also occupied on the SD project
+                {selectedSd.name ? (
+                  <>
+                    {' '}
+                    as <span className="mono">{selectedSd.name}</span>
+                  </>
+                ) : null}
+                {selectedSd.fileName ? (
+                  <>
+                    {' '}
+                    (<span className="mono">{selectedSd.fileName}</span>)
+                  </>
+                ) : null}
+                {selectedSd.durationSec != null ? <> · {formatPadDuration(selectedSd.durationSec)}</> : null}.
+              </p>
+            ) : null}
           </>
         ) : (
           <div
@@ -512,12 +706,34 @@ export function SamplesWorkspace() {
             }}
           >
             <p>
-              Pad {key} is empty. Drop audio here, or{' '}
+              Pad {key} is empty in this browser. Drop audio here, or{' '}
               <button type="button" onClick={() => fileInput.current?.click()}>
                 choose files…
               </button>
             </p>
             <p className="muted small">WAV, AIFF, MP3 or FLAC. Several files fill pads {selected}–16.</p>
+            {selectedSd?.occupied ? (
+              <p className="muted small">
+                On the SD project this pad is occupied
+                {selectedSd.name ? (
+                  <>
+                    {' '}
+                    as <span className="mono">{selectedSd.name}</span>
+                  </>
+                ) : null}
+                {selectedSd.fileName ? (
+                  <>
+                    {' '}
+                    (<span className="mono">{selectedSd.fileName}</span>)
+                  </>
+                ) : null}
+                {selectedSd.durationSec != null ? <> · {formatPadDuration(selectedSd.durationSec)}</> : null}
+                {selectedSd.channels === 1 ? ' · mono' : selectedSd.channels === 2 ? ' · stereo' : ''}.
+                Audio preview from the card is not available here.
+              </p>
+            ) : sdProject ? (
+              <p className="muted small">Empty on the SD project too.</p>
+            ) : null}
           </div>
         )}
       </div>
@@ -541,13 +757,14 @@ export function SamplesWorkspace() {
           </ul>
         ) : null}
         <ol className="howto">
-          <li>Press <b>Save</b>. Chrome asks for a folder: pick one on your Mac (or on the SP&apos;s SD card in a card reader). Files are 48 kHz, 16-bit WAV, named by pad: <span className="mono">A01 …</span> = bank A, pad 1.</li>
+          <li>Press <b>Save</b>. Chrome asks for a folder: pick one on your Mac (or the SD card&apos;s <span className="mono">IMPORT</span> folder in a card reader). Files are 48 kHz, 16-bit WAV, named by pad: <span className="mono">A01 …</span> = bank A, pad 1.</li>
           <li>Put the files on the SP: copy them to the SD card and use the SP&apos;s <b>Import</b> (see Roland&apos;s SP-404MKII Reference Manual, “Importing samples”), or drag them onto pads in Roland&apos;s <b>SP-404MKII App</b>.</li>
           <li>Import each file onto the pad its name says.</li>
         </ol>
         <p className="muted small">
-          This page never reads or changes the SP&apos;s own project files, and never talks to the SP.
-          Your pads are kept in this browser on this Mac until you clear them.
+          Browser pads stay in this Chrome profile on this Mac. Opening the SP volume only <em>reads</em> exported
+          (or import-staged) project folders you grant — it never writes the card, never touches <span className="mono">BKUP</span>,
+          and never dumps pads over USB MIDI.
         </p>
       </div>
     </div>
