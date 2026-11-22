@@ -447,8 +447,8 @@ export function ControllerWorkspace() {
         </span>
       </div>
       <p className="lead">
-        Turn the Circuit into a controller for the SP-404, FM1 and MPC. Click a track (or drag a device onto it), choose what
-        it plays and what its 8 knobs do. Everything not mapped is dropped.
+        Point each Circuit track at the SP-404, FM1 or MPC, then say what its eight knobs do. Unmapped knobs are
+        dropped. Everyday labels stay plain; turn on <strong>Advanced</strong> for MIDI channel and CC numbers.
       </p>
 
       <PresetBar advanced={advanced} setAdvanced={setAdvanced} />

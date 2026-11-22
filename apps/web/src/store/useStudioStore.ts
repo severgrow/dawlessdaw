@@ -122,6 +122,32 @@ export function useStudioActions() {
     sendBenchMpcMuteCc: () => runtime.sendBenchMpcMuteCc(),
     sendBenchMpcClockBurst: () => runtime.sendBenchMpcClockBurst(),
     downloadBenchJson: () => runtime.downloadBenchJson(),
+    createCustomDevice: (input: {
+      displayName: string;
+      manufacturer?: string;
+      category?: import('@dawlessdaw/devices').DeviceCategory;
+      colour?: string;
+      channel?: number;
+      inputPortId?: string | null;
+      outputPortId?: string | null;
+      honesty?: import('@dawlessdaw/devices').ProfileHonesty;
+      notes?: string;
+    }) => runtime.createCustomDevice(input),
+    deleteCustomProfile: (id: string) => runtime.deleteCustomProfile(id),
+    assignCustomProfilePort: (
+      profileId: string,
+      which: 'input' | 'output',
+      portId: string | null,
+    ) => runtime.assignCustomProfilePort(profileId, which, portId),
+    addCustomControl: (profileId: string, label: string) =>
+      runtime.addCustomControl(profileId, label),
+    removeCustomControl: (profileId: string, controlId: string) =>
+      runtime.removeCustomControl(profileId, controlId),
+    startGenericLearn: (profileId: string, controlId: string) =>
+      runtime.startGenericLearn(profileId, controlId),
+    cancelGenericLearn: () => runtime.cancelGenericLearn(),
+    exportCustomProfilesJson: () => runtime.exportCustomProfilesJson(),
+    importCustomProfilesJson: (raw: string) => runtime.importCustomProfilesJson(raw),
     getAssistantTools: () => runtime.assistant.list(),
     getRuntime: () => runtime,
   };

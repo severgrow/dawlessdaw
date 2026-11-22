@@ -34,7 +34,10 @@ function midiStripStatus(
 export function DeviceStrip() {
   const snap = useStudioStore();
   const { setWorkspace } = useStudioActions();
-  const unmatched = unmatchedConnectedPorts(snap.ports, snap.assignments);
+  const customClaimed = Object.values(snap.customBindings ?? {}).flatMap((b) =>
+    [b.inputPortId, b.outputPortId].filter((id): id is string => Boolean(id)),
+  );
+  const unmatched = unmatchedConnectedPorts(snap.ports, snap.assignments, customClaimed);
   const hasUnmatchedPorts = unmatched.length > 0;
 
   return (

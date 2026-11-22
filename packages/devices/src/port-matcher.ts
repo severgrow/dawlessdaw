@@ -153,13 +153,38 @@ function rankPortsForRole(
   midiRoles: StudioRoleDef[],
   hints: string[],
 ): MidiPortInfo | undefined {
-  const ranked = [...candidates]
+  const ranked = rankPortsForRoleScored(candidates, used, role, midiRoles, hints);
+  // Equal top scores = ambiguous — leave unbound so Setup can ask the user.
+  if (ranked.length >= 2 && ranked[0]!.s === ranked[1]!.s) return undefined;
+  return ranked[0]?.p;
+}
+
+/** Ranked candidates (score > 0), highest first — for ambiguity tests / UI. */
+export function rankPortsForRoleScored(
+  candidates: MidiPortInfo[],
+  used: Set<string>,
+  role: StudioRoleDef,
+  midiRoles: StudioRoleDef[],
+  hints: string[],
+): Array<{ p: MidiPortInfo; s: number }> {
+  return [...candidates]
     .filter((p) => !used.has(p.id))
     .filter((p) => !isClaimedByStrongerRole(p, role, midiRoles))
     .map((p) => ({ p, s: scorePortAgainstHints(p, hints) }))
     .filter((x) => x.s > 0)
     .sort((a, b) => b.s - a.s);
-  return ranked[0]?.p;
+}
+
+/** True when two-or-more ports share the best score for a role (auto-match skipped). */
+export function isAmbiguousPortMatch(
+  candidates: MidiPortInfo[],
+  used: Set<string>,
+  role: StudioRoleDef,
+  midiRoles: StudioRoleDef[],
+  hints: string[],
+): boolean {
+  const ranked = rankPortsForRoleScored(candidates, used, role, midiRoles, hints);
+  return ranked.length >= 2 && ranked[0]!.s === ranked[1]!.s;
 }
 
 /**
@@ -374,16 +399,18 @@ export function roleUsingPort(
   return null;
 }
 
-/** Connected MIDI ports that no studio role has claimed — for Settings inventory. */
+/** Connected MIDI ports that no studio role (or optional extra ids) has claimed. */
 export function unmatchedConnectedPorts(
   ports: MidiPortInfo[],
   assignments: PortAssignment[],
+  extraClaimed: Iterable<string> = [],
 ): MidiPortInfo[] {
   const claimed = new Set<string>();
   for (const a of assignments) {
     if (a.inputPortId) claimed.add(a.inputPortId);
     if (a.outputPortId) claimed.add(a.outputPortId);
   }
+  for (const id of extraClaimed) claimed.add(id);
   return ports.filter((p) => p.state === 'connected' && !claimed.has(p.id));
 }
 

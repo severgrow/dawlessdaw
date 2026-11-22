@@ -13,6 +13,8 @@ export function RigWorkspace() {
   const { setClockToMpc, setClockToSp, setForwardClockToFm1, panic, setWorkspace } = useStudioActions();
   const circuitIn = snap.assignments.find((a) => a.roleId === 'circuit')?.inputPortId;
   const presetName = snap.controllerPresets.find((p) => p.id === snap.controllerSavedId)?.name ?? '—';
+  const noteHits = snap.trackActivity.slice(1, 9).filter((t) => t > 0).length;
+  const showOnboard = snap.onboarding.step !== 'play';
 
   return (
     <div className="section-enter">
@@ -23,11 +25,22 @@ export function RigWorkspace() {
         </button>
       </div>
       <p className="lead">
-        Your studio at a glance: what&apos;s connected, what each Circuit track plays, the mixer&apos;s
-        sound and tempo. Lights and cables flash when notes go through.
+        Home view — what&apos;s connected and what each Circuit track plays. Routing is read-only here;
+        edit destinations in Controller. Lights flash on notes (not on clock ticks).
       </p>
 
-      {!circuitIn ? (
+      {showOnboard ? (
+        <p className="callout warn-callout">
+          <strong>{snap.onboarding.step}</strong> — {snap.onboarding.message}{' '}
+          {snap.onboarding.step !== 'play' ? (
+            <button type="button" className="linklike" onClick={() => setWorkspace('setup')}>
+              Open Setup
+            </button>
+          ) : null}
+        </p>
+      ) : null}
+
+      {!circuitIn && !showOnboard ? (
         <p className="callout warn-callout">
           No Circuit input yet — plug the Circuit in by USB, or pick its port in{' '}
           <button type="button" className="linklike" onClick={() => setWorkspace('setup')}>
@@ -38,6 +51,27 @@ export function RigWorkspace() {
       ) : null}
 
       <RigMap />
+
+      <div className="panel">
+        <h2>Activity</h2>
+        <p className="muted small">
+          Track pads lit recently: <b>{noteHits}</b>
+          {snap.estimatedBpm != null ? (
+            <>
+              {' '}
+              · Circuit tempo ≈ <b>{snap.estimatedBpm}</b> BPM
+            </>
+          ) : null}
+          {snap.anyClockForwarding ? (
+            <>
+              {' '}
+              · clock forwarding on (details stay in Setup — this page skips tick spam)
+            </>
+          ) : (
+            <> · app clock off</>
+          )}
+        </p>
+      </div>
 
       <div className="panel">
         <h2>Circuit tracks</h2>
@@ -112,7 +146,7 @@ export function RigWorkspace() {
             .
           </p>
         ) : null}
-        <p className="muted mono small">{snap.clockActivity.hint}</p>
+        <p className="muted small">{snap.clockActivity.hint}</p>
       </div>
     </div>
   );

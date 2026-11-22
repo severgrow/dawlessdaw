@@ -1,13 +1,19 @@
+import { useMemo, useRef, useState } from 'react';
 import {
+  DEVICE_CATEGORIES,
   MY_STUDIO_ROLES,
+  PROFILE_HONESTY_LABEL,
   mpcClockPortAdvice,
   roleUsingPort,
   unmatchedConnectedPorts,
+  type DeviceCategory,
   type PortAssignment,
   type StudioRoleDef,
 } from '@dawlessdaw/devices';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import { formatRouteChannelDetail } from './routeChannelDetail';
+
+const COLOURS = ['#9a2a45', '#9fdcc2', '#e8e1d2', '#4a7c59', '#5b7c99', '#888888'] as const;
 
 function PortSelect({
   role,
@@ -46,6 +52,320 @@ function PortSelect({
   );
 }
 
+function OnboardingBanner() {
+  const snap = useStudioStore();
+  const steps: Array<{ id: typeof snap.onboarding.step; label: string }> = [
+    { id: 'connect', label: 'Connect' },
+    { id: 'identify', label: 'Identify' },
+    { id: 'assign', label: 'Assign' },
+    { id: 'play', label: 'Play' },
+  ];
+  const idx = steps.findIndex((s) => s.id === snap.onboarding.step);
+  return (
+    <div className={`callout ${snap.onboarding.step === 'play' ? '' : 'warn-callout'} onboard-banner`}>
+      <ol className="onboard-steps" aria-label="First-run steps">
+        {steps.map((s, i) => (
+          <li key={s.id} className={i === idx ? 'current' : i < idx ? 'done' : ''}>
+            {s.label}
+          </li>
+        ))}
+      </ol>
+      <p>{snap.onboarding.message}</p>
+    </div>
+  );
+}
+
+function UnknownDevicesPanel() {
+  const snap = useStudioStore();
+  const a = useStudioActions();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const claimed = useMemo(() => {
+    const s = new Set<string>();
+    for (const x of snap.assignments) {
+      if (x.inputPortId) s.add(x.inputPortId);
+      if (x.outputPortId) s.add(x.outputPortId);
+    }
+    for (const b of Object.values(snap.customBindings)) {
+      if (b.inputPortId) s.add(b.inputPortId);
+      if (b.outputPortId) s.add(b.outputPortId);
+    }
+    return s;
+  }, [snap.assignments, snap.customBindings]);
+
+  const freeIns = snap.ports.filter((p) => p.type === 'input' && p.state === 'connected' && !claimed.has(p.id));
+  const freeOuts = snap.ports.filter((p) => p.type === 'output' && p.state === 'connected' && !claimed.has(p.id));
+  const allIns = snap.ports.filter((p) => p.type === 'input' && p.state === 'connected');
+  const allOuts = snap.ports.filter((p) => p.type === 'output' && p.state === 'connected');
+
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState<DeviceCategory>('other');
+  const [colour, setColour] = useState<string>(COLOURS[0]);
+  const [channel, setChannel] = useState(1);
+  const [inId, setInId] = useState('');
+  const [outId, setOutId] = useState('');
+  const [controlLabel, setControlLabel] = useState('');
+
+  const save = () => {
+    if (!name.trim()) return;
+    a.createCustomDevice({
+      displayName: name.trim(),
+      category,
+      colour,
+      channel,
+      inputPortId: inId || null,
+      outputPortId: outId || null,
+      honesty: 'generic',
+    });
+    setName('');
+    setInId('');
+    setOutId('');
+  };
+
+  return (
+    <div className="panel">
+      <h2>Unknown devices</h2>
+      <p className="lead">
+        A port Chrome sees that isn&apos;t Circuit / MPC / SP / FM1? Name it, pick In/Out + channel, and
+        it is remembered on this Mac. Honesty stays <strong>Generic</strong> until you mark a control
+        from a manual (Documented) or a live Pass (Verified) — we never invent knobs.
+      </p>
+
+      {(freeIns.length > 0 || freeOuts.length > 0) && (
+        <p className="muted small">
+          Free ports:{' '}
+          {[...freeIns.map((p) => `${p.name} (in)`), ...freeOuts.map((p) => `${p.name} (out)`)].join(' · ') ||
+            'none'}
+        </p>
+      )}
+
+      <div className="custom-device-form">
+        <label>
+          <span className="ap-label">Name</span>
+          <input
+            className="text-input"
+            value={name}
+            placeholder="e.g. Pocket operator"
+            onChange={(e) => setName(e.target.value)}
+            maxLength={80}
+          />
+        </label>
+        <label>
+          <span className="ap-label">Category</span>
+          <select className="select-inline" value={category} onChange={(e) => setCategory(e.target.value as DeviceCategory)}>
+            {DEVICE_CATEGORIES.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className="ap-label">Colour</span>
+          <select className="select-inline" value={colour} onChange={(e) => setColour(e.target.value)}>
+            {COLOURS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className="ap-label">Channel</span>
+          <input
+            className="num-input"
+            type="number"
+            min={1}
+            max={16}
+            value={channel}
+            onChange={(e) => setChannel(Math.max(1, Math.min(16, Number(e.target.value) || 1)))}
+          />
+        </label>
+        <label>
+          <span className="ap-label">MIDI in</span>
+          <select className="select-inline" value={inId} onChange={(e) => setInId(e.target.value)}>
+            <option value="">— none yet</option>
+            {(freeIns.length ? freeIns : allIns).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className="ap-label">MIDI out</span>
+          <select className="select-inline" value={outId} onChange={(e) => setOutId(e.target.value)}>
+            <option value="">— none yet</option>
+            {(freeOuts.length ? freeOuts : allOuts).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" disabled={!name.trim()} onClick={save}>
+          Save device
+        </button>
+      </div>
+
+      {snap.customProfiles.length === 0 ? (
+        <p className="muted small">No custom devices yet. Honesty badge: {PROFILE_HONESTY_LABEL.generic}</p>
+      ) : (
+        <ul className="custom-device-list">
+          {snap.customProfiles.map((p) => {
+            const b = snap.customBindings[p.id];
+            return (
+              <li key={p.id} className="custom-device-card">
+                <header>
+                  <span className="cd-swatch" style={{ background: p.colour }} aria-hidden />
+                  <strong>{p.displayName}</strong>
+                  <span className="muted small">{p.category}</span>
+                  <span className="honesty-pill" title={PROFILE_HONESTY_LABEL[p.honesty]}>
+                    {p.honesty}
+                  </span>
+                  <span className="spacer" />
+                  <button type="button" className="ghost" onClick={() => a.deleteCustomProfile(p.id)}>
+                    Remove
+                  </button>
+                </header>
+                <p className="muted small">
+                  ch{p.channel}
+                  {b?.ambiguous ? ' · ambiguous ports — pick below' : ''}
+                  {!b?.inputPortId && !b?.outputPortId ? ' · unplugged / not matched' : ''}
+                  {b?.inputPortId || b?.outputPortId
+                    ? ` · ${p.inputPortName ?? '—'} in · ${p.outputPortName ?? '—'} out`
+                    : ''}
+                </p>
+                <div className="row">
+                  <label>
+                    <span className="ap-label">In</span>
+                    <select
+                      className="select-inline"
+                      value={b?.inputPortId ?? ''}
+                      onChange={(e) => a.assignCustomProfilePort(p.id, 'input', e.target.value || null)}
+                    >
+                      <option value="">—</option>
+                      {allIns.map((port) => (
+                        <option key={port.id} value={port.id}>
+                          {port.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span className="ap-label">Out</span>
+                    <select
+                      className="select-inline"
+                      value={b?.outputPortId ?? ''}
+                      onChange={(e) => a.assignCustomProfilePort(p.id, 'output', e.target.value || null)}
+                    >
+                      <option value="">—</option>
+                      {allOuts.map((port) => (
+                        <option key={port.id} value={port.id}>
+                          {port.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="cd-controls">
+                  <p className="muted small">
+                    Controls you add yourself — empty means Generic MIDI only (no fake knobs).
+                  </p>
+                  {p.controls.map((c) => {
+                    const learning =
+                      snap.genericLearn?.profileId === p.id && snap.genericLearn.controlId === c.id;
+                    return (
+                      <div key={c.id} className="row cd-ctrl">
+                        <span>
+                          {c.label}
+                          {c.cc != null ? (
+                            <span className="mono small"> · CC {c.cc}{c.channel != null ? ` ch${c.channel}` : ''}</span>
+                          ) : (
+                            <span className="muted small"> · not learned</span>
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          className={learning ? 'active' : 'ghost'}
+                          onClick={() => (learning ? a.cancelGenericLearn() : a.startGenericLearn(p.id, c.id))}
+                        >
+                          {learning ? 'Listening… Cancel' : 'MIDI Learn'}
+                        </button>
+                        <button type="button" className="ghost" onClick={() => a.removeCustomControl(p.id, c.id)}>
+                          ×
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <div className="row">
+                    <input
+                      className="text-input"
+                      placeholder="New control name"
+                      value={controlLabel}
+                      onChange={(e) => setControlLabel(e.target.value)}
+                      maxLength={80}
+                    />
+                    <button
+                      type="button"
+                      className="ghost"
+                      disabled={!controlLabel.trim()}
+                      onClick={() => {
+                        a.addCustomControl(p.id, controlLabel);
+                        setControlLabel('');
+                      }}
+                    >
+                      Add control
+                    </button>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <div className="row" style={{ marginTop: '0.75rem' }}>
+        <button
+          type="button"
+          className="ghost"
+          onClick={() => {
+            const json = a.exportCustomProfilesJson();
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'dawlessdaw-device-profiles.json';
+            link.click();
+            URL.revokeObjectURL(url);
+          }}
+          disabled={!snap.customProfiles.length}
+        >
+          Export profiles JSON
+        </button>
+        <button type="button" className="ghost" onClick={() => fileRef.current?.click()}>
+          Import profiles JSON
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (!file) return;
+            const text = await file.text();
+            a.importCustomProfilesJson(text);
+          }}
+        />
+      </div>
+      <p className="muted small">
+        Import validates schema only — no scripts run. Local file only; no cloud or marketplace.
+      </p>
+    </div>
+  );
+}
+
 export function SetupWorkspace() {
   const snap = useStudioStore();
   const {
@@ -56,7 +376,10 @@ export function SetupWorkspace() {
     applyMyStudioRoutes,
     enableRoute,
   } = useStudioActions();
-  const unmatched = unmatchedConnectedPorts(snap.ports, snap.assignments);
+  const customClaimed = Object.values(snap.customBindings).flatMap((b) =>
+    [b.inputPortId, b.outputPortId].filter((id): id is string => Boolean(id)),
+  );
+  const unmatched = unmatchedConnectedPorts(snap.ports, snap.assignments, customClaimed);
   const connected = snap.ports.filter((p) => p.state === 'connected');
   const mpc = snap.assignments.find((a) => a.roleId === 'mpc');
   const clock = snap.clockActivity;
@@ -71,11 +394,17 @@ export function SetupWorkspace() {
         </button>
       </div>
       <p className="lead">
-        Which port is which device. Most are found automatically; pick by hand when a name isn&apos;t
-        recognised (e.g. the Scarlett for the MPC). Hand-picked ports are remembered by name, even
-        while unplugged. Choose <strong>— auto</strong> to go back to automatic.
+        Connect → Identify → Assign → Play. Most studio ports are found automatically; pick by hand when
+        a name isn&apos;t recognised (e.g. the Scarlett for the MPC). Hand-picked ports are remembered by
+        name, even while unplugged. Choose <strong>— auto</strong> to go back to automatic.
       </p>
+      <OnboardingBanner />
       {snap.midiError ? <p className="callout warn-callout">{snap.midiError}</p> : null}
+      {!snap.midiError && connected.length === 0 && snap.midiReady ? (
+        <p className="callout warn-callout">
+          MIDI is allowed, but Chrome sees no ports. Plug a device in, check Audio MIDI Setup, then Rescan.
+        </p>
+      ) : null}
 
       <div className="panel">
         <h2>Ports</h2>
@@ -107,6 +436,7 @@ export function SetupWorkspace() {
         {unmatched.length > 0 ? (
           <p className="muted small">
             Not assigned: {unmatched.map((p) => `${p.name} (${p.type === 'input' ? 'in' : 'out'})`).join(' · ')}
+            {' — '}add as an unknown device below, or assign above.
           </p>
         ) : null}
         <p className="muted small">
@@ -114,6 +444,8 @@ export function SetupWorkspace() {
           missing from every list isn&apos;t visible to the Mac: check its cable and Audio MIDI Setup.
         </p>
       </div>
+
+      <UnknownDevicesPanel />
 
       <div className="panel">
         <h2>MPC connection</h2>
@@ -220,16 +552,29 @@ export function SetupWorkspace() {
 
         <h3>Every port Chrome sees ({connected.length})</h3>
         {connected.length === 0 ? (
-          <p className="muted mono">No ports. Check USB, Audio MIDI Setup, and that Chrome allowed MIDI.</p>
+          <p className="muted mono">
+            No ports listed. Check USB, Audio MIDI Setup, and that Chrome allowed MIDI — then Rescan.
+          </p>
         ) : (
           <ul className="cap-list mono small">
             {connected.map((p) => {
               const role = roleUsingPort(snap.assignments, p.id);
-              const label = role ? (MY_STUDIO_ROLES.find((r) => r.id === role)?.label ?? role) : 'not assigned';
+              const custom = Object.entries(snap.customBindings).find(
+                ([, b]) => b.inputPortId === p.id || b.outputPortId === p.id,
+              );
+              const customName = custom
+                ? snap.customProfiles.find((x) => x.id === custom[0])?.displayName
+                : null;
+              const label = role
+                ? (MY_STUDIO_ROLES.find((r) => r.id === role)?.label ?? role)
+                : customName
+                  ? `custom: ${customName}`
+                  : 'not assigned';
               return (
                 <li key={`${p.type}-${p.id}`}>
                   [{p.type === 'input' ? 'in' : 'out'}] {p.name}
-                  {p.manufacturer ? ` · ${p.manufacturer}` : ''} → <span className={role ? '' : 'warn'}>{label}</span>
+                  {p.manufacturer ? ` · ${p.manufacturer}` : ''} →{' '}
+                  <span className={role || customName ? '' : 'warn'}>{label}</span>
                 </li>
               );
             })}
