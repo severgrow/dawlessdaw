@@ -108,7 +108,7 @@ export const BENCH_TESTS: BenchTestDef[] = [
     group: 'mpc',
     title: 'g2. MPC via Scarlett: notes (Circuit T1–T4 → MPC ch9–12)',
     instruction:
-      'Setup tab: MPC One → MIDI out = the Scarlett port (e.g. "Scarlett 2i4 USB"), MPC connection = "App sends notes (USB or Scarlett)". Rig tab: T1–T4 → MPC ch9–12. On the MPC, give each of tracks 1–4 its own MIDI input: the MIDI In port on channel 9, 10, 11, 12 (not "All"), and set each track\'s monitoring to always on (In) rather than Auto, so every track plays — not only the selected one. Program a few steps on Circuit tracks 1–4 and press Play. Pass only if each MPC track plays its Circuit track — and nothing plays twice.',
+      'Setup tab: MPC One → MIDI out = the Scarlett port (e.g. "Scarlett 2i4 USB"), MPC connection = "App sends notes (USB or Scarlett)". Controller tab: preset "My Studio · T1–4 → MPC" (T1–T4 → MPC tracks 1–4 / ch9–12). On the MPC, give each of tracks 1–4 its own MIDI input: the MIDI In port on channel 9, 10, 11, 12 (not "All"), and set each track\'s monitoring to always on (In) rather than Auto, so every track plays — not only the selected one. Program a few steps on Circuit tracks 1–4 and press Play. Pass only if each MPC track plays its Circuit track — and nothing plays twice.',
     listenHint: 'note-on ch1–4 Circuit in → ch9–12 out to the MPC Out (Scarlett) port',
     capabilityKey: 'din-notes-via-interface',
   },
@@ -126,8 +126,8 @@ export const BENCH_TESTS: BenchTestDef[] = [
     group: 'fm1',
     title: 'h. Circuit T5–T8 → FM1 (Skiff) over USB',
     instruction:
-      'Setup tab: FM1 firmware = Skiff. Rig tab: T5–T8 → FM1 ch5–8. On the FM1: MENU › MIDI › T1–T4 CHANNEL = 5, 6, 7, 8. Load empty samples on Circuit tracks 5–8 and program a few steps on each. Play: Circuit T5 should play Skiff track 1, T6 → track 2, T7 → track 3, T8 → track 4. Mark Pass only when you hear each one on the right Skiff track.',
-    listenHint: 'note-on ch5–8 Circuit in → FM1 out (hardware verify)',
+      'Setup tab: FM1 firmware = Skiff. Controller tab: load preset "My Studio · T1–4 → SP" (or the MPC variant) — T5–T8 play Skiff tracks 1–4. On the FM1: MENU › MIDI › T1–T4 CHANNEL = 1, 2, 3, 4 (Skiff default; match the app). If you previously set them to 5–8, set them back, or open Advanced → Skiff track channels. Load empty samples on Circuit tracks 5–8 and program a few steps on each. Play: Circuit T5 should play Skiff track 1, T6 → track 2, T7 → track 3, T8 → track 4. Mark Pass only when you hear each one on the right Skiff track.',
+    listenHint: 'note-on ch5–8 Circuit in → FM1 out on Skiff ch1–4 (hardware verify)',
     capabilityKey: 'fm1-usb-notes',
   },
   {
@@ -135,8 +135,8 @@ export const BENCH_TESTS: BenchTestDef[] = [
     group: 'fm1',
     title: 'h2. Circuit macro knobs → Skiff settings',
     instruction:
-      'Circuit Setup: CC Tx on. Select track 5 and turn each macro knob. Expected on Skiff track 1: macro 1 brightness, 2 resonance, 3 attack, 4 decay, 5 release, 6 delay send, 7 reverb send (macro 8 is the sound knob — see h4). Repeat on tracks 6–8. Note any knob that does nothing or moves the wrong thing.',
-    listenHint: 'CC 21–27 in on ch5–8 → CC 74/71/73/75/72/94/91 out to FM1',
+      'Circuit Setup: CC Tx on. Controller tab: My Studio (T5–T8 → Skiff). Select Circuit track 5 and turn each macro knob. Expected on Skiff track 1: macro 1 brightness, 2 resonance, 3 attack, 4 decay, 5 release, 6 delay send, 7 reverb send, 8 Level (CC7). "Sound (steps)" is optional — pick it on a knob if you want the old sound-step behaviour (see h4). Repeat on tracks 6–8. Note any knob that does nothing or moves the wrong thing.',
+    listenHint: 'CC 21–28 in on ch5–8 → CC 74/71/73/75/72/94/91/7 out to FM1',
     capabilityKey: 'skiff-standard-cc',
   },
   {
@@ -151,10 +151,10 @@ export const BENCH_TESTS: BenchTestDef[] = [
   {
     id: 'fm1-skiff-sound-knob',
     group: 'fm1',
-    title: 'h4. Circuit macro 8 steps Skiff sounds',
+    title: 'h4. Optional: Sound (steps) on a Circuit macro',
     instruction:
-      'Select Circuit track 5 and slowly turn macro 8 from fully left to fully right while a note plays. Skiff track 1 should change sound about 8 times, one sound per click zone, and the FM1 screen should show the new sound name. Then select track 6 and do the same: only Skiff track 2 should change. Note what happens at the far right (does it stop on a sound, or jump to another engine?).',
-    listenHint: 'CC28 in on ch5–8 → Program Change 0–7 out to FM1 on the same channel',
+      'Controller tab: on a Skiff track (e.g. T5), set one knob target to "Sound (steps through 8)" (Advanced shows the MIDI). Select that Circuit track and slowly turn that macro from fully left to fully right while a note plays. Skiff should change sound about 8 times, one sound per click zone, and the FM1 screen should show the new sound name. Then do the same on another Circuit→Skiff track: only that Skiff track should change. Note what happens at the far right (does it stop on a sound, or jump to another engine?). My Studio defaults macro 8 to Level, not Sound.',
+    listenHint: 'mapped macro CC in → Program Change 0–7 out to FM1 on the Skiff track channel',
     capabilityKey: 'skiff-program-change',
   },
   {
@@ -171,16 +171,34 @@ export const BENCH_TESTS: BenchTestDef[] = [
     group: 'sp',
     title: 'h5. Circuit T1–T4 → SP banks A–D',
     instruction:
-      'SP: MIDI settings → MIDI Mode A. App: Rig tab → preset "SP + FM1" (T1–T4 → SP banks A–D), then Learn pad 1 and play the lowest note on Circuit track 1. Play tracks 1–4: track 1 should play bank A, 2 → B, 3 → C, 4 → D, and higher notes should walk up the pads. If every hit plays twice, the thru cable is already playing the SP — tell the app (offset 0 warning).',
+      'SP: MIDI settings → MIDI Mode A. App: Controller tab → preset "My Studio · T1–4 → SP" (T1–T4 → SP banks A–D). Press "Play the first note" on track 1 and play the lowest note on Circuit track 1. Play tracks 1–4: track 1 should play bank A, 2 → B, 3 → C, 4 → D, and higher notes should walk up the pads. If every hit plays twice, the thru cable is already playing the SP — choose MPC for those tracks or leave the app notes off.',
     listenHint: 'note-on ch1–4 Circuit in → SP out, notes 36–51 (hardware verify)',
     capabilityKey: 'sp-banks-mode-a',
+  },
+  {
+    id: 'sp-effect-ctrl',
+    group: 'sp',
+    title: 'h6. SP effect knobs from Circuit macros',
+    instruction:
+      'SP: MIDI Mode A. Controller: map a Circuit macro on an SP track to "Effect control 1–8" (Roland chart CCs 16–19, 80–83). Turn the real Circuit knob and watch which on-screen effect CTRL moves on the SP, and confirm it listens on the bank channel (Mode A). Mark Pass only when you know which CC moves which knob. Effect on/off is not offered in the app yet.',
+    listenHint: 'CC 16–19 / 80–83 out to SP (hardware: which CTRL knob moves — unverified)',
+    capabilityKey: 'sp-effect-ctrl',
+  },
+  {
+    id: 'mpc-learnable-knobs',
+    group: 'mpc',
+    title: 'g4. MPC Learnable knobs from Circuit macros',
+    instruction:
+      'Controller: load "My Studio · T1–4 → MPC". On the MPC open MIDI Learn, touch the control you want, then in the app press "test" on that Learnable knob (or turn the matching Circuit macro). Confirm the MPC control moves. Menu names on your firmware may differ — mark honestly.',
+    listenHint: 'CC 21–28 out on MPC track channels 9–12 (hardware learn verify)',
+    capabilityKey: 'mpc-learnable-cc',
   },
   {
     id: 'timing-circuit-to-mpc',
     group: 'mpc',
     title: 'i. Timing Circuit → app → Scarlett → MPC',
     instruction:
-      'Play a busy pattern on Circuit tracks 1–4 for 30 seconds with the MPC set up as in g2. The app measures how long each note takes from Circuit USB in to the moment it is sent to the MPC Out (Scarlett) port, and shows the average delay and jitter. Honest limits: this is the Mac side only — the Scarlett adds its USB → DIN hop (about 1 ms per note on the DIN cable; 4 notes on the same step go out one after another, so the last is about 4 ms late) and the MPC adds its own. Also listen: play the same pattern on Circuit tracks 1–4 to the SP or Circuit itself and compare by ear. Mark Pass only if it sounds tight to you.',
+      'Play a busy pattern on Circuit tracks 1–4 for 30 seconds with the MPC set up as in g2 (Controller preset My Studio · T1–4 → MPC). The app measures how long each note takes from Circuit USB in to the moment it is sent to the MPC Out (Scarlett) port, and shows the average delay and jitter. Honest limits: this is the Mac side only — the Scarlett adds its USB → DIN hop (about 1 ms per note on the DIN cable; 4 notes on the same step go out one after another, so the last is about 4 ms late) and the MPC adds its own. Also listen: play the same pattern on Circuit tracks 1–4 to the SP or Circuit itself and compare by ear. Mark Pass only if it sounds tight to you.',
     listenHint: 'latency/jitter stats (Mac side: Circuit in → MPC Out send)',
     capabilityKey: 'app-midi-latency',
   },

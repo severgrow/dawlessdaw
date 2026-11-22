@@ -11,13 +11,15 @@ In **Mode A**, Circuit tracks 1–4 (channels 1–4) match banks A–D one to on
 
 ### Setup
 1. On the SP: MIDI settings → **MIDI Mode A**.
-2. Dawlessdaw **Rig tab**: preset **SP + FM1** (T1–T4 → SP banks A–D), **MPC & SP + FM1** to play the MPC as well, or send any track to any bank yourself.
-3. In the Rig tab's **SP pads** box, press **Learn pad 1** and play the note on Circuit track 1–4 that should hit pad 1. The 15 notes above it play pads 2–16. The default assumes the Circuit sends note 60 (offset −24), which is untested.
+2. Dawlessdaw **Controller** tab: preset **My Studio · T1–4 → SP** (T1–T4 → SP banks A–D). Use **My Studio · T1–4 → MPC** when those tracks should play the MPC instead.
+3. On track 1, press **Play the first note** and play the note on Circuit track 1 that should hit pad 1. The 15 notes above it play pads 2–16. The default assumes the Circuit sends note 60 (pad 1 = 36 → shift −24), which is untested.
 4. Run Bench Test h5.
+5. Optional: map Circuit macros to **Effect control 1–8** (Roland CCs 16–19, 80–83) and run bench **h6** to learn which on-screen CTRL each CC moves. Effect on/off is not offered yet.
 
 ### What gets sent
-- Notes only, on the same channel (= bank), shifted by the offset.
-- Knob CCs, Program Change and pitch bend are **not** sent to the SP. The SP reads CC 20–27 as DJ/Looper controls and Program Change as pattern select.
+- Notes on the bank channel, shifted by the learned first-note map.
+- Knob CCs only if you map them (effect CTRL targets or Custom CC in Advanced).
+- Unmapped Program Change / CC from the Circuit are **dropped**.
 
 ### Watch out
 - The thru-box cable also sends every Circuit note to the SP. If the Circuit already sends notes 36–51 (learned offset 0), the cable alone plays the SP, and the app path would play every note twice. The app warns about this; choose **MPC** for tracks 1–4 in that case.
@@ -27,7 +29,7 @@ In **Mode A**, Circuit tracks 1–4 (channels 1–4) match banks A–D one to on
 
 A pad editor for building SP banks before they go onto the SP:
 
-- All 10 banks (A–J) × 16 pads. Each bank shows which Circuit track plays it (from the Rig tab).
+- All 10 banks (A–J) × 16 pads. Each bank shows which Circuit track plays it (from the Controller preset).
 - Drag audio files (WAV, AIFF, MP3, FLAC) onto a pad; several files fill the following pads. Double-click an empty pad to pick files.
 - Drag a pad onto another pad to move it (swaps if both are full). Arrow keys move around, Space plays.
 - Per pad: name, trim start and end (the waveform dims the cut parts), normalise, play.

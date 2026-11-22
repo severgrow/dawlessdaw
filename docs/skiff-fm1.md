@@ -7,26 +7,28 @@ Everything below is **untested on this studio** until Bench Test h, h2 and h3 ar
 ## Setup
 
 ### On the FM1 (Skiff)
-1. MENU › MIDI › T1 CHANNEL = 5, T2 = 6, T3 = 7, T4 = 8 (per-track channels need Skiff 1.3 or newer).
-2. Optional: CLOCK = USB, to follow the Circuit's tempo through the app.
+1. MENU › MIDI › **T1 CHANNEL = 1, T2 = 2, T3 = 3, T4 = 4** (Skiff default; matches My Studio). Per-track channels need Skiff 1.3 or newer.
+2. If you previously set T1–T4 to **5–8** for the old Rig grid, set them back to 1–4, **or** open Controller → Advanced → Skiff track channels and match the box.
+3. Optional: CLOCK = USB, to follow the Circuit's tempo through the app.
 
 ### On the Circuit Rhythm
 1. Load **empty samples** on tracks 5–8. Macro knobs change the Circuit's own sound too.
 2. Setup view: Note Tx and CC Tx on.
 
 ### In Dawlessdaw
-1. Setup tab → FM1 firmware → **Skiff** (default). Rig tab: T5–T8 → FM1 ch5–8 (the default).
-2. Optional: Rig tab → Tempo → **→ FM1** on (with Skiff CLOCK = USB).
-3. Keep the FM1 **off the thru box**. It should only get what the app sends it over USB.
+1. Setup tab → FM1 firmware → **Skiff** (default).
+2. Controller tab → preset **My Studio · T1–4 → SP** (or the MPC variant). T5–T8 play Skiff tracks 1–4 on channels 1–4.
+3. Optional: Rig tab → Tempo → **→ FM1** on (with Skiff CLOCK = USB).
+4. Keep the FM1 **off the thru box**. It should only get what the app sends it over USB.
 
-## What gets sent
+## What gets sent (My Studio)
 
 | Circuit | → FM1 (Skiff) |
 | --- | --- |
-| Track 5 notes (ch5) | Skiff T1 |
-| Track 6 notes (ch6) | Skiff T2 |
-| Track 7 notes (ch7) | Skiff T3 |
-| Track 8 notes (ch8) | Skiff T4 |
+| Track 5 notes (ch5) | Skiff T1 (app out ch1) |
+| Track 6 notes (ch6) | Skiff T2 (app out ch2) |
+| Track 7 notes (ch7) | Skiff T3 (app out ch3) |
+| Track 8 notes (ch8) | Skiff T4 (app out ch4) |
 | Macro 1 (CC21) | CC74 brightness |
 | Macro 2 (CC22) | CC71 resonance |
 | Macro 3 (CC23) | CC73 attack |
@@ -34,22 +36,23 @@ Everything below is **untested on this studio** until Bench Test h, h2 and h3 ar
 | Macro 5 (CC25) | CC72 release |
 | Macro 6 (CC26) | CC94 delay send |
 | Macro 7 (CC27) | CC91 reverb send |
-| Macro 8 (CC28) | **Sound knob**: steps the track's Skiff sound (Program Change 0–7) |
+| Macro 8 (CC28) | **Level** (CC7) |
 | Mixer Level (CC29) | CC7 LEVEL (Skiff track level) |
 | Mixer Pan (CC30) | CC10 PAN |
 
-Every other CC and all of the Circuit's own Program Changes are dropped, so nothing else on the Circuit changes Skiff by accident. To change the knob map, edit `CIRCUIT_MACRO_TO_SKIFF_CC` / `CIRCUIT_MIXER_TO_DEST_CC` in `packages/devices/src/studio-layout.ts`.
+**Sound (steps)** is an optional knob target (Program Change zones). It is no longer the My Studio default for macro 8 — pick it on any knob if you want the old sound-step behaviour (bench h4).
 
-**How to test Mixer → Skiff level:** Circuit Setup → CC Tx ON → press Mixer (▼ lit so macros are Level) → turn a Macro for track 5–8. App should send CC7 on that track’s FM1 channel. Sim/unit tests cover the transform; audible level on the FM1 is **untested** until Bench Pass.
+Mixer Level/Pan are separate from the macros: Circuit Setup → CC Tx ON → press Mixer (▼ lit) → turn a Macro for that track. App sends CC7/CC10 on the routed out. Edit defaults in `packages/devices/src/studio-layout.ts` (`CIRCUIT_MIXER_TO_DEST_CC`).
 
-### The sound knob (macro 8)
+Every other CC and all of the Circuit's own Program Changes are dropped unless you map them. Edit targets on the Controller tab (Advanced shows real CC numbers).
 
-Skiff 1.3+ loads "the track's nth preset of its engine" when it gets Program Change on that track's channel. The app splits macro 8 into 8 equal zones. Turning into a new zone sends one Program Change on the same channel (ch5 → Skiff T1, ch6 → T2, and so on), so each track changes sound on its own. It sends nothing while the knob stays inside a zone, so a sweep never floods the FM1.
+### Optional sound knob
+
+Skiff 1.3+ loads "the track's nth preset of its engine" when it gets Program Change on that track's channel. Map **Sound (steps through 8)** on a knob: the app splits the knob into 8 equal zones and sends one Program Change per zone on the Skiff track's channel.
 
 - It steps through the sounds of the engine already on that track. Pick the engine on the FM1 itself.
-- Every Skiff engine has at least 8 sounds, which is why the default is 8 steps. To get more steps, change `SKIFF_SOUND_KNOB_STEPS`. Skiff doesn't document what happens past an engine's last sound, so test it with bench test h4 first.
-- To use a different macro, change `SKIFF_SOUND_KNOB_CC`.
-- Macro 8 used to be level (CC7). Use Circuit **Mixer** view (CC29 → CC7) for Skiff track levels instead.
+- Every Skiff engine has at least 8 sounds. Skiff doesn't document what happens past an engine's last sound — test with bench h4.
+- Macro 8 in My Studio is Level (CC7). You can also set levels via Circuit **Mixer** view (CC29 → CC7), on the FM1, or on the hardware mixer.
 
 Circuit tracks play one note at a time, so each Skiff track gets single-note lines. Skiff shares 8 voices across its tracks (12 with its second-core beta).
 
