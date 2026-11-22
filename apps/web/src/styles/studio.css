@@ -3682,3 +3682,105 @@ button.send-add {
   }
 }
 
+/* —— Universal UX slice: onboarding + custom devices —— */
+.onboard-banner .onboard-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  list-style: none;
+  margin: 0 0 0.45rem;
+  padding: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+
+.onboard-banner .onboard-steps li.done {
+  color: var(--text-dim);
+}
+
+.onboard-banner .onboard-steps li.current {
+  color: var(--accent-ink);
+  background: var(--on);
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+}
+
+.onboard-banner p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.custom-device-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.55rem 0.75rem;
+  align-items: end;
+  margin: 0.75rem 0 1rem;
+}
+
+.custom-device-form label,
+.custom-device-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.custom-device-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.custom-device-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.75rem;
+  background: var(--bg-1);
+}
+
+.custom-device-card header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+}
+
+.cd-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.honesty-pill {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--line-hard);
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  color: var(--text-dim);
+}
+
+.cd-controls {
+  margin-top: 0.55rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--line-soft);
+}
+
+.cd-ctrl {
+  align-items: center;
+}
+
+@media (max-width: 620px) {
+  .custom-device-form {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+

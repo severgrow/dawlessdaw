@@ -66,7 +66,7 @@ export function MidiLearnGlass() {
       aria-label="MIDI control mapping"
     >
       <header className="mlg-head">
-        <span className="mlg-kicker">live midi · learn</span>
+        <span className="mlg-kicker">live control · learn</span>
         <span className="mlg-actions-top">
           <button
             type="button"
@@ -87,7 +87,7 @@ export function MidiLearnGlass() {
 
       <div className="mlg-source">
         <strong>{mapping.sourceLabel}</strong>
-        <span className="mlg-mono">
+        <span className="mlg-mono" title="MIDI numbers — always available here for precision">
           CC {mapping.sourceCc} · ch{mapping.sourceChannel}
           {mapping.value != null ? ` · ${mapping.value}` : ''}
         </span>
@@ -195,11 +195,16 @@ export function MidiLearnGlass() {
           <span />
         )}
         <span className="mlg-foot-right">
-          <button type="button" className="ghost" onClick={() => a.cancelMidiLearnGlass()}>
-            Cancel
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => a.cancelMidiLearnGlass()}
+            title="Undo changes made while this window was open"
+          >
+            Cancel · undo
           </button>
-          <button type="button" onClick={() => a.saveMidiLearnGlass()}>
-            Save
+          <button type="button" onClick={() => a.saveMidiLearnGlass()} title="Keep the mapping and close">
+            Keep
           </button>
         </span>
       </footer>

@@ -63,6 +63,21 @@ import {
   normalizePortId,
   portsForRoles,
   resolveSectionBridge,
+  addControl,
+  applyLearnToControl,
+  createGenericProfile,
+  exportProfileBundleJson,
+  importProfileBundleJson,
+  loadCustomProfiles,
+  nextOnboardingStep,
+  plainClockHint,
+  removeControl,
+  restoreCustomProfilePorts,
+  saveCustomProfiles,
+  type DeviceCategory,
+  type GenericDeviceProfile,
+  type OnboardingStep,
+  type ProfileHonesty,
   type BenchExport,
   type BenchTestResult,
   type BenchVerdict,
@@ -202,6 +217,17 @@ export interface StudioRuntimeSnapshot {
   };
   /** BPM from Circuit MIDI clock (24 PPQN), when clock is heard. */
   estimatedBpm: number | null;
+  /** User-defined / unknown-device profiles (localStorage). */
+  customProfiles: GenericDeviceProfile[];
+  /** Live port binding for each custom profile id. */
+  customBindings: Record<
+    string,
+    { inputPortId: string | null; outputPortId: string | null; ambiguous: boolean }
+  >;
+  /** Waiting for next CC on a custom profile control (MIDI Learn). */
+  genericLearn: { profileId: string; controlId: string } | null;
+  /** Connect → Identify → Assign → Play guidance. */
+  onboarding: { step: OnboardingStep; message: string };
 }
 
 type Listener = () => void;
@@ -343,6 +369,9 @@ export class StudioRuntime {
   private clockTickTimes: number[] = [];
   private estimatedBpm: number | null = null;
   private activeBenchId: string | null = null;
+  private customProfiles: GenericDeviceProfile[] = loadCustomProfiles();
+  private customBindings: StudioRuntimeSnapshot['customBindings'] = {};
+  private genericLearn: StudioRuntimeSnapshot['genericLearn'] = null;
   private listeners = new Set<Listener>();
   private unsubs: Array<() => void> = [];
   private started = false;
@@ -487,6 +516,15 @@ export class StudioRuntime {
         hint: this.clockHint(),
       },
       estimatedBpm: this.estimatedBpm,
+      customProfiles: this.customProfiles.map((p) => ({
+        ...p,
+        capabilities: p.capabilities.map((c) => ({ ...c })),
+        controls: p.controls.map((c) => ({ ...c })),
+        portNameHints: [...p.portNameHints],
+      })),
+      customBindings: { ...this.customBindings },
+      genericLearn: this.genericLearn ? { ...this.genericLearn } : null,
+      onboarding: this.computeOnboarding(),
     };
   }
 
@@ -1542,6 +1580,7 @@ export class StudioRuntime {
     // Role claims win so Felucca bound to FM1 is m-vave-fm1, not generic-midi.
     this.registry.syncFromPorts(ports, this.assignments);
     this.registry.ensureZed();
+    this.refreshCustomBindings(ports);
     this.remapFocusPorts();
     this.persistSetup();
   }
@@ -1569,6 +1608,39 @@ export class StudioRuntime {
   private handleIncoming(message: MidiMessage, deviceId?: string): void {
     const circuitIn = portsForRoles(this.assignments).circuitIn;
     const fromCircuit = circuitIn && message.portId === circuitIn;
+
+    if (
+      this.genericLearn &&
+      message.kind === 'cc' &&
+      message.controller !== undefined &&
+      !isLearnGlassIgnoredMidi(message.kind)
+    ) {
+      const binding = this.customBindings[this.genericLearn.profileId];
+      const onDevice =
+        binding?.inputPortId != null
+          ? message.portId === binding.inputPortId
+          : true; // no in-port yet: accept from any port
+      if (onDevice) {
+        const profile = this.customProfiles.find((p) => p.id === this.genericLearn!.profileId);
+        if (profile) {
+          const learned = applyLearnToControl(
+            profile,
+            this.genericLearn.controlId,
+            message.controller,
+            message.channel,
+          );
+          this.genericLearn = null;
+          if (learned.ok && learned.profile) {
+            this.upsertCustomProfile(learned.profile, { silent: true });
+            this.setStatus(
+              `Learned CC ${message.controller}${message.channel != null ? ` ch${message.channel}` : ''} on “${profile.displayName}”`,
+            );
+            this.notify();
+            return;
+          }
+        }
+      }
+    }
 
     if (
       this.learningSpPadOffset &&
@@ -1690,27 +1762,195 @@ export class StudioRuntime {
   private clockHint(): string {
     const p = portsForRoles(this.assignments);
     const mpcName = this.assignments.find((a) => a.roleId === 'mpc')?.outputPortName ?? null;
-    if (!this.anyClockForwarding()) {
-      return 'App clock OFF — turn on “MPC follows Circuit Play” (Setup or Rig → Tempo) so the MPC sequencer follows Circuit via Scarlett→DIN.';
-    }
-    if (!p.circuitIn) return 'Assign Circuit input in Setup (receive-none until then).';
-    const targets = [
+    const missingOuts = [
       this.clockToMpc && !p.mpcOut ? 'MPC' : null,
       this.clockToSp && !p.spOut ? 'SP' : null,
       this.forwardClockToFm1 && !p.fm1Out ? 'FM1' : null,
-    ].filter(Boolean);
-    if (targets.length) return `Assign an output for ${targets.join(' + ')} — nothing to forward to.`;
-    if (this.clockToMpc) {
-      const advice = mpcClockPortAdvice(mpcName);
-      if (advice.kind === 'warn-akai-usb' || advice.kind === 'unset') return advice.message;
+    ].filter((x): x is string => Boolean(x));
+    const mpcAdvice = this.clockToMpc ? mpcClockPortAdvice(mpcName) : null;
+    return plainClockHint({
+      forwarding: this.anyClockForwarding(),
+      circuitIn: Boolean(p.circuitIn),
+      missingOuts,
+      mpcUsbClockRisk: mpcAdvice?.kind === 'warn-akai-usb',
+      heardClock: this.clockInTicks > 0,
+      forwardedClock: this.clockOutTicks > 0,
+    });
+  }
+
+  private computeOnboarding(): { step: OnboardingStep; message: string } {
+    const connected = this.transport.listPorts().filter((p) => p.state === 'connected');
+    const circuit = this.assignments.find((a) => a.roleId === 'circuit');
+    const rolePorts = new Set<string>();
+    for (const a of this.assignments) {
+      if (a.inputPortId) rolePorts.add(a.inputPortId);
+      if (a.outputPortId) rolePorts.add(a.outputPortId);
     }
-    if (this.clockInTicks === 0) {
-      return 'receive-none: no F8/FA from Circuit yet — Clock Tx (pad 32) bright? Circuit playing? Correct Circuit In port?';
+    for (const b of Object.values(this.customBindings)) {
+      if (b.inputPortId) rolePorts.add(b.inputPortId);
+      if (b.outputPortId) rolePorts.add(b.outputPortId);
     }
-    if (this.clockOutTicks === 0) {
-      return 'receive-but-not-forwarded: IN alive, OUT dead — press Rebuild routes in Setup › Troubleshooting.';
+    const unmatched = connected.filter((p) => !rolePorts.has(p.id));
+    const hasAmbiguousCustom = Object.values(this.customBindings).some((b) => b.ambiguous);
+    return nextOnboardingStep({
+      midiReady: this.midiReady,
+      midiError: this.midiError,
+      connectedPortCount: connected.length,
+      circuitAssigned: Boolean(circuit?.inputPortId),
+      hasUnmatchedPorts: unmatched.length > 0,
+      hasAmbiguousCustom,
+    });
+  }
+
+  private refreshCustomBindings(ports: ReturnType<HardwareTransport['listPorts']>): void {
+    const claimed = new Set<string>();
+    for (const a of this.assignments) {
+      if (a.inputPortId) claimed.add(a.inputPortId);
+      if (a.outputPortId) claimed.add(a.outputPortId);
     }
-    return 'receive-and-forwarded: app is sending clock/start/stop. If the MPC sequence does not run, check Preferences → MIDI/Sync: MIDI In on, Receive = MIDI Clock (DIN path — not USB-B).';
+    const next: StudioRuntimeSnapshot['customBindings'] = {};
+    for (const profile of this.customProfiles) {
+      const bound = restoreCustomProfilePorts(profile, ports, claimed);
+      if (bound.inputPortId) claimed.add(bound.inputPortId);
+      if (bound.outputPortId) claimed.add(bound.outputPortId);
+      next[profile.id] = bound;
+    }
+    this.customBindings = next;
+  }
+
+  private persistCustomProfiles(): void {
+    saveCustomProfiles(this.customProfiles);
+  }
+
+  /** Add or replace a custom / unknown-device profile and remember its ports. */
+  upsertCustomProfile(profile: GenericDeviceProfile, opts?: { silent?: boolean }): void {
+    const idx = this.customProfiles.findIndex((p) => p.id === profile.id);
+    if (idx >= 0) this.customProfiles[idx] = profile;
+    else this.customProfiles = [...this.customProfiles, profile];
+    this.persistCustomProfiles();
+    this.refreshCustomBindings(this.transport.listPorts());
+    if (!opts?.silent) this.setStatus(`Saved device “${profile.displayName}” (${profile.honesty})`);
+    this.notify();
+  }
+
+  createCustomDevice(input: {
+    displayName: string;
+    manufacturer?: string;
+    category?: DeviceCategory;
+    colour?: string;
+    channel?: number;
+    inputPortId?: string | null;
+    outputPortId?: string | null;
+    honesty?: ProfileHonesty;
+    notes?: string;
+  }): void {
+    const ports = this.transport.listPorts();
+    const inPort = ports.find((p) => p.id === input.inputPortId);
+    const outPort = ports.find((p) => p.id === input.outputPortId);
+    const result = createGenericProfile({
+      displayName: input.displayName,
+      manufacturer: input.manufacturer,
+      category: input.category,
+      colour: input.colour,
+      channel: input.channel,
+      inputPortName: inPort?.name ?? null,
+      outputPortName: outPort?.name ?? null,
+      portNameHints: [input.displayName, inPort?.name ?? '', outPort?.name ?? ''].filter(Boolean),
+      honesty: input.honesty ?? 'generic',
+      notes: input.notes,
+    });
+    if (!result.ok || !result.profile) {
+      this.setStatus(`Could not save device: ${result.errors.join('; ')}`);
+      this.notify();
+      return;
+    }
+    this.upsertCustomProfile(result.profile);
+  }
+
+  deleteCustomProfile(id: string): void {
+    const name = this.customProfiles.find((p) => p.id === id)?.displayName ?? id;
+    this.customProfiles = this.customProfiles.filter((p) => p.id !== id);
+    delete this.customBindings[id];
+    if (this.genericLearn?.profileId === id) this.genericLearn = null;
+    this.persistCustomProfiles();
+    this.setStatus(`Removed device “${name}”`);
+    this.notify();
+  }
+
+  assignCustomProfilePort(
+    profileId: string,
+    which: 'input' | 'output',
+    portId: string | null,
+  ): void {
+    const profile = this.customProfiles.find((p) => p.id === profileId);
+    if (!profile) return;
+    const port = this.transport.listPorts().find((p) => p.id === portId);
+    const next: GenericDeviceProfile = {
+      ...profile,
+      inputPortName: which === 'input' ? (port?.name ?? null) : profile.inputPortName,
+      outputPortName: which === 'output' ? (port?.name ?? null) : profile.outputPortName,
+      updatedAt: Date.now(),
+    };
+    this.upsertCustomProfile(next);
+  }
+
+  addCustomControl(profileId: string, label: string): void {
+    const profile = this.customProfiles.find((p) => p.id === profileId);
+    if (!profile) return;
+    const result = addControl(profile, label);
+    if (!result.ok || !result.profile) {
+      this.setStatus(result.errors.join('; '));
+      this.notify();
+      return;
+    }
+    this.upsertCustomProfile(result.profile);
+  }
+
+  removeCustomControl(profileId: string, controlId: string): void {
+    const profile = this.customProfiles.find((p) => p.id === profileId);
+    if (!profile) return;
+    const result = removeControl(profile, controlId);
+    if (!result.ok || !result.profile) return;
+    if (this.genericLearn?.profileId === profileId && this.genericLearn.controlId === controlId) {
+      this.genericLearn = null;
+    }
+    this.upsertCustomProfile(result.profile);
+  }
+
+  /** Wait for the next CC on this custom device's input → store on the control. */
+  startGenericLearn(profileId: string, controlId: string): void {
+    const profile = this.customProfiles.find((p) => p.id === profileId);
+    if (!profile?.controls.some((c) => c.id === controlId)) return;
+    this.genericLearn = { profileId, controlId };
+    this.setStatus('Listening — twist a knob on that device (MIDI Learn)');
+    this.notify();
+  }
+
+  cancelGenericLearn(): void {
+    if (!this.genericLearn) return;
+    this.genericLearn = null;
+    this.setStatus('MIDI Learn cancelled');
+    this.notify();
+  }
+
+  exportCustomProfilesJson(): string {
+    return exportProfileBundleJson(this.customProfiles);
+  }
+
+  importCustomProfilesJson(raw: string): void {
+    const result = importProfileBundleJson(raw);
+    if (!result.ok || !result.bundle) {
+      this.setStatus(`Import failed: ${result.errors.join('; ')}`);
+      this.notify();
+      return;
+    }
+    const byId = new Map(this.customProfiles.map((p) => [p.id, p]));
+    for (const p of result.bundle.profiles) byId.set(p.id, p);
+    this.customProfiles = [...byId.values()];
+    this.persistCustomProfiles();
+    this.refreshCustomBindings(this.transport.listPorts());
+    this.setStatus(`Imported ${result.bundle.profiles.length} device profile(s)`);
+    this.notify();
   }
 
   private recordClockActivity(message: MidiMessage): void {

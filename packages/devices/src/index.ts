@@ -7,3 +7,4 @@ export * from './port-matcher';
 export * from './section-bridge';
 export * from './bench';
 export * from './controller';
+export * from './generic-profile';
