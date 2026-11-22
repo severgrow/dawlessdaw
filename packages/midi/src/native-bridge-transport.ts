@@ -1,4 +1,4 @@
-import type { MidiPortInfo, PortId } from '@nervos/core';
+import type { MidiPortInfo, PortId } from '@dawlessdaw/core';
 import type { HardwareTransport, MidiInputHandler, PortChangeHandler } from './transport';
 
 /**
@@ -15,7 +15,7 @@ export class NativeBridgeTransport implements HardwareTransport {
 
   async start(): Promise<void> {
     throw new Error(
-      'NativeBridgeTransport is unavailable in NervOS v0.1 (stub only). Use WebMidiTransport or MockMidiTransport.',
+      'NativeBridgeTransport is unavailable in Dawlessdaw v0.1 (stub only). Use WebMidiTransport or MockMidiTransport.',
     );
   }
 
@@ -24,6 +24,10 @@ export class NativeBridgeTransport implements HardwareTransport {
   }
 
   listPorts(): MidiPortInfo[] {
+    return [];
+  }
+
+  async rescanPorts(): Promise<MidiPortInfo[]> {
     return [];
   }
 

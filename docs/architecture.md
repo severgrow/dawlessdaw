@@ -1,4 +1,4 @@
-# NervOS Architecture (v0.1)
+# Dawlessdaw Architecture (v0.1)
 
 Brief map of the running system.
 
@@ -8,14 +8,14 @@ Brief map of the running system.
 apps/web (React UI)
     ↓ useSyncExternalStore
 StudioRuntime (wiring)
-    ├── StudioEventBus     (@nervos/events) — typed, bounded; clock partitioned
-    ├── HardwareTransport  (@nervos/midi)   — Web | Mock | NativeBridge stub
-    ├── MidiRoutingEngine  (@nervos/routing)
-    ├── FocusEngine        (@nervos/focus)
-    ├── DeviceRegistry     (@nervos/devices)
-    ├── RoleResolver + Arranger + SceneStore (@nervos/scenes)
-    ├── Sessions           (@nervos/sessions)
-    └── Repository         (@nervos/storage) — IndexedDB / Memory
+    ├── StudioEventBus     (@dawlessdaw/events) — typed, bounded; clock partitioned
+    ├── HardwareTransport  (@dawlessdaw/midi)   — Web | Mock | NativeBridge stub
+    ├── MidiRoutingEngine  (@dawlessdaw/routing)
+    ├── FocusEngine        (@dawlessdaw/focus)
+    ├── DeviceRegistry     (@dawlessdaw/devices)
+    ├── RoleResolver + Arranger + SceneStore (@dawlessdaw/scenes)
+    ├── Sessions           (@dawlessdaw/sessions)
+    └── Repository         (@dawlessdaw/storage) — IndexedDB / Memory
 ```
 
 ## Data flow
@@ -35,7 +35,7 @@ Studio · Patchbay · Performance · Library · Sessions · Settings
 
 ## Device-specific adapters (optional)
 
-Deeper integrations live under `@nervos/devices` (e.g. `circuit-rhythm/`) and must:
+Deeper integrations live under `@dawlessdaw/devices` (e.g. `circuit-rhythm/`) and must:
 
 - Declare capability honesty statuses
 - Remain optional — core router works with generic MIDI alone

@@ -1,6 +1,6 @@
-import type { DeviceId, FocusMode, SceneId } from '@nervos/core';
-import type { MidiRoute, RoutingPreset } from '@nervos/routing';
-import type { RoleBinding } from '@nervos/core';
+import type { DeviceId, FocusMode, SceneId } from '@dawlessdaw/core';
+import type { MidiRoute, RoutingPreset } from '@dawlessdaw/routing';
+import type { RoleBinding } from '@dawlessdaw/core';
 import type { ArrangerConfig } from './arranger';
 
 export interface StudioScene {

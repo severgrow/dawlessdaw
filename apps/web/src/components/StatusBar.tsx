@@ -6,12 +6,17 @@ export function StatusBar() {
 
   return (
     <header className="status-bar">
-      <div className="brand">NervOS</div>
+      <div className="brand">Dawlessdaw</div>
       <div className={snap.simulation ? 'sim-badge' : 'sim-badge live-badge'}>
         <span className="dot" />
         {snap.simulation ? 'Simulation' : 'Live MIDI'}
       </div>
       <span className="muted mono">{snap.transportKind}</span>
+      {snap.routeClockThroughApp ? (
+        <span className="muted mono" title={snap.clockActivity.hint}>
+          clk IN {snap.clockActivity.inTicks}/OUT {snap.clockActivity.outTicks}
+        </span>
+      ) : null}
       <span className="muted" style={{ flex: 1 }}>
         {snap.statusLine}
       </span>

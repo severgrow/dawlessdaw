@@ -10,7 +10,7 @@ import {
   trackFromChannel,
 } from './midi-map';
 import { CircuitRhythmInterpreter } from './interpreter';
-import { parseMidiMessage } from '@nervos/core';
+import { parseMidiMessage } from '@dawlessdaw/core';
 
 describe('Circuit Rhythm MIDI map (Confirmed docs)', () => {
   it('decodes instant and queued project program changes', () => {

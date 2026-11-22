@@ -1,4 +1,4 @@
-import type { DeviceId, MidiPortInfo, PortId, StudioDevice } from '@nervos/core';
+import type { DeviceId, DeviceKind, MidiPortInfo, PortId, StudioDevice } from '@dawlessdaw/core';
 import { DEVICE_PROFILES } from './profiles';
 import {
   CircuitRhythmAdapter,
@@ -8,6 +8,15 @@ import {
   Zed10fxAdapter,
   type DeviceAdapter,
 } from './adapter';
+import type { PortAssignment, StudioRoleId } from './studio-layout';
+
+const ROLE_TO_KIND: Record<StudioRoleId, DeviceKind> = {
+  circuit: 'circuit-rhythm',
+  mpc: 'mpc-one',
+  sp404: 'sp404mkii',
+  fm1: 'm-vave-fm1',
+  zed: 'zed-10fx',
+};
 
 export class DeviceRegistry {
   private devices = new Map<DeviceId, StudioDevice>();
@@ -63,17 +72,33 @@ export class DeviceRegistry {
 
   /**
    * Match ports to adapters and refresh registry.
+   * When `assignments` is provided, studio role claims win over name hints so
+   * Felucca bound to FM1 appears as m-vave-fm1 (not generic-midi).
    * Unmatched MIDI ports become generic entries.
    */
-  syncFromPorts(ports: MidiPortInfo[]): StudioDevice[] {
+  syncFromPorts(ports: MidiPortInfo[], assignments: PortAssignment[] = []): StudioDevice[] {
     // Keep ZED (non-MIDI) if present
     const zed = [...this.devices.values()].filter((d) => d.kind === 'zed-10fx');
+
+    const roleByPort = new Map<PortId, StudioRoleId>();
+    for (const a of assignments) {
+      if (a.inputPortId) roleByPort.set(a.inputPortId, a.roleId);
+      if (a.outputPortId) roleByPort.set(a.outputPortId, a.roleId);
+    }
 
     const byKind = new Map<string, { inputs: PortId[]; outputs: PortId[]; name: string }>();
 
     for (const port of ports) {
       if (port.state !== 'connected') continue;
-      const adapter = this.adapters.find((a) => a.profile.hasMidi && a.matchPortName(port.name));
+      const claimedRole = roleByPort.get(port.id);
+      const claimedKind = claimedRole ? ROLE_TO_KIND[claimedRole] : undefined;
+      const claimedAdapter = claimedKind
+        ? this.adapters.find((a) => a.kind === claimedKind && a.profile.hasMidi)
+        : undefined;
+      const namedAdapter = this.adapters.find(
+        (a) => a.profile.hasMidi && a.matchPortName(port.name, port.manufacturer),
+      );
+      const adapter = claimedAdapter ?? namedAdapter;
       const key = adapter?.kind ?? `generic:${port.name}`;
       let bucket = byKind.get(key);
       if (!bucket) {

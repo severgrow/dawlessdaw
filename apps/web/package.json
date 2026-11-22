@@ -1,5 +1,5 @@
 {
-  "name": "@nervos/web",
+  "name": "@dawlessdaw/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,15 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@nervos/core": "*",
-    "@nervos/events": "*",
-    "@nervos/midi": "*",
-    "@nervos/routing": "*",
-    "@nervos/focus": "*",
-    "@nervos/devices": "*",
-    "@nervos/scenes": "*",
-    "@nervos/sessions": "*",
-    "@nervos/storage": "*",
+    "@dawlessdaw/core": "*",
+    "@dawlessdaw/events": "*",
+    "@dawlessdaw/midi": "*",
+    "@dawlessdaw/routing": "*",
+    "@dawlessdaw/focus": "*",
+    "@dawlessdaw/devices": "*",
+    "@dawlessdaw/scenes": "*",
+    "@dawlessdaw/sessions": "*",
+    "@dawlessdaw/storage": "*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zustand": "^5.0.3"

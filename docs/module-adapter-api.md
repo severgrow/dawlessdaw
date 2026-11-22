@@ -30,7 +30,7 @@ interface DeviceAdapter {
 }
 ```
 
-Adapters live in `@nervos/devices`. Registry `syncFromPorts` / `seedSimulation` builds `StudioDevice` records.
+Adapters live in `@dawlessdaw/devices`. Registry `syncFromPorts` / `seedSimulation` builds `StudioDevice` records.
 
 ## CapabilityStatus
 
@@ -44,7 +44,7 @@ Adapters live in `@nervos/devices`. Registry `syncFromPorts` / `seedSimulation` 
 ## Scenes & sessions
 
 - `StudioScene` — routes, roles, focus, arranger; validated on save
-- `NervosSession` — `schemaVersion: 1` JSON import/export
+- `DawlessdawSession` — `schemaVersion: 1` JSON import/export
 
 ## AssistantTool
 

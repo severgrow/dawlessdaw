@@ -5,6 +5,11 @@ import {
   type StudioRuntimeSnapshot,
   type WorkspaceId,
 } from '../studio/runtime';
+import type {
+  BenchVerdict,
+  SectionBridgeConfig,
+  StudioRoleId,
+} from '@dawlessdaw/devices';
 
 const runtime = getStudioRuntime();
 
@@ -21,7 +26,6 @@ export const useStudioStore = create<StudioZustandState>((set) => ({
   hydrate: () => set({ ...snapshot() }),
 }));
 
-/** Bind runtime notifications into Zustand (call once from App). */
 export function bindStudioStore(): () => void {
   const sync = () => useStudioStore.getState().hydrate();
   sync();
@@ -32,6 +36,7 @@ export function useStudioActions() {
   return {
     start: () => runtime.start(),
     setSimulation: (on: boolean) => runtime.setSimulation(on),
+    rescanMidiPorts: () => runtime.rescanMidiPorts(),
     setWorkspace: (w: WorkspaceId) => runtime.setWorkspace(w),
     setFocusMode: (m: 'follow' | 'smart' | 'manual') => runtime.setFocusMode(m),
     pinDevice: (id: string | null) => runtime.pinDevice(id),
@@ -43,7 +48,6 @@ export function useStudioActions() {
     recallScene: (id: string) => runtime.recallScene(id),
     exportSession: () => runtime.exportSession(),
     importSession: (raw: string) => runtime.importSession(raw),
-    configureCircuitArranger: () => runtime.configureCircuitArranger(),
     enableRoute: (id: string, enabled: boolean) => {
       const routes = runtime.getSnapshot().routes.map((r) =>
         r.id === id ? { ...r, enabled } : r,
@@ -51,12 +55,36 @@ export function useStudioActions() {
       runtime.setRoutes(routes);
     },
     setClockAuthority: (portId: string | null) => runtime.setClockAuthority(portId),
+    setRouteClockThroughApp: (on: boolean) => runtime.setRouteClockThroughApp(on),
+    setFm1Firmware: (firmware: 'skiff' | 'h1') => runtime.setFm1Firmware(firmware),
+    setMpcNoteMode: (mode: 'usb' | 'din-only') => runtime.setMpcNoteMode(mode),
+    setForwardClockToFm1: (on: boolean) => runtime.setForwardClockToFm1(on),
+    assignStudioPort: (
+      roleId: StudioRoleId,
+      which: 'input' | 'output',
+      portId: string | null,
+    ) => runtime.assignStudioPort(roleId, which, portId),
+    applyMyStudioRoutes: () => runtime.applyMyStudioRoutes(),
+    setSectionBridge: (c: SectionBridgeConfig) => runtime.setSectionBridge(c),
+    updateSectionBridgeRow: (
+      index: number,
+      patch: Partial<SectionBridgeConfig['rows'][0]>,
+    ) => runtime.updateSectionBridgeRow(index, patch),
+    panic: () => runtime.panic(),
+    setActiveBench: (id: string | null) => runtime.setActiveBench(id),
+    markBench: (id: string, verdict: BenchVerdict, note?: string) =>
+      runtime.markBench(id, verdict, note),
+    startSceneMidiCapture: () => runtime.startSceneMidiCapture(),
+    sendBenchSpProgramChange: (n?: number) => runtime.sendBenchSpProgramChange(n),
+    sendBenchMpcProgramChange: (n?: number) => runtime.sendBenchMpcProgramChange(n),
+    sendBenchMpcMuteCc: () => runtime.sendBenchMpcMuteCc(),
+    sendBenchMpcClockBurst: () => runtime.sendBenchMpcClockBurst(),
+    downloadBenchJson: () => runtime.downloadBenchJson(),
     getAssistantTools: () => runtime.assistant.list(),
     getRuntime: () => runtime,
   };
 }
 
-/** Hook: keep Zustand in sync for the lifetime of the tree. */
 export function useBindStudio(): void {
   useEffect(() => bindStudioStore(), []);
 }

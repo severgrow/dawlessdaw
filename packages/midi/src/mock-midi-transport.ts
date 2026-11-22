@@ -1,5 +1,5 @@
-import type { MidiMessage, MidiPortInfo, PortId } from '@nervos/core';
-import { parseMidiMessage } from '@nervos/core';
+import type { MidiMessage, MidiPortInfo, PortId } from '@dawlessdaw/core';
+import { parseMidiMessage } from '@dawlessdaw/core';
 import type { HardwareTransport, MidiInputHandler, PortChangeHandler } from './transport';
 
 export interface MockPortSpec {
@@ -71,6 +71,11 @@ export class MockMidiTransport implements HardwareTransport {
 
   listPorts(): MidiPortInfo[] {
     return [...this.ports];
+  }
+
+  async rescanPorts(): Promise<MidiPortInfo[]> {
+    this.emitPorts();
+    return this.listPorts();
   }
 
   send(portId: PortId, data: Uint8Array, timestamp?: number): void {
@@ -172,7 +177,7 @@ export const FIXTURE_CIRCUIT_GROOVE: MidiFixture = {
 
 /**
  * Simulated Circuit Project change (ch16 Program Change).
- * Does not prove hardware TX — only exercises NervOS Project→Scene mapping.
+ * Does not prove hardware TX — only exercises Dawlessdaw Project→Scene mapping.
  */
 export const FIXTURE_CIRCUIT_PROJECT_CHANGE: MidiFixture = {
   id: 'circuit-project-change',

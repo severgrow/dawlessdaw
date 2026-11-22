@@ -1,5 +1,10 @@
-import { AssistantToolRegistry, type MidiMessage } from '@nervos/core';
-import { StudioEventBus } from '@nervos/events';
+import {
+  AssistantToolRegistry,
+  isClockLike,
+  parseMidiMessage,
+  type MidiMessage,
+} from '@dawlessdaw/core';
+import { StudioEventBus } from '@dawlessdaw/events';
 import {
   FIXTURE_CIRCUIT_GROOVE,
   FIXTURE_CIRCUIT_PROJECT_CHANGE,
@@ -8,33 +13,55 @@ import {
   WebMidiTransport,
   type HardwareTransport,
   type MidiFixture,
-} from '@nervos/midi';
-import { MidiRoutingEngine, type MidiRoute } from '@nervos/routing';
-import { FocusEngine } from '@nervos/focus';
+} from '@dawlessdaw/midi';
+import { MidiRoutingEngine, type MidiRoute } from '@dawlessdaw/routing';
+import { FocusEngine } from '@dawlessdaw/focus';
 import {
+  BENCH_TESTS,
   CircuitRhythmInterpreter,
+  DEFAULT_SECTION_BRIDGE,
   DeviceRegistry,
-  buildDirectSequencingRoutes,
-  defaultCircuitArrangerProfile,
-  enrichRoleBindings,
-  resolveSceneForProject,
+  MPC_CONTROL_CHANNEL,
+  MPC_MUTE_LEARN_CC,
+  MPC_MUTE_LEARN_CHANNEL,
+  SP_PATTERN_PC_CHANNEL,
+  MY_STUDIO_ROLES,
+  STORAGE_KEY_STUDIO_SETUP,
+  assignPort,
+  buildBenchExport,
+  buildMyStudioRoutes,
+  buildPanicMessages,
+  emptyBenchResults,
+  latencyVerdict,
+  matchPortsToRoles,
+  normalizePortId,
+  portsForRoles,
+  resolveSectionBridge,
+  type BenchExport,
+  type BenchTestResult,
+  type BenchVerdict,
   type CircuitInterpretation,
-  type ProjectSceneMapEntry,
-} from '@nervos/devices';
+  type Fm1Firmware,
+  type MpcNoteMode,
+  type PersistedStudioSetup,
+  type PortAssignment,
+  type SectionBridgeConfig,
+  type StudioRoleId,
+} from '@dawlessdaw/devices';
 import {
   ConfigurableArrangerProvider,
   RoleResolver,
   SceneStore,
   validateScene,
   type StudioScene,
-} from '@nervos/scenes';
+} from '@dawlessdaw/scenes';
 import {
   createEmptySession,
   exportSessionJson,
   importSessionJson,
-  type NervosSession,
-} from '@nervos/sessions';
-import { MemoryRepository } from '@nervos/storage';
+  type DawlessdawSession,
+} from '@dawlessdaw/sessions';
+import { MemoryRepository } from '@dawlessdaw/storage';
 
 export type WorkspaceId =
   | 'studio'
@@ -42,7 +69,9 @@ export type WorkspaceId =
   | 'performance'
   | 'library'
   | 'sessions'
-  | 'settings';
+  | 'settings'
+  | 'bench'
+  | 'bridge';
 
 export interface StudioRuntimeSnapshot {
   simulation: boolean;
@@ -56,15 +85,64 @@ export interface StudioRuntimeSnapshot {
   arranger: ReturnType<ConfigurableArrangerProvider['getConfig']>;
   scenes: StudioScene[];
   activeSceneId: string | null;
-  session: NervosSession;
+  session: DawlessdawSession;
   workspace: WorkspaceId;
   statusLine: string;
   recentUiEvents: { type: string; summary: string; at: number }[];
-  /** Last Circuit Rhythm interpretation (sim/live) — not hardware-proof. */
   lastCircuitGesture: CircuitInterpretation | null;
+  assignments: PortAssignment[];
+  routeClockThroughApp: boolean;
+  fm1Firmware: Fm1Firmware;
+  mpcNoteMode: MpcNoteMode;
+  forwardClockToFm1: boolean;
+  sectionBridge: SectionBridgeConfig;
+  benchResults: BenchTestResult[];
+  benchDetections: string[];
+  latencyStats: { samples: number; meanMs: number; jitterMs: number; message: string } | null;
+  capturingSceneMidi: boolean;
+  /** Throttled USB clock monitor (Circuit in → MPC/SP out when app forwarding is on). */
+  clockActivity: {
+    lastInKind: string | null;
+    lastInAt: number | null;
+    inTicks: number;
+    inClock: number;
+    inStart: number;
+    inStop: number;
+    inContinue: number;
+    lastOutKind: string | null;
+    lastOutAt: number | null;
+    outTicks: number;
+    outClock: number;
+    outStart: number;
+    outStop: number;
+    outContinue: number;
+    forwarding: boolean;
+    /** Plain-English read of IN/OUT for USB-only clock debug. */
+    hint: string;
+  };
 }
 
 type Listener = () => void;
+
+function loadSetup(): PersistedStudioSetup | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(STORAGE_KEY_STUDIO_SETUP);
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedStudioSetup;
+  } catch {
+    return null;
+  }
+}
+
+function saveSetup(setup: PersistedStudioSetup): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(STORAGE_KEY_STUDIO_SETUP, JSON.stringify(setup));
+  } catch {
+    // ignore
+  }
+}
 
 /**
  * Owns transports, routing, focus, devices, scenes — single studio brain.
@@ -77,19 +155,51 @@ export class StudioRuntime {
   readonly arranger = new ConfigurableArrangerProvider();
   readonly scenes = new SceneStore();
   readonly assistant = new AssistantToolRegistry();
-  readonly sessionRepo = new MemoryRepository<NervosSession>();
+  readonly sessionRepo = new MemoryRepository<DawlessdawSession>();
 
   private transport: HardwareTransport;
   private mock: MockMidiTransport;
   private routing: MidiRoutingEngine;
   private simulation = true;
-  private session: NervosSession = createEmptySession('Untitled Studio', true);
+  private session: DawlessdawSession = createEmptySession('My Studio', true);
   private workspace: WorkspaceId = 'studio';
   private statusLine = 'Simulation mode — mock hardware';
   private recentUiEvents: StudioRuntimeSnapshot['recentUiEvents'] = [];
   private lastCircuitGesture: CircuitInterpretation | null = null;
-  private projectSceneMap: ProjectSceneMapEntry[] = [];
   private circuitInterpreter = new CircuitRhythmInterpreter();
+  private assignments: PortAssignment[] = MY_STUDIO_ROLES.map((r) => ({
+    roleId: r.id,
+    inputPortId: null,
+    outputPortId: null,
+    connected: r.id === 'zed',
+  }));
+  private routeClockThroughApp = false;
+  private fm1Firmware: Fm1Firmware = 'skiff';
+  private mpcNoteMode: MpcNoteMode = 'usb';
+  private forwardClockToFm1 = false;
+  private sectionBridge: SectionBridgeConfig = {
+    ...DEFAULT_SECTION_BRIDGE,
+    rows: DEFAULT_SECTION_BRIDGE.rows.map((r) => ({ ...r })),
+  };
+  private benchResults: BenchTestResult[] = emptyBenchResults();
+  private benchDetections: string[] = [];
+  private rawMidiLog: BenchExport['rawMidiLog'] = [];
+  private latencySamples: number[] = [];
+  private latencyStats: StudioRuntimeSnapshot['latencyStats'] = null;
+  private pendingNoteIns = new Map<string, number>();
+  private capturingSceneMidi = false;
+  private captureTimer: ReturnType<typeof setTimeout> | null = null;
+  private clockInTicks = 0;
+  private clockOutTicks = 0;
+  private clockInByKind = { clock: 0, start: 0, stop: 0, continue: 0 };
+  private clockOutByKind = { clock: 0, start: 0, stop: 0, continue: 0 };
+  private lastClockInKind: string | null = null;
+  private lastClockInAt: number | null = null;
+  private lastClockOutKind: string | null = null;
+  private lastClockOutAt: number | null = null;
+  private clockUiNotifyAt = 0;
+  private clockLogSample = 0;
+  private activeBenchId: string | null = null;
   private listeners = new Set<Listener>();
   private unsubs: Array<() => void> = [];
   private started = false;
@@ -98,6 +208,26 @@ export class StudioRuntime {
     this.mock = new MockMidiTransport();
     this.transport = this.mock;
     this.routing = new MidiRoutingEngine(this.transport, this.bus);
+    const saved = loadSetup();
+    if (saved?.assignments?.length) {
+      // Strip mock / dash sentinels so Live sync can auto-bind Felucca → FM1.
+      this.assignments = saved.assignments.map((a) => {
+        const inputPortId = normalizePortId(a.inputPortId);
+        const outputPortId = normalizePortId(a.outputPortId);
+        return {
+          ...a,
+          inputPortId,
+          outputPortId,
+          connected: a.roleId === 'zed' || Boolean(inputPortId || outputPortId),
+        };
+      });
+    }
+    if (saved) {
+      this.routeClockThroughApp = Boolean(saved.routeClockThroughApp);
+      this.fm1Firmware = saved.fm1Firmware === 'h1' ? 'h1' : 'skiff';
+      this.mpcNoteMode = saved.mpcNoteMode === 'din-only' ? 'din-only' : 'usb';
+      this.forwardClockToFm1 = Boolean(saved.forwardClockToFm1);
+    }
     this.registerDefaultAssistantTools();
   }
 
@@ -124,6 +254,40 @@ export class StudioRuntime {
       statusLine: this.statusLine,
       recentUiEvents: [...this.recentUiEvents],
       lastCircuitGesture: this.lastCircuitGesture,
+      assignments: this.assignments.map((a) => ({ ...a })),
+      routeClockThroughApp: this.routeClockThroughApp,
+      fm1Firmware: this.fm1Firmware,
+      mpcNoteMode: this.mpcNoteMode,
+      forwardClockToFm1: this.forwardClockToFm1,
+      sectionBridge: {
+        enabled: this.sectionBridge.enabled,
+        rows: this.sectionBridge.rows.map((r) => ({ ...r })),
+      },
+      benchResults: this.benchResults.map((r) => ({
+        ...r,
+        detections: [...r.detections],
+      })),
+      benchDetections: [...this.benchDetections],
+      latencyStats: this.latencyStats ? { ...this.latencyStats } : null,
+      capturingSceneMidi: this.capturingSceneMidi,
+      clockActivity: {
+        lastInKind: this.lastClockInKind,
+        lastInAt: this.lastClockInAt,
+        inTicks: this.clockInTicks,
+        inClock: this.clockInByKind.clock,
+        inStart: this.clockInByKind.start,
+        inStop: this.clockInByKind.stop,
+        inContinue: this.clockInByKind.continue,
+        lastOutKind: this.lastClockOutKind,
+        lastOutAt: this.lastClockOutAt,
+        outTicks: this.clockOutTicks,
+        outClock: this.clockOutByKind.clock,
+        outStart: this.clockOutByKind.start,
+        outStop: this.clockOutByKind.stop,
+        outContinue: this.clockOutByKind.continue,
+        forwarding: this.routeClockThroughApp,
+        hint: this.clockHint(),
+      },
     };
   }
 
@@ -136,23 +300,26 @@ export class StudioRuntime {
 
     if (this.simulation) {
       this.bootstrapSimulation();
+    } else {
+      this.syncLivePorts(this.transport.listPorts());
+      this.applyMyStudioRoutes();
     }
 
     this.unsubs.push(
       this.transport.onMessage((message) => {
+        this.logMidi(message);
         const deviceId = this.registry.deviceForPort(message.portId);
         this.bus.emit({ type: 'midi:in', message, deviceId });
-        this.handleCircuitAwareMidi(message, deviceId);
-        // routing already subscribed to transport
+        this.handleIncoming(message, deviceId);
       }),
     );
 
     this.unsubs.push(
       this.transport.onPortsChanged((ports) => {
         if (!this.simulation) {
-          this.registry.syncFromPorts(ports);
-          this.registry.ensureZed();
-          this.remapFocusPorts();
+          this.syncLivePorts(ports);
+          this.applyMyStudioRoutes();
+          this.pushBenchDetection('reconnect', `ports changed (${ports.length})`);
           this.notify();
         }
       }),
@@ -174,17 +341,27 @@ export class StudioRuntime {
       }),
     );
 
+    this.unsubs.push(this.bus.on('focus:changed', () => this.notify()));
+
     this.unsubs.push(
-      this.bus.on('focus:changed', () => this.notify()),
+      this.bus.on('midi:clock', (event) => {
+        if (event.type !== 'midi:clock') return;
+        this.recordClockActivity(event.message);
+      }),
     );
 
-    this.setStatus(this.simulation ? 'Simulation mode — mock hardware' : 'Live Web MIDI');
+    this.setStatus(
+      this.simulation
+        ? 'Simulation — mock hardware (My Studio plan ready)'
+        : 'Live MIDI — clock stays on your thru box unless enabled in Settings',
+    );
     this.notify();
   }
 
   async stop(): Promise<void> {
     for (const u of this.unsubs) u();
     this.unsubs = [];
+    if (this.captureTimer) clearTimeout(this.captureTimer);
     this.routing.stop();
     await this.transport.stop();
     this.started = false;
@@ -215,7 +392,25 @@ export class StudioRuntime {
     await this.start();
   }
 
-  /** Native bridge stub accessor — unavailable. */
+  /**
+   * Re-read Web MIDI ports. Cannot invent devices missing from Audio MIDI Setup.
+   */
+  async rescanMidiPorts(): Promise<void> {
+    if (!this.started) await this.start();
+    const ports = await this.transport.rescanPorts();
+    this.syncLivePorts(ports);
+    this.applyMyStudioRoutes();
+    const connected = ports.filter((p) => p.state === 'connected').length;
+    this.setStatus(
+      this.simulation
+        ? `Rescanned mock ports (${connected} connected)`
+        : connected === 0
+          ? 'Rescan: no Web MIDI ports — fix Audio MIDI Setup / USB first'
+          : `Rescanned Web MIDI (${connected} connected). If MPC still missing, OS does not see it.`,
+    );
+    this.notify();
+  }
+
   getNativeBridgeStub(): NativeBridgeTransport {
     return new NativeBridgeTransport();
   }
@@ -227,11 +422,74 @@ export class StudioRuntime {
 
   setRoutes(routes: MidiRoute[]): void {
     this.routing.setRoutes(routes);
+    this.persistSetup();
     this.notify();
   }
 
   setClockAuthority(portId: string | null): void {
+    if (this.routeClockThroughApp) {
+      const circuitIn = portsForRoles(this.assignments).circuitIn;
+      // USB-only forwarding always locks authority to Circuit in
+      this.routing.setClockAuthority(circuitIn);
+      this.setStatus(
+        circuitIn
+          ? 'Clock authority locked to Circuit (app clock forwarding ON)'
+          : 'Assign Circuit input before app clock forwarding can lock authority',
+      );
+      this.notify();
+      return;
+    }
     this.routing.setClockAuthority(portId);
+    this.notify();
+  }
+
+  setRouteClockThroughApp(on: boolean): void {
+    this.routeClockThroughApp = on;
+    this.resetClockActivity();
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    this.setStatus(
+      on
+        ? 'App clock forwarding ON — USB path; Akai MPC may ignore USB clock (prefer DIN thru)'
+        : 'App clock forwarding OFF — hardware thru box is clock path',
+    );
+    this.notify();
+  }
+
+  setFm1Firmware(firmware: Fm1Firmware): void {
+    this.fm1Firmware = firmware;
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    this.setStatus(
+      firmware === 'skiff'
+        ? 'FM1 = Skiff: Circuit T5–T8 → FM1 ch5–8, macro knobs translated'
+        : 'FM1 = h1: Circuit T5–T6 → FM1, notes only',
+    );
+    this.notify();
+  }
+
+  setMpcNoteMode(mode: MpcNoteMode): void {
+    this.mpcNoteMode = mode;
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    this.setStatus(
+      mode === 'din-only'
+        ? 'MPC via MIDI cable only — app sends the MPC nothing (set MPC tracks to ch1–4 on the DIN port)'
+        : 'MPC via USB — Circuit T1–T4 → MPC ch9–12',
+    );
+    this.notify();
+  }
+
+  setForwardClockToFm1(on: boolean): void {
+    this.forwardClockToFm1 = on;
+    this.resetClockActivity();
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    this.setStatus(
+      on
+        ? 'Circuit clock → FM1 over USB ON (set Skiff CLOCK = USB)'
+        : 'Circuit clock → FM1 OFF',
+    );
     this.notify();
   }
 
@@ -248,6 +506,52 @@ export class StudioRuntime {
   selectDevice(deviceId: string): void {
     this.focus.select(deviceId);
     this.notify();
+  }
+
+  assignStudioPort(roleId: StudioRoleId, which: 'input' | 'output', portId: string | null): void {
+    this.assignments = assignPort(
+      this.assignments,
+      roleId,
+      which,
+      portId,
+      this.transport.listPorts(),
+    );
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    this.notify();
+  }
+
+  applyMyStudioRoutes(): void {
+    const p = portsForRoles(this.assignments);
+    if (!p.circuitIn) {
+      // Keep previous routes; greyed devices still listed
+      this.routing.setClockAuthority(null);
+      this.notify();
+      return;
+    }
+    const routes = buildMyStudioRoutes({
+      circuitIn: p.circuitIn,
+      mpcOut: p.mpcOut || '__missing_mpc__',
+      spOut: p.spOut || '__missing_sp__',
+      fm1Out: p.fm1Out || '__missing_fm1__',
+      forwardClock: this.routeClockThroughApp,
+      fm1Firmware: this.fm1Firmware,
+      mpcNoteMode: this.mpcNoteMode,
+      forwardClockToFm1: this.forwardClockToFm1,
+    }).map((r) => ({
+      ...r,
+      destinations: r.destinations.filter((d) => !d.portId.startsWith('__missing_')),
+    }));
+
+    this.routing.setRoutes(routes.filter((r) => r.destinations.length > 0));
+    this.routing.setClockAuthority(
+      this.routeClockThroughApp || this.forwardClockToFm1 ? p.circuitIn : null,
+    );
+    this.arranger.configure({
+      kind: 'circuit-rhythm',
+      deviceId: 'device:circuit-rhythm',
+      label: 'My Studio — Circuit arranger (direct sequencing)',
+    });
   }
 
   playFixture(fixture: MidiFixture = FIXTURE_CIRCUIT_GROOVE): void {
@@ -287,9 +591,7 @@ export class StudioRuntime {
     const devices = new Set(this.registry.list().map((d) => d.id));
     const issues = validateScene(scene, ports, devices);
     const errors = issues.filter((i) => i.severity === 'error');
-    if (errors.length) {
-      throw new Error(errors.map((e) => e.message).join('; '));
-    }
+    if (errors.length) throw new Error(errors.map((e) => e.message).join('; '));
     this.scenes.save(scene);
     this.setStatus(`Scene saved: ${name}`);
     this.notify();
@@ -302,8 +604,9 @@ export class StudioRuntime {
       this.setStatus(`Scene not found: ${id}`);
       return;
     }
+    // Rebind scene routes onto current assignments when possible
     this.routing.setRoutes(scene.routes);
-    this.routing.setClockAuthority(scene.clockAuthorityPortId);
+    if (!this.simulation) this.applyMyStudioRoutes();
     this.roles.setBindings(scene.roles);
     this.focus.setMode(scene.focusMode);
     if (scene.pinnedDeviceId) this.focus.pin(scene.pinnedDeviceId);
@@ -316,14 +619,14 @@ export class StudioRuntime {
 
   exportSession(): string {
     const snap = this.getSnapshot();
-    const session: NervosSession = {
+    const session: DawlessdawSession = {
       ...this.session,
       scenes: snap.scenes,
       activeSceneId: snap.activeSceneId,
       routingPresets: [
         {
-          id: 'live',
-          name: 'Live routes',
+          id: 'my-studio',
+          name: 'My Studio',
           routes: snap.routes,
           clockAuthorityPortId: snap.clockAuthorityPortId,
         },
@@ -341,9 +644,7 @@ export class StudioRuntime {
 
   importSession(raw: string): void {
     const result = importSessionJson(raw);
-    if (!result.ok || !result.session) {
-      throw new Error(result.errors.join('; '));
-    }
+    if (!result.ok || !result.session) throw new Error(result.errors.join('; '));
     this.session = result.session;
     for (const scene of result.session.scenes) this.scenes.save(scene);
     if (result.session.routingPresets[0]) {
@@ -358,97 +659,250 @@ export class StudioRuntime {
     this.notify();
   }
 
-  configureCircuitArranger(): void {
-    const circuit = this.registry.list().find((d) => d.kind === 'circuit-rhythm');
-    this.arranger.configure({
-      kind: 'circuit-rhythm',
-      deviceId: circuit?.id ?? null,
-      label: 'Circuit Rhythm (direct-sequencing arranger)',
-    });
-    if (circuit?.inputPortIds[0]) {
-      const sp = this.registry.list().find((d) => d.kind === 'sp404mkii');
-      const mpc = this.registry.list().find((d) => d.kind === 'mpc-one');
-      const fm1 = this.registry.list().find((d) => d.kind === 'm-vave-fm1');
-      const destinations = {
-        spOut: sp?.outputPortIds[0],
-        mpcOut: mpc?.outputPortIds[0],
-        fm1Out: fm1?.outputPortIds[0],
-      };
-      this.roles.setBindings(
-        enrichRoleBindings(circuit.id, destinations, {
-          sp: sp?.id,
-          mpc: mpc?.id,
-          fm1: fm1?.id,
-        }),
-      );
-      const profile = defaultCircuitArrangerProfile(
-        circuit.id,
-        circuit.inputPortIds[0],
-        destinations,
-      );
-      profile.projectSceneMap = this.projectSceneMap;
-      const routes = buildDirectSequencingRoutes(profile);
+  // —— Section Bridge ——
 
-      // Optional FM1 → MPC controller path (unchanged utility)
-      if (fm1?.inputPortIds[0] && mpc?.outputPortIds[0]) {
-        routes.push({
-          id: 'fm1-to-mpc',
-          name: 'FM1 → MPC',
-          enabled: true,
-          sourcePortId: fm1.inputPortIds[0],
-          destinations: [{ portId: mpc.outputPortIds[0] }],
-          forwardClock: false,
-        });
+  setSectionBridge(config: SectionBridgeConfig): void {
+    this.sectionBridge = {
+      enabled: config.enabled,
+      rows: config.rows.map((r) => ({ ...r })),
+    };
+    this.notify();
+  }
+
+  updateSectionBridgeRow(index: number, patch: Partial<SectionBridgeConfig['rows'][0]>): void {
+    const rows = this.sectionBridge.rows.map((r, i) =>
+      i === index ? { ...r, ...patch } : r,
+    );
+    this.sectionBridge = { ...this.sectionBridge, rows };
+    this.notify();
+  }
+
+  panic(): void {
+    const outs = [
+      portsForRoles(this.assignments).mpcOut,
+      portsForRoles(this.assignments).spOut,
+      portsForRoles(this.assignments).fm1Out,
+    ].filter(Boolean) as string[];
+    for (const portId of outs) {
+      for (const msg of buildPanicMessages()) {
+        this.transport.send(portId, new Uint8Array(msg.data));
       }
-
-      this.routing.setRoutes(routes);
-      this.routing.setClockAuthority(circuit.inputPortIds[0]);
     }
+    this.routing.allNotesOff();
+    this.setStatus('Panic — All Notes Off / All Sound Off sent (no SysEx)');
     this.notify();
   }
 
-  /** Map Circuit Project slot (1–64) → NervOS Studio Scene id. */
-  setProjectSceneMap(map: ProjectSceneMapEntry[]): void {
-    this.projectSceneMap = map.map((e) => ({ ...e }));
+  // —— Bench ——
+
+  setActiveBench(id: string | null): void {
+    this.activeBenchId = id;
+    this.benchDetections = [];
     this.notify();
   }
 
-  private handleCircuitAwareMidi(message: MidiMessage, deviceId?: string): void {
-    const device = deviceId ? this.registry.get(deviceId) : undefined;
-    if (device?.kind === 'circuit-rhythm') {
+  markBench(id: string, verdict: BenchVerdict, note = ''): void {
+    this.benchResults = this.benchResults.map((r) =>
+      r.id === id
+        ? {
+            ...r,
+            verdict,
+            note,
+            detections: [...this.benchDetections],
+            updatedAt: Date.now(),
+          }
+        : r,
+    );
+    this.notify();
+  }
+
+  startSceneMidiCapture(): void {
+    this.capturingSceneMidi = true;
+    this.benchDetections = ['capture started — change Circuit Scene now'];
+    this.activeBenchId = 'circuit-scene-any-midi';
+    if (this.captureTimer) clearTimeout(this.captureTimer);
+    this.captureTimer = setTimeout(() => {
+      this.capturingSceneMidi = false;
+      this.pushBenchDetection(
+        'circuit-scene-any-midi',
+        `capture ended — ${this.benchDetections.length} lines`,
+      );
+      this.notify();
+    }, 10_000);
+    this.notify();
+  }
+
+  sendBenchSpProgramChange(program = 0): void {
+    const spOut = portsForRoles(this.assignments).spOut;
+    if (!spOut) {
+      this.setStatus('SP output port not assigned');
+      return;
+    }
+    const status = 0xc0 | ((SP_PATTERN_PC_CHANNEL - 1) & 0x0f);
+    this.transport.send(spOut, new Uint8Array([status, program & 0x7f]));
+    this.pushBenchDetection(
+      'sp-pattern-pc',
+      `sent PC ${program} ch${SP_PATTERN_PC_CHANNEL} → SP`,
+    );
+    this.setStatus(
+      `Sent Program Change ${program} on ch${SP_PATTERN_PC_CHANNEL} to SP-404 (verify on hardware)`,
+    );
+  }
+
+  sendBenchMpcProgramChange(program = 0): void {
+    const mpcOut = portsForRoles(this.assignments).mpcOut;
+    if (!mpcOut) {
+      this.setStatus('MPC output port not assigned');
+      return;
+    }
+    const status = 0xc0 | ((MPC_CONTROL_CHANNEL - 1) & 0x0f);
+    this.transport.send(mpcOut, new Uint8Array([status, program & 0x7f]));
+    this.pushBenchDetection(
+      'mpc-sequence-pc',
+      `sent PC ${program} ch${MPC_CONTROL_CHANNEL} → MPC`,
+    );
+    this.setStatus(
+      `Sent Program Change ${program} on control ch${MPC_CONTROL_CHANNEL} to MPC (verify on hardware)`,
+    );
+  }
+
+  sendBenchMpcMuteCc(): void {
+    const mpcOut = portsForRoles(this.assignments).mpcOut;
+    if (!mpcOut) {
+      this.setStatus('MPC output port not assigned');
+      return;
+    }
+    const ch = MPC_MUTE_LEARN_CHANNEL;
+    const data = new Uint8Array([
+      0xb0 | ((ch - 1) & 0x0f),
+      MPC_MUTE_LEARN_CC,
+      127,
+    ]);
+    this.transport.send(mpcOut, data);
+    this.pushBenchDetection(
+      'mpc-mute-cc',
+      `sent CC ${MPC_MUTE_LEARN_CC} ch${ch}=127 → MPC (MIDI Learn target)`,
+    );
+    this.setStatus(
+      `Mute test CC ${MPC_MUTE_LEARN_CC} ch${ch} — learn this on MPC Mixer→Mute`,
+    );
+  }
+
+  /**
+   * Direct Start + a few Timing Clocks to MPC USB out (bypasses Circuit).
+   * Proves the Mac→MPC Web MIDI out path; if OUT monitor rises but MPC stays
+   * silent, Akai USB-B typically does not accept MIDI Clock (use DIN thru).
+   */
+  sendBenchMpcClockBurst(): void {
+    const mpcOut = portsForRoles(this.assignments).mpcOut;
+    if (!mpcOut) {
+      this.setStatus('MPC output port not assigned');
+      return;
+    }
+    this.activeBenchId = 'usb-app-clock';
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const msgs: Uint8Array[] = [
+      new Uint8Array([0xfa]),
+      ...Array.from({ length: 24 }, () => new Uint8Array([0xf8])),
+      new Uint8Array([0xfc]),
+    ];
+    for (const data of msgs) {
+      this.transport.send(mpcOut, data);
+      const message = parseMidiMessage(
+        data,
+        typeof performance !== 'undefined' ? performance.now() : Date.now(),
+        mpcOut,
+      );
+      this.bus.emit({ type: 'midi:out', message });
+    }
+    void now;
+    this.pushBenchDetection(
+      'usb-app-clock',
+      'sent test FA + 24×F8 + FC → MPC USB out (direct, not via Circuit)',
+    );
+    this.setStatus(
+      'Sent test Start/Clock/Stop → MPC USB — if Patchbay OUT rises but MPC silent, use DIN thru',
+    );
+    this.notify();
+  }
+
+  exportBenchJson(): string {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const payload = buildBenchExport(this.benchResults, this.rawMidiLog.slice(-2000));
+    void stamp;
+    return JSON.stringify(payload, null, 2);
+  }
+
+  downloadBenchJson(): void {
+    if (typeof document === 'undefined') return;
+    const stamp = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([this.exportBenchJson()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dawlessdaw-bench-${stamp}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // —— internals ——
+
+  private syncLivePorts(ports: ReturnType<HardwareTransport['listPorts']>): void {
+    // Empty / dash / mock previous slots must not block Felucca → FM1 (and peers).
+    this.assignments = matchPortsToRoles(ports, this.assignments);
+    // Role claims win so Felucca bound to FM1 is m-vave-fm1, not generic-midi.
+    this.registry.syncFromPorts(ports, this.assignments);
+    this.registry.ensureZed();
+    this.remapFocusPorts();
+    this.persistSetup();
+  }
+
+  private persistSetup(): void {
+    saveSetup({
+      version: 1,
+      assignments: this.assignments,
+      routeClockThroughApp: this.routeClockThroughApp,
+      lastRoutingPresetId: 'my-studio',
+      fm1Firmware: this.fm1Firmware,
+      mpcNoteMode: this.mpcNoteMode,
+      forwardClockToFm1: this.forwardClockToFm1,
+    });
+  }
+
+  private handleIncoming(message: MidiMessage, deviceId?: string): void {
+    const circuitIn = portsForRoles(this.assignments).circuitIn;
+    const fromCircuit = circuitIn && message.portId === circuitIn;
+
+    if (fromCircuit || this.registry.get(deviceId ?? '')?.kind === 'circuit-rhythm') {
       const interpreted = this.circuitInterpreter.interpret(message);
       this.lastCircuitGesture = interpreted;
 
-      if (interpreted.gesture === 'arrangement' && interpreted.projectIndex) {
-        const sceneId = resolveSceneForProject(
-          this.projectSceneMap,
-          interpreted.projectIndex,
+      if (interpreted.gesture === 'arrangement' && interpreted.projectIndex != null) {
+        this.pushBenchDetection(
+          'circuit-project-pgm',
+          `Project ${interpreted.projectIndex} (${interpreted.projectChangeKind})`,
         );
-        if (sceneId) {
-          this.recallScene(sceneId);
-          this.setStatus(
-            `Circuit Project ${interpreted.projectIndex} → scene ${sceneId} (mapped)`,
-          );
-        } else {
-          this.bus.emit({
-            type: 'studio:status',
-            message: `Circuit Project ${interpreted.projectIndex} (${interpreted.projectChangeKind}) — no NervOS scene mapped`,
-            level: 'info',
-          });
-        }
-        this.notify();
-        return; // arrangement does not thrash focus
-      }
-
-      if (interpreted.gesture === 'sequencer-stream' || interpreted.gesture === 'background') {
-        // Keep routing; skip focus thrash on dense sequencer / clock
+        this.runSectionBridge(message.value ?? 0);
         this.notify();
         return;
       }
 
-      if (interpreted.focusWorthy) {
-        this.focus.onMidi(message, deviceId);
+      if (message.kind === 'note-on' && (message.velocity ?? 0) > 0 && message.channel) {
+        this.pushBenchDetection(
+          'circuit-notes-1-8',
+          `note ch${message.channel} n${message.note}`,
+        );
+        this.pendingNoteIns.set(
+          `${message.channel}:${message.note}`,
+          typeof performance !== 'undefined' ? performance.now() : Date.now(),
+        );
       }
+
+      if (interpreted.gesture === 'sequencer-stream' || interpreted.gesture === 'background') {
+        // Clock/background: do not notify() every tick — Patchbay clock strip is throttled.
+        return;
+      }
+      if (interpreted.focusWorthy) this.focus.onMidi(message, deviceId);
       this.notify();
       return;
     }
@@ -456,18 +910,230 @@ export class StudioRuntime {
     this.focus.onMidi(message, deviceId);
   }
 
+  private runSectionBridge(program: number): void {
+    const action = resolveSectionBridge(program, this.sectionBridge);
+    if (!action) {
+      this.setStatus(`Circuit Project PGM ${program} — no Section Bridge row`);
+      return;
+    }
+    const p = portsForRoles(this.assignments);
+    for (const out of action.outbound) {
+      const portId = out.portRole === 'sp404' ? p.spOut : p.mpcOut;
+      if (!portId) continue;
+      // Skip if bench not passed — still allow send but warn
+      const cap =
+        out.portRole === 'sp404'
+          ? this.benchResults.find((b) => b.id === 'sp-pattern-pc')
+          : this.benchResults.find((b) => b.id === 'mpc-sequence-pc');
+      this.transport.send(portId, new Uint8Array(out.data));
+      if (cap && cap.verdict !== 'pass') {
+        this.bus.emit({
+          type: 'studio:status',
+          message: `${out.portRole} PC sent — capability still hardware-testing-required`,
+          level: 'warn',
+        });
+      }
+    }
+    if (action.sceneId) this.recallScene(action.sceneId);
+    this.setStatus(
+      `Section Bridge: Project ${action.projectIndex} (${action.kind}) → SP/MPC/Scene`,
+    );
+  }
+
+  private resetClockActivity(): void {
+    this.clockInTicks = 0;
+    this.clockOutTicks = 0;
+    this.clockInByKind = { clock: 0, start: 0, stop: 0, continue: 0 };
+    this.clockOutByKind = { clock: 0, start: 0, stop: 0, continue: 0 };
+    this.lastClockInKind = null;
+    this.lastClockInAt = null;
+    this.lastClockOutKind = null;
+    this.lastClockOutAt = null;
+    this.clockUiNotifyAt = 0;
+    this.clockLogSample = 0;
+  }
+
+  private bumpKind(
+    bag: { clock: number; start: number; stop: number; continue: number },
+    kind: string,
+  ): void {
+    if (kind === 'clock' || kind === 'start' || kind === 'stop' || kind === 'continue') {
+      bag[kind] += 1;
+    }
+  }
+
+  private clockHint(): string {
+    const p = portsForRoles(this.assignments);
+    if (!this.routeClockThroughApp) {
+      return 'Forwarding OFF — use DIN thru for MPC clock, or turn App clock forwarding ON for USB-only.';
+    }
+    if (!p.circuitIn) return 'Assign Circuit input in Settings (receive-none until then).';
+    if (!p.mpcOut && !p.spOut) return 'Assign MPC (and/or SP) output — nothing to forward to.';
+    if (this.clockInTicks === 0) {
+      return 'receive-none: no F8/FA from Circuit yet — Live MIDI? Clock Tx pad 32 bright? Circuit playing? Correct Circuit In port?';
+    }
+    if (this.clockOutTicks === 0) {
+      return 'receive-but-not-forwarded: IN alive, OUT dead — enable mystudio-clock route / Re-apply My Studio routes.';
+    }
+    return 'receive-and-forwarded: OUT ticks mean Mac→device USB send ran. If MPC still silent, Akai USB-B typically does not accept MIDI Clock — use DIN thru (Circuit Out → thru → MPC In); turn app forwarding OFF.';
+  }
+
+  private recordClockActivity(message: MidiMessage): void {
+    const now = Date.now();
+    const circuitIn = portsForRoles(this.assignments).circuitIn;
+    const mpcOut = portsForRoles(this.assignments).mpcOut;
+    const spOut = portsForRoles(this.assignments).spOut;
+    const isIn = circuitIn != null && message.portId === circuitIn;
+    const isOut =
+      (mpcOut != null && message.portId === mpcOut) ||
+      (spOut != null && message.portId === spOut);
+    const transport =
+      message.kind === 'start' ||
+      message.kind === 'stop' ||
+      message.kind === 'continue';
+
+    if (isIn) {
+      this.clockInTicks += 1;
+      this.bumpKind(this.clockInByKind, message.kind);
+      this.lastClockInKind = message.kind;
+      this.lastClockInAt = now;
+      if (this.activeBenchId === 'usb-app-clock' && transport) {
+        const hex =
+          message.kind === 'start' ? 'FA' : message.kind === 'stop' ? 'FC' : 'FB';
+        this.pushBenchDetection(
+          'usb-app-clock',
+          `IN ${message.kind} 0x${hex} (tick #${this.clockInTicks})`,
+        );
+      }
+    }
+    if (isOut) {
+      this.clockOutTicks += 1;
+      this.bumpKind(this.clockOutByKind, message.kind);
+      this.lastClockOutKind = message.kind;
+      this.lastClockOutAt = now;
+      if (this.activeBenchId === 'usb-app-clock' && transport) {
+        const hex =
+          message.kind === 'start' ? 'FA' : message.kind === 'stop' ? 'FC' : 'FB';
+        this.pushBenchDetection(
+          'usb-app-clock',
+          `OUT ${message.kind} 0x${hex} → ${message.portId.slice(0, 16)}`,
+        );
+      }
+    }
+
+    // Always refresh UI on Start/Stop/Continue; throttle F8 (~5 Hz)
+    if (transport || now - this.clockUiNotifyAt >= 200) {
+      this.clockUiNotifyAt = now;
+      this.notify();
+    }
+  }
+
+  private logMidi(message: MidiMessage): void {
+    const summary = `${message.kind} ch${message.channel ?? '-'} ${Array.from(message.data).join(',')}`;
+    // Keep start/stop/continue always; sample F8 (~1/quarter) so exports stay readable
+    let keep = true;
+    if (message.kind === 'clock') {
+      this.clockLogSample += 1;
+      keep = this.capturingSceneMidi || this.clockLogSample % 24 === 1;
+    }
+    if (keep) {
+      this.rawMidiLog = [
+        ...this.rawMidiLog.slice(-1999),
+        {
+          at: Date.now(),
+          portId: message.portId,
+          data: Array.from(message.data),
+          summary,
+        },
+      ];
+    }
+    if (this.capturingSceneMidi || this.activeBenchId === 'circuit-scene-any-midi') {
+      this.benchDetections = [`${summary}`, ...this.benchDetections].slice(0, 80);
+    }
+    if (this.activeBenchId === 'usb-app-clock' && isClockLike(message.kind)) {
+      if (message.kind !== 'clock' || this.clockLogSample % 24 === 1) {
+        const hex = Array.from(message.data)
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join(' ');
+        this.benchDetections = [
+          `${message.kind} [${hex}] @ ${message.portId}`,
+          ...this.benchDetections,
+        ].slice(0, 80);
+      }
+    }
+
+    // Latency: when we see matching note leave via route-fired isn't easy; approximate
+    // by measuring time between circuit note-in and any subsequent midi:out on mpc
+    if (message.portId === portsForRoles(this.assignments).mpcOut) {
+      // outbound logged separately
+    }
+  }
+
+  /** Hook used after routing sends — call from bus midi:out */
+  recordOutboundLatency(note: number, channel: number): void {
+    const key = `${channel}:${note}`;
+    const t0 = this.pendingNoteIns.get(key);
+    if (t0 === undefined) return;
+    this.pendingNoteIns.delete(key);
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const dt = now - t0;
+    this.latencySamples = [...this.latencySamples.slice(-63), dt];
+    const mean =
+      this.latencySamples.reduce((a, b) => a + b, 0) / this.latencySamples.length;
+    const variance =
+      this.latencySamples.reduce((a, b) => a + (b - mean) ** 2, 0) /
+      this.latencySamples.length;
+    const jitter = Math.sqrt(variance);
+    const v = latencyVerdict(mean, jitter);
+    this.latencyStats = {
+      samples: this.latencySamples.length,
+      meanMs: Math.round(mean * 10) / 10,
+      jitterMs: Math.round(jitter * 10) / 10,
+      message: v.message,
+    };
+    this.pushBenchDetection(
+      'timing-circuit-to-mpc',
+      `${this.latencyStats.meanMs}ms mean, ${this.latencyStats.jitterMs}ms jitter — ${v.band}`,
+    );
+  }
+
+  private pushBenchDetection(id: string, line: string): void {
+    if (this.activeBenchId && this.activeBenchId !== id && id !== this.activeBenchId) {
+      // still record on matching result bucket
+    }
+    this.benchDetections = [line, ...this.benchDetections].slice(0, 40);
+    this.benchResults = this.benchResults.map((r) =>
+      r.id === id ? { ...r, detections: [line, ...r.detections].slice(0, 40) } : r,
+    );
+  }
+
   private bootstrapSimulation(): void {
     this.registry.seedSimulation();
+    this.assignments = matchPortsToRoles(this.transport.listPorts(), []);
     this.remapFocusPorts();
-    this.configureCircuitArranger();
-    // Seed scenes for Project PGM → Scene demo (simulation only)
+    this.applyMyStudioRoutes();
     try {
       const a = this.saveScene('Default Patch');
       const b = this.saveScene('Project Bridge B');
-      this.projectSceneMap = [
-        { projectIndex: 1, sceneId: a.id },
-        { projectIndex: 2, sceneId: b.id },
-      ];
+      this.sectionBridge = {
+        enabled: true,
+        rows: [
+          {
+            projectIndex: 1,
+            spProgramChange: 0,
+            mpcProgramChange: 0,
+            sceneId: a.id,
+            label: 'Section A',
+          },
+          {
+            projectIndex: 2,
+            spProgramChange: 1,
+            mpcProgramChange: 1,
+            sceneId: b.id,
+            label: 'Section B',
+          },
+        ],
+      };
     } catch {
       // ignore
     }
@@ -505,9 +1171,28 @@ export class StudioRuntime {
   }
 }
 
+// Wire midi:out latency sampling via prototype patch after construction
+const _origGet = StudioRuntime.prototype.getSnapshot;
+
 let singleton: StudioRuntime | null = null;
 
 export function getStudioRuntime(): StudioRuntime {
-  if (!singleton) singleton = new StudioRuntime();
+  if (!singleton) {
+    singleton = new StudioRuntime();
+    singleton.bus.on('midi:out', (ev) => {
+      if (ev.type !== 'midi:out') return;
+      const data = ev.message.data;
+      if (!data.length) return;
+      const status = data[0]!;
+      if ((status & 0xf0) === 0x90 && (data[2] ?? 0) > 0) {
+        const channel = (status & 0x0f) + 1;
+        const note = data[1] ?? 0;
+        singleton?.recordOutboundLatency(note, channel);
+      }
+    });
+  }
   return singleton;
 }
+
+void _origGet;
+void BENCH_TESTS;

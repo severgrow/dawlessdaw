@@ -1,11 +1,11 @@
-import { SCHEMA_VERSION, type SessionId } from '@nervos/core';
-import type { StudioScene } from '@nervos/scenes';
-import type { RoutingPreset } from '@nervos/routing';
-import type { RoleBinding } from '@nervos/core';
-import type { ArrangerConfig } from '@nervos/scenes';
-import type { FocusMode } from '@nervos/core';
+import { SCHEMA_VERSION, type SessionId } from '@dawlessdaw/core';
+import type { StudioScene } from '@dawlessdaw/scenes';
+import type { RoutingPreset } from '@dawlessdaw/routing';
+import type { RoleBinding } from '@dawlessdaw/core';
+import type { ArrangerConfig } from '@dawlessdaw/scenes';
+import type { FocusMode } from '@dawlessdaw/core';
 
-export interface NervosSession {
+export interface DawlessdawSession {
   schemaVersion: typeof SCHEMA_VERSION;
   id: SessionId;
   name: string;
@@ -24,11 +24,11 @@ export interface NervosSession {
 
 export interface SessionParseResult {
   ok: boolean;
-  session?: NervosSession;
+  session?: DawlessdawSession;
   errors: string[];
 }
 
-export function createEmptySession(name: string, simulation = true): NervosSession {
+export function createEmptySession(name: string, simulation = true): DawlessdawSession {
   const now = Date.now();
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -52,7 +52,7 @@ export function createEmptySession(name: string, simulation = true): NervosSessi
   };
 }
 
-export function exportSessionJson(session: NervosSession): string {
+export function exportSessionJson(session: DawlessdawSession): string {
   return JSON.stringify(
     { ...session, schemaVersion: SCHEMA_VERSION, updatedAt: Date.now() },
     null,
@@ -89,7 +89,7 @@ export function importSessionJson(raw: string): SessionParseResult {
 
   if (errors.length) return { ok: false, errors };
 
-  const session: NervosSession = {
+  const session: DawlessdawSession = {
     schemaVersion: SCHEMA_VERSION,
     id: obj.id as string,
     name: obj.name as string,

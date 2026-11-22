@@ -1,4 +1,4 @@
-import { DEVICE_PROFILES } from '@nervos/devices';
+import { DEVICE_PROFILES } from '@dawlessdaw/devices';
 import { useStudioStore } from '../store/useStudioStore';
 
 export function LibraryWorkspace() {

@@ -93,7 +93,7 @@ export function StudioWorkspace() {
                 ) : null}
               </div>
               <p className="muted" style={{ marginTop: '0.75rem' }}>
-                Groove fixture = clock + notes. Project PGM fixture maps Circuit Project→NervOS
+                Groove fixture = clock + notes. Project PGM fixture maps Circuit Project→Dawlessdaw
                 Scene in sim only — not a hardware proof.
               </p>
               {snap.lastCircuitGesture ? (

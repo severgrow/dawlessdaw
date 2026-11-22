@@ -6,9 +6,10 @@ import type {
   MidiMessage,
   PortId,
   StudioDevice,
-} from '@nervos/core';
-import type { DeviceProfile as DP } from '@nervos/core';
+} from '@dawlessdaw/core';
+import type { DeviceProfile as DP } from '@dawlessdaw/core';
 import { CircuitRhythmInterpreter, trackFromChannel } from './circuit-rhythm';
+import { scorePortAgainstHints } from './port-matcher';
 
 export interface DeviceAdapter {
   readonly kind: DeviceKind;
@@ -16,20 +17,15 @@ export interface DeviceAdapter {
   createDevice(id: DeviceId, ports: { inputs: PortId[]; outputs: PortId[] }): StudioDevice;
   /** Optional message interpretation for UI / roles. */
   interpret?(message: MidiMessage): Record<string, unknown> | null;
-  matchPortName(name: string): boolean;
-}
-
-function matchHints(name: string, hints: string[]): boolean {
-  const n = name.toLowerCase();
-  return hints.some((h) => n.includes(h.toLowerCase()));
+  matchPortName(name: string, manufacturer?: string): boolean;
 }
 
 export abstract class BaseAdapter implements DeviceAdapter {
   abstract readonly kind: DeviceKind;
   abstract readonly profile: DP;
 
-  matchPortName(name: string): boolean {
-    return matchHints(name, this.profile.portNameHints);
+  matchPortName(name: string, manufacturer?: string): boolean {
+    return scorePortAgainstHints({ name, manufacturer }, this.profile.portNameHints) > 0;
   }
 
   createDevice(id: DeviceId, ports: { inputs: PortId[]; outputs: PortId[] }): StudioDevice {
@@ -113,25 +109,88 @@ export class CircuitRhythmAdapter extends BaseAdapter {
   }
 }
 
+export type Fm1FirmwareProfile = 'h-1' | 'stock' | 'open' | 'generic';
+
 export class MVaveFm1Adapter extends BaseAdapter {
   readonly kind = 'm-vave-fm1' as const;
   constructor(public readonly profile: DP) {
     super();
   }
 
-  setFirmwareMode(device: StudioDevice, mode: 'generic' | 'firmware-aware'): StudioDevice {
+  /** Legacy alias — prefer setFirmwareProfile. */
+  setFirmwareMode(
+    device: StudioDevice,
+    mode: 'generic' | 'firmware-aware' | Fm1FirmwareProfile,
+  ): StudioDevice {
+    const mapped: Fm1FirmwareProfile =
+      mode === 'firmware-aware' ? 'open' : mode === 'generic' ? 'generic' : mode;
+    return this.setFirmwareProfile(device, mapped);
+  }
+
+  setFirmwareProfile(device: StudioDevice, profile: Fm1FirmwareProfile): StudioDevice {
+    const labels: Record<Fm1FirmwareProfile, string> = {
+      'h-1': 'M-VAVE FM1 (H-1)',
+      stock: 'M-VAVE FM1 (stock)',
+      open: 'M-VAVE FM1 (Open)',
+      generic: 'M-VAVE FM1',
+    };
+    const caps: DeviceCapability[] =
+      profile === 'h-1'
+        ? [
+            {
+              id: 'generic-midi',
+              label: 'Generic MIDI (H-1 — unknown until bench)',
+              status: 'unknown',
+              notes: 'Treat as generic MIDI until Bench Pass; no assumed CC map',
+            },
+            {
+              id: 'h1-knob-cc',
+              label: 'H-1 knob CCs (community docs claim 20–23)',
+              status: 'unknown',
+              notes: 'jakehandy/h1 docs only — untested; do not assume Open/stock maps',
+            },
+            {
+              id: 'firmware-map',
+              label: 'Deep firmware CC / SysEx map',
+              status: 'unavailable',
+              notes: 'Never apply Open/stock CC tables to H-1',
+            },
+          ]
+        : profile === 'open'
+          ? [
+              {
+                id: 'generic-midi',
+                label: 'Generic MIDI',
+                status: 'untested',
+              },
+              {
+                id: 'firmware-map',
+                label: 'Open V14+ per-track CC map',
+                status: 'experimental',
+                notes: 'Use only when unit actually runs FM1 Open — not this studio’s H-1',
+              },
+            ]
+          : [
+              {
+                id: 'generic-midi',
+                label: 'Generic MIDI',
+                status: 'untested',
+              },
+              {
+                id: 'firmware-map',
+                label: 'Firmware-aware feature map',
+                status: 'unavailable',
+                notes:
+                  profile === 'stock'
+                    ? 'Stock MIDI CONTROL PDF exists; exact CC table not encoded here'
+                    : 'No firmware profile assumed',
+              },
+            ];
     return {
       ...device,
-      firmwareProfile: mode,
-      capabilities: [
-        { id: 'generic-midi', label: 'Generic MIDI', status: 'untested' },
-        {
-          id: 'firmware-map',
-          label: 'Firmware-aware feature map',
-          status: mode === 'firmware-aware' ? 'experimental' : 'unavailable',
-          notes: 'Incomplete map — do not assume pedal-specific CC layout',
-        },
-      ],
+      firmwareProfile: profile,
+      displayName: labels[profile],
+      capabilities: caps,
     };
   }
 }
@@ -156,7 +215,7 @@ export class Zed10fxAdapter extends BaseAdapter {
     };
   }
 
-  override matchPortName(_name: string): boolean {
+  override matchPortName(_name: string, _manufacturer?: string): boolean {
     // ZED does not appear as MIDI — matched only via manual registration
     return false;
   }

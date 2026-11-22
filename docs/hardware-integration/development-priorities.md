@@ -6,7 +6,7 @@
 
 - Encode official Circuit MIDI map (tracks, macros, Project PGM).
 - Classify inbound messages (background / sequencer / gesture / arrangement).
-- Optional Project PGM → NervOS Studio Scene map.
+- Optional Project PGM → Dawlessdaw Studio Scene map.
 - Generate documented direct-sequencing routes.
 - Simulated fixtures + unit tests (not hardware proof).
 
@@ -19,14 +19,15 @@
 
 ## Phase 3 — Firmware-aware FM1 + optional librarians
 
-- Prefer **FM1 Open V14+** for deep CC panel (document stock vs Open divergence).
+- This studio runs **H-1** today: treat as generic MIDI; every H-1 capability stays **unknown/untested** until Bench Pass (do not assume Open/stock maps or encode CC 20–23 as working).
+- Optional later: **FM1 Open V14+** deep CC panel only if the user chooses to flash Open (document H-1 vs stock vs Open divergence).
 - Offline Circuit pack builder (original code; SD layout from Novation docs).
 - Optional open404/Sparky **read-only** backup sidecar (native), never in core router.
-- Revisit MPC Plugin SDK only for on-device FX/instruments — **not** as NervOS IPC.
+- Revisit MPC Plugin SDK only for on-device FX/instruments — **not** as Dawlessdaw IPC.
 
 ## Non-goals for these phases
 
-- Flashing DOOM OS / Arrhythmia / MidiHax as a NervOS requirement.
+- Flashing DOOM OS / Arrhythmia / MidiHax as a Dawlessdaw requirement.
 - Claiming remote MPC arrangement without bench proof.
 - ZED digital control.
 - AI in the MIDI path.

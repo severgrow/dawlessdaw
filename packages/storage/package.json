@@ -1,5 +1,5 @@
 {
-  "name": "@nervos/storage",
+  "name": "@dawlessdaw/storage",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@nervos/core": "*",
-    "@nervos/sessions": "*"
+    "@dawlessdaw/core": "*",
+    "@dawlessdaw/sessions": "*"
   }
 }

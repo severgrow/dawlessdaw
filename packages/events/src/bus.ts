@@ -1,5 +1,5 @@
-import type { DeviceId, MidiMessage, FocusState, SceneId, SessionId } from '@nervos/core';
-import { isClockLike } from '@nervos/core';
+import type { DeviceId, MidiMessage, FocusState, SceneId, SessionId } from '@dawlessdaw/core';
+import { isClockLike } from '@dawlessdaw/core';
 
 export type StudioEvent =
   | { type: 'midi:in'; message: MidiMessage; deviceId?: DeviceId }
@@ -68,7 +68,9 @@ export class StudioEventBus {
       (event.type === 'midi:out' && isClockLike(event.message.kind));
 
     if (isClock) {
-      // Normalize inbound clock-like traffic into midi:clock for history partitioning
+      // Normalize clock-like midi:in/out into midi:clock only.
+      // Do not re-dispatch the original to '*' — onUi would flood at ~24 PPQN
+      // and stall Start/clock forwarding through the app.
       const clockEvent: StudioEvent =
         event.type === 'midi:clock'
           ? event
@@ -79,13 +81,7 @@ export class StudioEventBus {
             };
       this.pushBounded(this.clockHistory, clockEvent, this.clockHistoryLimit);
       this.dispatch('midi:clock', clockEvent);
-      // Still dispatch original if it was midi:in/out for routing consumers
-      if (event.type !== 'midi:clock') {
-        this.dispatch(event.type, event);
-        this.dispatch('*', event);
-      } else {
-        this.dispatch('*', clockEvent);
-      }
+      // Typed midi:clock subscribers only (routing listens on the transport, not '*')
       return;
     }
 

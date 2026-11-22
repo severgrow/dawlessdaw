@@ -1,11 +1,18 @@
-import type { DeviceProfile } from '@nervos/core';
+import type { DeviceProfile } from '@dawlessdaw/core';
 
 export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
   'mpc-one': {
     kind: 'mpc-one',
     displayName: 'Akai MPC One',
     manufacturer: 'Akai',
-    portNameHints: ['mpc one', 'mpc-one', 'akai mpc'],
+    portNameHints: [
+      'mpc one',
+      'mpc-one',
+      'akai professional mpc',
+      'akai mpc',
+      'akai professional',
+      'mpc',
+    ],
     hasMidi: true,
     hasAudioCapture: false,
     capabilities: [
@@ -104,30 +111,67 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
         id: 'arranger-direct',
         label: 'Direct-sequencing arranger adapter',
         status: 'experimental',
-        notes: 'NervOS routes track channels → external devices (sim verified)',
+        notes: 'Dawlessdaw routes track channels → external devices (sim verified)',
       },
     ],
   },
   'm-vave-fm1': {
     kind: 'm-vave-fm1',
-    displayName: 'M-VAVE FM1',
+    displayName: 'M-VAVE FM1 (Skiff)',
     manufacturer: 'M-VAVE',
-    portNameHints: ['fm1', 'm-vave', 'mvave'],
+    portNameHints: [
+      'fm1',
+      'fm-1',
+      'skiff',
+      'felucca',
+      'h-1',
+      'h1',
+      'm-vave',
+      'm vave',
+      'mvave',
+      'mvav',
+      'ch345',
+      'wch.cn',
+      'wch',
+    ],
     hasMidi: true,
     hasAudioCapture: false,
-    firmwareProfiles: ['generic', 'firmware-aware'],
-    defaultFirmwareProfile: 'generic',
+    // User studio now runs Skiff (illuminus5/skiff, built on Felucca); h1 kept as an option.
+    // Chrome may show the USB port as "Felucca". Everything untested until Bench Pass.
+    firmwareProfiles: ['skiff', 'h-1', 'stock', 'open', 'generic'],
+    defaultFirmwareProfile: 'skiff',
     capabilities: [
       {
-        id: 'generic-midi',
-        label: 'Generic MIDI',
+        id: 'skiff-track-channels',
+        label: 'Skiff: 6 tracks, each on its own MIDI channel (T1–T6 CHANNEL, since 1.3)',
         status: 'untested',
+        notes:
+          'Skiff README. Plan: set Skiff T1–T4 to ch5–8 so Circuit T5–T8 play them unchanged.',
+      },
+      {
+        id: 'skiff-standard-cc',
+        label: 'Skiff standard CCs (7 level, 10 pan, 74 brightness, 71 res, 73/75/72 env, 91/93/94 sends)',
+        status: 'untested',
+        notes: 'Skiff README. Circuit macros 21–28 are translated to these by My Studio routes.',
+      },
+      {
+        id: 'skiff-usb-clock',
+        label: 'Skiff CLOCK source INT / USB / TRS',
+        status: 'untested',
+        notes: 'Skiff README. App can forward Circuit clock to FM1 over USB (Settings toggle).',
+      },
+      {
+        id: 'h1-any-channel',
+        label: 'h1 (alternative firmware): plays notes on any channel; knobs CC 20–23',
+        status: 'unknown',
+        notes:
+          'jakehandy/h1 guide. Never put an h1 FM1 on the thru-box chain — it would play every track.',
       },
       {
         id: 'firmware-map',
-        label: 'Firmware-aware feature map',
-        status: 'experimental',
-        notes: 'Adapter shell present; feature map incomplete',
+        label: 'Deep firmware SysEx map',
+        status: 'unavailable',
+        notes: 'Skiff ≠ h1 ≠ Open ≠ stock. Never apply one firmware’s map to another.',
       },
     ],
   },

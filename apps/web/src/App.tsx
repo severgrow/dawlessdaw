@@ -10,6 +10,8 @@ import { PerformanceWorkspace } from './workspaces/PerformanceWorkspace';
 import { LibraryWorkspace } from './workspaces/LibraryWorkspace';
 import { SessionsWorkspace } from './workspaces/SessionsWorkspace';
 import { SettingsWorkspace } from './workspaces/SettingsWorkspace';
+import { BenchWorkspace } from './workspaces/BenchWorkspace';
+import { BridgeWorkspace } from './workspaces/BridgeWorkspace';
 
 export function App() {
   useBindStudio();
@@ -30,6 +32,8 @@ export function App() {
         <main className="main">
           {workspace === 'studio' && <StudioWorkspace />}
           {workspace === 'patchbay' && <PatchbayWorkspace />}
+          {workspace === 'bridge' && <BridgeWorkspace />}
+          {workspace === 'bench' && <BenchWorkspace />}
           {workspace === 'performance' && <PerformanceWorkspace />}
           {workspace === 'library' && <LibraryWorkspace />}
           {workspace === 'sessions' && <SessionsWorkspace />}
@@ -38,7 +42,7 @@ export function App() {
         <ActiveContext />
       </div>
       <footer className="footer-bar">
-        <span>NervOS v0.1 · local-first studio connectivity</span>
+        <span>Dawlessdaw · local-first hardware studio</span>
         <span className="mono">
           {simulation ? 'SIMULATION — not live hardware' : 'LIVE WEB MIDI'}
         </span>

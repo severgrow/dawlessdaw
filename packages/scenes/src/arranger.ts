@@ -1,4 +1,4 @@
-import type { DeviceId } from '@nervos/core';
+import type { DeviceId } from '@dawlessdaw/core';
 
 export type ArrangerProviderKind = 'none' | 'circuit-rhythm' | 'manual';
 
