@@ -20,13 +20,13 @@ interface Place {
 }
 
 const PLACES: Record<string, Place> = {
-  circuit: { kind: 'circuit', x: 18, y: 128, w: 210, name: 'Circuit Rhythm', sub: 'tracks 1–8' },
-  thru: { kind: 'thru', x: 140, y: 300, w: 78, name: 'thru box' },
+  circuit: { kind: 'circuit', x: 18, y: 110, w: 200, name: 'Circuit Rhythm', sub: 'tracks 1–8' },
+  thru: { kind: 'thru', x: 140, y: 310, w: 78, name: 'thru box' },
   mac: { kind: 'mac', x: 335, y: 135, w: 150, name: 'Mac · this app' },
   scarlett: { kind: 'scarlett', x: 568, y: 34, w: 104, name: 'Scarlett 2i4' },
   mpc: { kind: 'mpc', x: 792, y: 6, w: 124, name: 'MPC One' },
-  sp: { kind: 'sp', x: 815, y: 152, w: 92, name: 'SP-404MKII' },
-  fm1: { kind: 'fm1', x: 770, y: 302, w: 175, name: 'FM1 · Skiff' },
+  sp: { kind: 'sp', x: 818, y: 148, w: 88, name: 'SP-404MKII' },
+  fm1: { kind: 'fm1', x: 760, y: 300, w: 180, name: 'FM1 · Skiff' },
   zed: { kind: 'zed', x: 452, y: 268, w: 104, name: 'ZED-10FX' },
 };
 
