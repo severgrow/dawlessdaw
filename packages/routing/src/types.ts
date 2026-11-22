@@ -35,6 +35,11 @@ export interface CcRemap {
    * sweeping the knob never floods the destination.
    */
   toProgramChange?: { controller: number; steps: number };
+  /**
+   * Per source CC: squeeze the knob's 0–127 into min..max (applied after the
+   * CC number is remapped). min may be above max to turn a knob backwards.
+   */
+  scale?: Record<number, { min: number; max: number }>;
 }
 
 export interface RouteDestination {

@@ -364,6 +364,10 @@ export interface PersistedStudioSetup {
   trackPlan?: TrackPlan;
   /** Section Bridge on/off and rows (Sections tab). */
   sectionBridge?: { enabled: boolean; rows: unknown[] };
+  /** Circuit Controller working preset, saved presets, and which one it came from. */
+  controller?: unknown;
+  controllerPresets?: unknown[];
+  controllerSavedId?: string;
 }
 
 export const STORAGE_KEY_STUDIO_SETUP = 'dawlessdaw.studioSetup.v1';

@@ -4,6 +4,7 @@ import { DeviceStrip } from './components/DeviceStrip';
 import { Nav } from './components/Nav';
 import { useBindStudio, useStudioActions, useStudioStore } from './store/useStudioStore';
 import { RigWorkspace } from './workspaces/RigWorkspace';
+import { ControllerWorkspace } from './workspaces/ControllerWorkspace';
 import { SamplesWorkspace } from './workspaces/SamplesWorkspace';
 import { SectionsWorkspace } from './workspaces/SectionsWorkspace';
 import { TestWorkspace } from './workspaces/TestWorkspace';
@@ -30,6 +31,7 @@ export function App() {
         <Nav />
         <main className="main">
           {workspace === 'rig' && <RigWorkspace />}
+          {workspace === 'controller' && <ControllerWorkspace />}
           {workspace === 'samples' && <SamplesWorkspace />}
           {workspace === 'sections' && <SectionsWorkspace />}
           {workspace === 'test' && <TestWorkspace />}

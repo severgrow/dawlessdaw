@@ -1,0 +1,593 @@
+import { useEffect, useState } from 'react';
+import {
+  CIRCUIT_MACRO_CCS,
+  CTRL_DEVICES,
+  DEVICE_NAME,
+  SLOT_COUNT,
+  controllerWarnings,
+  destBadge,
+  destChannel,
+  destHowTo,
+  destPad1Note,
+  knobTarget,
+  slotLabel,
+  slotLabelText,
+  targetsFor,
+  trackTranspose,
+  type ControllerPreset,
+  type CtrlDevice,
+  type CtrlTrack,
+  type KnobSlot,
+} from '@dawlessdaw/devices';
+import { DeviceArt } from '../components/DeviceArt';
+import { useStudioActions, useStudioStore } from '../store/useStudioStore';
+
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+/** MIDI 60 = C4 */
+const noteName = (n: number) => `${NOTE_NAMES[n % 12]}${Math.floor(n / 12) - 1}`;
+
+const ROLE_OF: Record<CtrlDevice, 'sp404' | 'fm1' | 'mpc'> = { sp: 'sp404', fm1: 'fm1', mpc: 'mpc' };
+const DEVICE_BLURB: Record<CtrlDevice, string> = {
+  sp: 'Banks A–J · pads · effect knobs',
+  fm1: 'Skiff tracks 1–6 · synth knobs',
+  mpc: 'Tracks 1–8 · learnable knobs',
+};
+
+function devClass(d: CtrlDevice | null | undefined) {
+  return d ? `dev-${d}` : 'dev-off';
+}
+
+/** Round on-screen knob: arc + pointer follow the real knob's value. */
+function Knob({ value, pulse, device, label }: { value: number; pulse: number; device: CtrlDevice | null; label: string }) {
+  const a0 = -135;
+  const a = a0 + (value / 127) * 270;
+  const rad = (deg: number) => ((deg - 90) * Math.PI) / 180;
+  const arc = (from: number, to: number, r: number) => {
+    const p = (d: number) => `${24 + r * Math.cos(rad(d))} ${24 + r * Math.sin(rad(d))}`;
+    return `M ${p(from)} A ${r} ${r} 0 ${to - from > 180 ? 1 : 0} 1 ${p(to)}`;
+  };
+  return (
+    <svg viewBox="0 0 48 48" className={`ctl-knob ${devClass(device)}`} role="img" aria-label={`${label}: ${value}`}>
+      <path d={arc(-135, 135, 20)} className="kn-track" />
+      {value > 0 ? <path d={arc(-135, a, 20)} className="kn-arc" /> : null}
+      <circle key={pulse} cx="24" cy="24" r="14" className={`kn-cap${pulse ? ' kn-glow' : ''}`} />
+      <line x1="24" y1="24" x2={24 + 11 * Math.cos(rad(a))} y2={24 + 11 * Math.sin(rad(a))} className="kn-ptr" />
+    </svg>
+  );
+}
+
+function PadMap({ track }: { track: CtrlTrack }) {
+  const base = destPad1Note(track.dest);
+  if (base == null || !track.dest) {
+    return <p className="muted small">The FM1 plays notes as they come — no pad map needed.</p>;
+  }
+  const first = track.firstNote ?? base;
+  return (
+    <div className="pad-map" aria-label="Which Circuit note hits which pad">
+      {Array.from({ length: 16 }, (_, i) => (
+        <div key={i} className={`pm-pad ${devClass(track.dest!.device)}`}>
+          <b>pad {i + 1}</b>
+          <span>
+            {first + i} · {noteName(first + i)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function KnobRow({
+  preset,
+  trackNo,
+  k,
+  advanced,
+}: {
+  preset: ControllerPreset;
+  trackNo: number;
+  k: number;
+  advanced: boolean;
+}) {
+  const snap = useStudioStore();
+  const a = useStudioActions();
+  const track = preset.tracks[trackNo - 1]!;
+  const slot = track.knobs[k]!;
+  const device = track.dest?.device ?? null;
+  const tgt = knobTarget(slot.target);
+  const twisting = snap.controllerLearn?.kind === 'twist' && snap.controllerLearn.track === trackNo && snap.controllerLearn.knob === k;
+  const live = snap.lastKnob && snap.lastKnob.track === trackNo && snap.lastKnob.knob === k ? snap.lastKnob.at : 0;
+  const set = (patch: Partial<KnobSlot>) => a.setControllerKnob(trackNo, k, patch);
+  return (
+    <div className={`knob-row${live ? ' moved' : ''}`} key={live}>
+      <span className="kr-num">
+        <Knob value={snap.knobValues[trackNo - 1]?.[k] ?? 0} pulse={live} device={slot.target ? device : null} label={`Knob ${k + 1}`} />
+        <b>{k + 1}</b>
+      </span>
+      <span className="kr-target">
+        <select
+          className="select-inline"
+          value={slot.target ?? ''}
+          aria-label={`Knob ${k + 1} target`}
+          disabled={!device}
+          onChange={(e) => set({ target: e.target.value || null, ...(e.target.value === 'custom' ? { cc: slot.cc ?? 102 } : {}) })}
+        >
+          <option value="">— not mapped (dropped)</option>
+          {device
+            ? targetsFor(device).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                  {advanced && t.cc != null ? ` · CC ${t.cc}` : ''}
+                </option>
+              ))
+            : null}
+          {advanced ? <option value="custom">Custom CC…</option> : null}
+        </select>
+        {slot.target === 'custom' ? (
+          <input
+            className="num-input"
+            type="number"
+            min={0}
+            max={119}
+            aria-label="Custom CC number"
+            value={slot.cc ?? ''}
+            onChange={(e) => set({ cc: Math.max(0, Math.min(119, Math.round(Number(e.target.value) || 0))) })}
+          />
+        ) : null}
+        {tgt?.hint ? <span className="kr-hint">{tgt.hint}</span> : null}
+        {advanced ? (
+          <span className="kr-hint mono">
+            in: CC {CIRCUIT_MACRO_CCS[k]} ch{trackNo}
+            {track.dest ? ` → out: ch${destChannel(track.dest, preset)}` : ''}
+          </span>
+        ) : null}
+      </span>
+      <span className="kr-range" aria-label="Range">
+        <span className="range2">
+          <input
+            type="range"
+            min={0}
+            max={127}
+            value={slot.min}
+            aria-label={`Knob ${k + 1} minimum`}
+            disabled={!slot.target || tgt?.kind === 'steps'}
+            onChange={(e) => set({ min: Number(e.target.value) })}
+          />
+          <input
+            type="range"
+            min={0}
+            max={127}
+            value={slot.max}
+            aria-label={`Knob ${k + 1} maximum`}
+            disabled={!slot.target || tgt?.kind === 'steps'}
+            onChange={(e) => set({ max: Number(e.target.value) })}
+          />
+        </span>
+        <span className="mono small">
+          {slot.min}–{slot.max}
+        </span>
+      </span>
+      <span className="kr-actions">
+        <button
+          type="button"
+          className={twisting ? 'active' : 'ghost'}
+          title="Press, then turn the real Circuit knob you want for this setting"
+          onClick={() => (twisting ? a.cancelControllerLearn() : a.twistToPick(trackNo, k))}
+        >
+          {twisting ? 'turn a knob…' : 'twist to pick'}
+        </button>
+        <button
+          type="button"
+          className="ghost"
+          disabled={!slot.target || tgt?.kind === 'steps'}
+          title="Sends a slow sweep to this setting so you can hear or see it move"
+          onClick={() => a.testControllerKnob(trackNo, k)}
+        >
+          test
+        </button>
+      </span>
+    </div>
+  );
+}
+
+function TrackPanel({ trackNo, advanced }: { trackNo: number; advanced: boolean }) {
+  const snap = useStudioStore();
+  const a = useStudioActions();
+  const [copyTo, setCopyTo] = useState<number[]>([]);
+  const preset = snap.controller;
+  const track = preset.tracks[trackNo - 1]!;
+  const dest = track.dest;
+  const learning = snap.controllerLearn?.kind === 'first-note' && snap.controllerLearn.track === trackNo;
+
+  return (
+    <div className={`panel track-panel ${devClass(dest?.device)}`}>
+      <h2>
+        Track {trackNo} <span className="muted">· {destBadge(dest)}</span>
+      </h2>
+
+      <h3>This track plays…</h3>
+      <div className="dest-choice" role="radiogroup" aria-label="Destination device">
+        {CTRL_DEVICES.map((d) => (
+          <button
+            key={d}
+            type="button"
+            role="radio"
+            aria-checked={dest?.device === d}
+            className={`dest-btn ${devClass(d)}${dest?.device === d ? ' active' : ''}`}
+            onClick={() => a.setControllerTrack(trackNo, { dest: { device: d, slot: dest?.device === d ? dest.slot : Math.min(trackNo, SLOT_COUNT[d]) } })}
+          >
+            <DeviceArt kind={d} className="dest-art" />
+            {DEVICE_NAME[d]}
+          </button>
+        ))}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={!dest}
+          className={`dest-btn dev-off${!dest ? ' active' : ''}`}
+          onClick={() => a.setControllerTrack(trackNo, { dest: null })}
+        >
+          <span className="dest-off-glyph">—</span>
+          Off
+        </button>
+      </div>
+      {dest ? (
+        <div className="slot-row">
+          <label>
+            {dest.device === 'sp' ? 'Bank' : 'Track'}{' '}
+            <select
+              className="select-inline big-select"
+              value={dest.slot}
+              onChange={(e) => a.setControllerTrack(trackNo, { dest: { device: dest.device, slot: Number(e.target.value) } })}
+            >
+              {Array.from({ length: SLOT_COUNT[dest.device] }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {slotLabel({ device: dest.device, slot: n })}
+                  {advanced ? ` · ch${destChannel({ device: dest.device, slot: n }, preset)}` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="howto-line">{destHowTo(dest, preset)}</p>
+        </div>
+      ) : (
+        <p className="muted">Off — the app sends nothing for this track.</p>
+      )}
+
+      {dest && destPad1Note(dest) != null ? (
+        <>
+          <h3>Which note starts it?</h3>
+          <div className="row">
+            <button type="button" className={`learn-big${learning ? ' active' : ''}`} onClick={() => (learning ? a.cancelControllerLearn() : a.learnFirstNote(trackNo))}>
+              {learning ? `● Listening — play a note on Circuit track ${trackNo}` : '♪ Play the first note'}
+            </button>
+            <span className="mono">
+              {track.firstNote != null ? `Circuit note ${track.firstNote} (${noteName(track.firstNote)}) = pad 1` : 'Notes pass unchanged'}
+              {advanced && trackTranspose(track) ? ` · shift ${trackTranspose(track) > 0 ? '+' : ''}${trackTranspose(track)}` : ''}
+            </span>
+            {track.firstNote != null ? (
+              <button type="button" className="ghost" onClick={() => a.setControllerTrack(trackNo, { firstNote: null })}>
+                no shift
+              </button>
+            ) : null}
+          </div>
+          <PadMap track={track} />
+          {dest.device === 'mpc' ? (
+            <p className="muted small">MPC pads assume the MPC’s default (Classic) pad map, pad 1 = note 37. Check your program.</p>
+          ) : null}
+        </>
+      ) : null}
+
+      <h3>Knobs</h3>
+      <p className="muted small">
+        The 8 Circuit macro knobs, while track {trackNo} is selected on the Circuit. Unmapped knobs are dropped.
+        {dest?.device === 'mpc'
+          ? ' MPC: open MIDI Learn on the MPC, touch the control you want, then press “test” on a Learnable knob (or turn the real knob).'
+          : ''}
+      </p>
+      <div className="knob-page">
+        {Array.from({ length: 8 }, (_, k) => (
+          <KnobRow key={k} preset={preset} trackNo={trackNo} k={k} advanced={advanced} />
+        ))}
+      </div>
+
+      <h3>Copy track {trackNo} to…</h3>
+      <div className="row">
+        {Array.from({ length: 8 }, (_, i) => i + 1)
+          .filter((t) => t !== trackNo)
+          .map((t) => (
+            <label key={t} className="check-pill">
+              <input
+                type="checkbox"
+                checked={copyTo.includes(t)}
+                onChange={(e) => setCopyTo((c) => (e.target.checked ? [...c, t] : c.filter((x) => x !== t)))}
+              />
+              T{t}
+            </label>
+          ))}
+        <button
+          type="button"
+          disabled={!copyTo.length}
+          onClick={() => {
+            a.copyControllerTrack(trackNo, copyTo);
+            setCopyTo([]);
+          }}
+        >
+          Copy
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PresetBar({ advanced, setAdvanced }: { advanced: boolean; setAdvanced: (v: boolean) => void }) {
+  const snap = useStudioStore();
+  const a = useStudioActions();
+  const current = snap.controllerPresets.find((p) => p.id === snap.controllerSavedId);
+  return (
+    <div className="preset-bar">
+      <label className="pb-field">
+        <span className="ap-label">Preset</span>
+        <select className="select-inline big-select" value={snap.controllerSavedId} onChange={(e) => a.loadControllerPreset(e.target.value)}>
+          {snap.controllerPresets.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+              {p.builtIn ? ' (built-in)' : ''}
+            </option>
+          ))}
+        </select>
+      </label>
+      {snap.controllerDirty ? <span className="readout">changed</span> : null}
+      <button type="button" onClick={() => a.saveControllerPreset()} title={current?.builtIn ? 'Built-ins stay as they are: saves a copy' : 'Save changes'}>
+        Save
+      </button>
+      <button
+        type="button"
+        className="ghost"
+        onClick={() => {
+          const name = window.prompt('Name for the new preset', `${current?.name ?? 'My preset'} copy`);
+          if (name) a.saveControllerPresetAs(name);
+        }}
+      >
+        Save as…
+      </button>
+      {current && !current.builtIn ? (
+        <>
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              const name = window.prompt('Rename preset', current.name);
+              if (name) a.renameControllerPreset(current.id, name);
+            }}
+          >
+            Rename
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => window.confirm(`Delete preset “${current.name}”?`) && a.deleteControllerPreset(current.id)}
+          >
+            Delete
+          </button>
+        </>
+      ) : null}
+      <span className="spacer" />
+      <button type="button" className="ghost" disabled={!snap.controllerUndoCount} onClick={() => a.undoController()} title="Undo (⌘Z)">
+        ↶ Undo {snap.controllerUndoCount ? `(${snap.controllerUndoCount})` : ''}
+      </button>
+      <button type="button" className={advanced ? 'active' : 'ghost'} onClick={() => setAdvanced(!advanced)} title="Show MIDI channels and CC numbers">
+        Advanced
+      </button>
+    </div>
+  );
+}
+
+export function ControllerWorkspace() {
+  const snap = useStudioStore();
+  const a = useStudioActions();
+  const preset = snap.controller;
+  const [selected, setSelected] = useState<number>(1);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+  const [advanced, setAdvanced] = useState(() => {
+    try {
+      return localStorage.getItem('dawlessdaw.ctrlAdvanced') === '1';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('dawlessdaw.ctrlAdvanced', advanced ? '1' : '0');
+    } catch {
+      // storage unavailable
+    }
+  }, [advanced]);
+
+  // ⌘Z / Ctrl+Z undo while this tab is open (not while typing).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        a.undoController();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const circuitTrack = snap.activeCircuitTrack;
+  const knobTrack = circuitTrack ?? selected;
+  const knobPage = preset.tracks[knobTrack - 1]!;
+  const connected = (d: CtrlDevice) => Boolean(snap.assignments.find((x) => x.roleId === ROLE_OF[d])?.outputPortId);
+  const circuitIn = Boolean(snap.assignments.find((x) => x.roleId === 'circuit')?.inputPortId);
+  const warnings = controllerWarnings(preset);
+  const last = snap.ctrlEvents[0];
+
+  const assignDevice = (t: number, d: CtrlDevice) => {
+    const used = preset.tracks.filter((tr, i) => i !== t - 1 && tr.dest?.device === d).map((tr) => tr.dest!.slot);
+    const free = Array.from({ length: SLOT_COUNT[d] }, (_, i) => i + 1).find((n) => !used.includes(n)) ?? 1;
+    a.setControllerTrack(t, { dest: { device: d, slot: free } });
+    setSelected(t);
+  };
+
+  return (
+    <div className="section-enter controller">
+      <div className="page-head">
+        <h1>controller</h1>
+        <span className="readout">
+          Circuit {circuitIn ? <b>connected</b> : 'not connected'}
+          {circuitTrack ? (
+            <>
+              {' '}
+              · on <b>T{circuitTrack}</b>
+            </>
+          ) : null}
+        </span>
+      </div>
+      <p className="lead">
+        Turn the Circuit into a controller for the SP-404, FM1 and MPC. Click a track (or drag a device onto it), choose what
+        it plays and what its 8 knobs do. Everything not mapped is dropped.
+      </p>
+
+      <PresetBar advanced={advanced} setAdvanced={setAdvanced} />
+
+      <div className="ctl-layout">
+        <div className="panel circuit-face">
+          <h2>Circuit Rhythm</h2>
+          <div className="ct-tracks" role="listbox" aria-label="Circuit tracks">
+            {preset.tracks.map((tr, i) => {
+              const t = i + 1;
+              const hit = snap.trackActivity[t] ?? 0;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  role="option"
+                  aria-selected={selected === t}
+                  className={`ct-track ${devClass(tr.dest?.device)}${selected === t ? ' selected' : ''}${circuitTrack === t ? ' on-circuit' : ''}${dragOver === t ? ' drag-over' : ''}`}
+                  onClick={() => setSelected(t)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(t);
+                  }}
+                  onDragLeave={() => setDragOver(null)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(null);
+                    const d = e.dataTransfer.getData('text/x-ctrl-device') as CtrlDevice;
+                    if (CTRL_DEVICES.includes(d)) assignDevice(t, d);
+                  }}
+                >
+                  <span key={hit} className={`ct-pad${hit ? ' hit' : ''}`}>
+                    T{t}
+                  </span>
+                  <span className="ct-badge">{destBadge(tr.dest)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="ct-knobs">
+            {knobPage.knobs.map((slot, k) => {
+              const live = snap.lastKnob && snap.lastKnob.track === knobTrack && snap.lastKnob.knob === k ? snap.lastKnob.at : 0;
+              return (
+                <div key={k} className="ct-knob">
+                  <Knob
+                    value={snap.knobValues[knobTrack - 1]?.[k] ?? 0}
+                    pulse={live}
+                    device={slot.target ? (knobPage.dest?.device ?? null) : null}
+                    label={`Macro ${k + 1}`}
+                  />
+                  <span className="ctk-label">{slot.target && knobPage.dest ? slotLabelText(slot) : '—'}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="muted small">
+            Knobs show track <b>T{knobTrack}</b>
+            {circuitTrack ? ' — following the track selected on the Circuit.' : ' — turn a knob on the Circuit and they follow its selected track.'}
+          </p>
+          <p className="honest-note">
+            Circuit buttons (mute, scenes, patterns, track select) don&apos;t send MIDI, so they can&apos;t be mapped. Only notes
+            and the 8 macro knobs reach the app.
+          </p>
+        </div>
+
+        <div className="device-cards">
+          {CTRL_DEVICES.map((d) => (
+            <div
+              key={d}
+              className={`dev-card ${devClass(d)}${connected(d) ? '' : ' off'}`}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('text/x-ctrl-device', d);
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
+              title={`Drag onto a Circuit track to make it play the ${DEVICE_NAME[d]}`}
+            >
+              <DeviceArt kind={d} lit={connected(d)} pulse={snap.destActivity[d]} className="dev-card-art" />
+              <div>
+                <strong>{DEVICE_NAME[d]}</strong>
+                <span className="dc-status">{connected(d) ? '● connected' : '○ not connected'}</span>
+                <span className="dc-blurb">{DEVICE_BLURB[d]}</span>
+                <span className="dc-tracks">
+                  {preset.tracks
+                    .map((tr, i) => (tr.dest?.device === d ? `T${i + 1}` : null))
+                    .filter(Boolean)
+                    .join(' ') || 'no tracks yet'}
+                </span>
+              </div>
+              <span className="dc-grip" aria-hidden="true">
+                ⠿
+              </span>
+            </div>
+          ))}
+          <p className="muted small">Drag a card onto a track, or click a track and pick below.</p>
+        </div>
+      </div>
+
+      {warnings.length ? (
+        <ul className="warn-list">
+          {warnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
+      ) : null}
+
+      <TrackPanel trackNo={selected} advanced={advanced} />
+
+      {advanced ? (
+        <div className="panel">
+          <h2>Skiff track channels</h2>
+          <p className="muted small">Which MIDI channel each Skiff track listens on (Skiff MENU › MIDI › T1–T6 CHANNEL). Skiff default: track n = channel n.</p>
+          <div className="row">
+            {preset.skiffChannels.map((ch, i) => (
+              <label key={i} className="mono">
+                T{i + 1}{' '}
+                <select className="select-inline" value={ch} onChange={(e) => a.setSkiffChannel(i + 1, Number(e.target.value))}>
+                  {Array.from({ length: 16 }, (_, n) => n + 1).map((n) => (
+                    <option key={n} value={n}>
+                      ch{n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="live-strip" aria-live="polite">
+        <div className={`ls-now ${devClass(last?.device)}`}>{last ? last.text : 'Play or turn a knob on the Circuit — what happens shows here.'}</div>
+        <ol className="ls-list">
+          {snap.ctrlEvents.slice(1).map((e, i) => (
+            <li key={`${e.at}-${i}`} className={devClass(e.device)}>
+              {e.text}
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  );
+}

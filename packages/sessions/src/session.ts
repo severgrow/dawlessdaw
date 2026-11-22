@@ -20,6 +20,8 @@ export interface DawlessdawSession {
   focusMode: FocusMode;
   pinnedDeviceId: string | null;
   notes?: string;
+  /** Circuit Controller presets (validated by the app on import). */
+  controller?: unknown;
 }
 
 export interface SessionParseResult {
@@ -108,6 +110,7 @@ export function importSessionJson(raw: string): SessionParseResult {
     },
     focusMode: (obj.focusMode as FocusMode) ?? 'follow',
     pinnedDeviceId: (obj.pinnedDeviceId as string) ?? null,
+    ...(obj.controller !== undefined ? { controller: obj.controller } : {}),
     notes: obj.notes as string | undefined,
   };
   return { ok: true, session, errors: [] };

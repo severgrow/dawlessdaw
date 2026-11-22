@@ -196,6 +196,10 @@ export class MidiRoutingEngine {
         controller = route.cc.map[controller]!;
       }
       let value = message.value ?? 0;
+      const sc = route.cc?.scale?.[message.controller ?? -1];
+      if (sc) {
+        value = clamp(Math.round(sc.min + (value * (sc.max - sc.min)) / 127), 0, 127);
+      }
       if (route.cc?.range) {
         value = clamp(value, route.cc.range.min, route.cc.range.max);
       }

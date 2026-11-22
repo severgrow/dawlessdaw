@@ -32,6 +32,23 @@ import {
   emptyBenchResults,
   latencyVerdict,
   matchPortsToRoles,
+  BUILTIN_PRESETS,
+  CIRCUIT_MACRO_CCS,
+  buildControllerRoutes,
+  clonePreset,
+  copyTrack,
+  describeIncoming,
+  destChannel,
+  knobTarget,
+  myStudioPreset,
+  presetFromTrackPlan,
+  sanitizePreset,
+  slotCc,
+  swapKnobs,
+  type ControllerPreset,
+  type CtrlDevice,
+  type CtrlTrack,
+  type KnobSlot,
   legacyTrackPlan,
   sanitizeTrackPlan,
   setTrackSend as withTrackSend,
@@ -72,7 +89,7 @@ import {
 import { MemoryRepository } from '@dawlessdaw/storage';
 
 /** Rig = track routing home · Samples = SP-404 pads · Sections = Section Bridge · Test = bench · Setup = ports. */
-export type WorkspaceId = 'rig' | 'samples' | 'sections' | 'test' | 'setup';
+export type WorkspaceId = 'rig' | 'controller' | 'samples' | 'sections' | 'test' | 'setup';
 
 export interface StudioRuntimeSnapshot {
   /** True once Chrome granted Web MIDI access. */
@@ -112,6 +129,24 @@ export interface StudioRuntimeSnapshot {
   /** performance.now() of the last note sent to each device. */
   destActivity: Record<TrackDestId, number>;
   activeBenchId: string | null;
+  /** Circuit Controller: the working preset (what routes are built from). */
+  controller: ControllerPreset;
+  /** Saved presets (built-ins first). */
+  controllerPresets: ControllerPreset[];
+  /** Which saved preset the working copy came from; `controllerDirty` = changed since. */
+  controllerSavedId: string;
+  controllerDirty: boolean;
+  controllerUndoCount: number;
+  /** What the app is waiting for: the first note of a track, or a knob twist. */
+  controllerLearn: { kind: 'first-note'; track: number } | { kind: 'twist'; track: number; knob: number } | null;
+  /** Last value seen from each Circuit macro knob, per track (index track-1, knob). */
+  knobValues: number[][];
+  /** Last knob moved: track 1–8, knob 0–7, time. */
+  lastKnob: { track: number; knob: number; at: number } | null;
+  /** Circuit track the last note/knob came from (= track selected on the Circuit). */
+  activeCircuitTrack: number | null;
+  /** Last 10 plain-English events, newest first. */
+  ctrlEvents: { text: string; device: CtrlDevice | null; at: number }[];
   spNoteOffset: number;
   learningSpPadOffset: boolean;
   sectionBridge: SectionBridgeConfig;
@@ -235,6 +270,17 @@ export class StudioRuntime {
   private trackPlan: TrackPlan | null = null;
   private trackActivity: number[] = Array(9).fill(0);
   private lastProject: StudioRuntimeSnapshot['lastProject'] = null;
+  private controller: ControllerPreset = clonePreset(myStudioPreset('sp'));
+  private controllerPresets: ControllerPreset[] = [];
+  private controllerSavedId = BUILTIN_PRESETS[0]!.id;
+  private controllerHistory: ControllerPreset[] = [];
+  private controllerLearn: StudioRuntimeSnapshot['controllerLearn'] = null;
+  private knobValues: number[][] = Array.from({ length: 8 }, () => Array(8).fill(0));
+  private lastKnob: StudioRuntimeSnapshot['lastKnob'] = null;
+  private activeCircuitTrack: number | null = null;
+  private ctrlEvents: StudioRuntimeSnapshot['ctrlEvents'] = [];
+  private ctrlNotifyAt = 0;
+  private testTimers: ReturnType<typeof setTimeout>[] = [];
   private destActivity: Record<TrackDestId, number> = { mpc: 0, sp: 0, fm1: 0 };
   private spNoteOffset = DEFAULT_SP_NOTE_OFFSET;
   private learningSpPadOffset = false;
@@ -293,6 +339,21 @@ export class StudioRuntime {
       const t = saved.circuitT1to4Target;
       this.circuitT1to4Target = t === 'sp' || t === 'both' ? t : 'mpc';
       this.trackPlan = sanitizeTrackPlan(saved.trackPlan);
+      // Circuit Controller: saved working copy, else migrate an older Rig-grid plan.
+      this.controllerPresets = (Array.isArray(saved.controllerPresets) ? saved.controllerPresets : [])
+        .map((x) => sanitizePreset(x))
+        .filter((x): x is ControllerPreset => x !== null)
+        .slice(0, 50);
+      const working = sanitizePreset(saved.controller);
+      if (working) {
+        this.controller = working;
+        this.controllerSavedId = typeof saved.controllerSavedId === 'string' ? saved.controllerSavedId : working.id;
+      } else if (this.trackPlan) {
+        const migrated = presetFromTrackPlan(this.trackPlan, this.spNoteOffset, this.fm1Firmware);
+        this.controller = migrated;
+        this.controllerPresets = [clonePreset(migrated), ...this.controllerPresets];
+        this.controllerSavedId = migrated.id;
+      }
       const bridge = sanitizeSectionBridge(saved.sectionBridge);
       if (bridge) this.sectionBridge = bridge;
       if (typeof saved.spNoteOffset === 'number' && Number.isFinite(saved.spNoteOffset)) {
@@ -338,6 +399,16 @@ export class StudioRuntime {
       trackActivity: [...this.trackActivity],
       destActivity: { ...this.destActivity },
       activeBenchId: this.activeBenchId,
+      controller: clonePreset(this.controller),
+      controllerPresets: [...BUILTIN_PRESETS, ...this.controllerPresets].map(clonePreset),
+      controllerSavedId: this.controllerSavedId,
+      controllerDirty: this.controllerDirty(),
+      controllerUndoCount: this.controllerHistory.length,
+      controllerLearn: this.controllerLearn,
+      knobValues: this.knobValues.map((r) => [...r]),
+      lastKnob: this.lastKnob ? { ...this.lastKnob } : null,
+      activeCircuitTrack: this.activeCircuitTrack,
+      ctrlEvents: [...this.ctrlEvents],
       spNoteOffset: this.spNoteOffset,
       learningSpPadOffset: this.learningSpPadOffset,
       lastProject: this.lastProject ? { ...this.lastProject } : null,
@@ -665,6 +736,237 @@ export class StudioRuntime {
     this.notify();
   }
 
+  // —— Circuit Controller ——
+
+  private controllerDirty(): boolean {
+    const saved = [...BUILTIN_PRESETS, ...this.controllerPresets].find((p) => p.id === this.controllerSavedId);
+    if (!saved) return true;
+    return (
+      JSON.stringify({ t: saved.tracks, s: saved.skiffChannels }) !==
+      JSON.stringify({ t: this.controller.tracks, s: this.controller.skiffChannels })
+    );
+  }
+
+  private pushControllerHistory(): void {
+    this.controllerHistory = [...this.controllerHistory.slice(-19), clonePreset(this.controller)];
+  }
+
+  /** Every controller edit goes through here: undo point, routes, save, redraw. */
+  private changeController(next: ControllerPreset, status?: string): void {
+    this.pushControllerHistory();
+    this.controller = next;
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    if (status) this.setStatus(status);
+    this.notify();
+  }
+
+  setControllerTrack(track: number, patch: Partial<CtrlTrack>): void {
+    const next = clonePreset(this.controller);
+    const cur = next.tracks[track - 1];
+    if (!cur) return;
+    const changedDevice = patch.dest !== undefined && patch.dest?.device !== cur.dest?.device;
+    next.tracks[track - 1] = { ...cur, ...patch };
+    // A new device gets a fresh knob page (targets belong to one device).
+    if (changedDevice) {
+      const dev = patch.dest?.device;
+      next.tracks[track - 1]!.knobs = cur.knobs.map((k, i) => ({
+        target: dev === 'fm1'
+          ? (['fm1.brightness', 'fm1.resonance', 'fm1.attack', 'fm1.decay', 'fm1.release', 'fm1.delay', 'fm1.reverb', 'fm1.level'][i] ?? null)
+          : dev === 'mpc'
+            ? `mpc.learn${i + 1}`
+            : null,
+        min: 0,
+        max: 127,
+        ...(k.target === 'custom' ? {} : {}),
+      }));
+      if (patch.firstNote === undefined) next.tracks[track - 1]!.firstNote = dev === 'sp' ? 60 : null;
+    }
+    this.changeController(next);
+  }
+
+  setControllerKnob(track: number, knob: number, patch: Partial<KnobSlot>): void {
+    const next = clonePreset(this.controller);
+    const slot = next.tracks[track - 1]?.knobs[knob];
+    if (!slot) return;
+    Object.assign(slot, patch);
+    if (slot.target !== 'custom') delete slot.cc;
+    this.changeController(next);
+  }
+
+  setSkiffChannel(skiffTrack: number, channel: number): void {
+    const next = clonePreset(this.controller);
+    if (skiffTrack < 1 || skiffTrack > 6 || channel < 1 || channel > 16) return;
+    next.skiffChannels[skiffTrack - 1] = channel;
+    this.changeController(next, `Skiff track ${skiffTrack} now listens on channel ${channel}`);
+  }
+
+  copyControllerTrack(from: number, to: number[]): void {
+    this.changeController(copyTrack(this.controller, from, to), `Copied T${from} to ${to.map((t) => `T${t}`).join(', ')}`);
+  }
+
+  undoController(): void {
+    const prev = this.controllerHistory.pop();
+    if (!prev) return;
+    this.controller = prev;
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    this.setStatus('Undone');
+    this.notify();
+  }
+
+  loadControllerPreset(id: string): void {
+    const p = [...BUILTIN_PRESETS, ...this.controllerPresets].find((x) => x.id === id);
+    if (!p) return;
+    this.controllerSavedId = p.id;
+    this.changeController({ ...clonePreset(p), builtIn: false }, `Loaded preset “${p.name}”`);
+  }
+
+  /** Save over the current preset; built-ins can't be overwritten, so they save as new. */
+  saveControllerPreset(): void {
+    const idx = this.controllerPresets.findIndex((p) => p.id === this.controllerSavedId);
+    if (idx < 0) {
+      this.saveControllerPresetAs(`${this.presetName(this.controllerSavedId)} copy`);
+      return;
+    }
+    this.controllerPresets[idx] = { ...clonePreset(this.controller), id: this.controllerSavedId, name: this.controllerPresets[idx]!.name };
+    this.persistSetup();
+    this.setStatus(`Saved “${this.controllerPresets[idx]!.name}”`);
+    this.notify();
+  }
+
+  saveControllerPresetAs(name: string): void {
+    const id = `preset-${Date.now()}`;
+    const clean = name.trim().slice(0, 48) || 'My preset';
+    this.controllerPresets = [...this.controllerPresets, { ...clonePreset(this.controller), id, name: clean, builtIn: false }];
+    this.controllerSavedId = id;
+    this.persistSetup();
+    this.setStatus(`Saved as “${clean}”`);
+    this.notify();
+  }
+
+  renameControllerPreset(id: string, name: string): void {
+    const p = this.controllerPresets.find((x) => x.id === id);
+    if (!p) return;
+    p.name = name.trim().slice(0, 48) || p.name;
+    this.persistSetup();
+    this.notify();
+  }
+
+  deleteControllerPreset(id: string): void {
+    this.controllerPresets = this.controllerPresets.filter((p) => p.id !== id);
+    if (this.controllerSavedId === id) this.controllerSavedId = BUILTIN_PRESETS[0]!.id;
+    this.persistSetup();
+    this.notify();
+  }
+
+  private presetName(id: string): string {
+    return [...BUILTIN_PRESETS, ...this.controllerPresets].find((p) => p.id === id)?.name ?? 'Preset';
+  }
+
+  /** Wait for the next note on this track: it becomes the first note (pad 1). */
+  learnFirstNote(track: number): void {
+    this.controllerLearn = { kind: 'first-note', track };
+    this.setStatus(`Play the first note on Circuit track ${track}`);
+    this.notify();
+  }
+
+  /** Wait for a real knob twist: this slot's setting moves to that knob. */
+  twistToPick(track: number, knob: number): void {
+    this.controllerLearn = { kind: 'twist', track, knob };
+    this.setStatus(`Turn the Circuit knob you want for this setting`);
+    this.notify();
+  }
+
+  cancelControllerLearn(): void {
+    this.controllerLearn = null;
+    this.notify();
+  }
+
+  /** Slow sweep (min→max→min, ~2.4 s) to a mapped knob target, so you can hear or see it move. */
+  testControllerKnob(track: number, knob: number): void {
+    const tr = this.controller.tracks[track - 1];
+    const slot = tr?.knobs[knob];
+    if (!tr?.dest || !slot) return;
+    const cc = slotCc(slot);
+    if (cc == null) {
+      this.setStatus(knobTarget(slot.target)?.kind === 'steps' ? 'Sound steps: turn the real knob to test' : 'This knob is not mapped');
+      this.notify();
+      return;
+    }
+    const p = portsForRoles(this.assignments);
+    const port = tr.dest.device === 'sp' ? p.spOut : tr.dest.device === 'mpc' ? p.mpcOut : p.fm1Out;
+    if (!port) {
+      this.setStatus('That device is not connected');
+      this.notify();
+      return;
+    }
+    for (const t of this.testTimers) clearTimeout(t);
+    this.testTimers = [];
+    const ch = destChannel(tr.dest, this.controller);
+    const steps = 24;
+    const values = [
+      ...Array.from({ length: steps + 1 }, (_, i) => i / steps),
+      ...Array.from({ length: steps }, (_, i) => 1 - (i + 1) / steps),
+    ].map((f) => Math.round(slot.min + f * (slot.max - slot.min)));
+    values.forEach((v, i) => {
+      this.testTimers.push(
+        setTimeout(() => {
+          const data = new Uint8Array([0xb0 | ((ch - 1) & 0x0f), cc, v]);
+          this.transport.send(port, data);
+          this.bus.emit({ type: 'midi:out', message: parseMidiMessage(data, performance.now(), port) });
+        }, i * 50),
+      );
+    });
+    this.setStatus(`Testing knob ${knob + 1} on T${track}: sweeping ${slot.min}→${slot.max}→${slot.min}`);
+    this.notify();
+  }
+
+  private controllerIncoming(message: MidiMessage): void {
+    const t = message.channel ?? 0;
+    if (t < 1 || t > 8) return;
+    const isNote = message.kind === 'note-on' && (message.velocity ?? 0) > 0;
+    const knob =
+      message.kind === 'cc' && message.controller != null
+        ? CIRCUIT_MACRO_CCS.indexOf(message.controller as (typeof CIRCUIT_MACRO_CCS)[number])
+        : -1;
+    if (!isNote && knob < 0) return;
+    this.activeCircuitTrack = t;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+    const learn = this.controllerLearn;
+    if (learn?.kind === 'first-note' && isNote && t === learn.track && message.note != null) {
+      this.controllerLearn = null;
+      this.setControllerTrack(t, { firstNote: message.note });
+      this.setStatus(`Learned: Circuit note ${message.note} on T${t} is the first note`);
+    } else if (learn?.kind === 'twist' && knob >= 0) {
+      this.controllerLearn = null;
+      if (knob !== learn.knob) {
+        this.changeController(swapKnobs(this.controller, learn.track, learn.knob, knob), `Moved to knob ${knob + 1}`);
+      } else {
+        this.setStatus(`That's already knob ${knob + 1}`);
+      }
+    }
+
+    if (knob >= 0) {
+      this.knobValues[t - 1]![knob] = message.value ?? 0;
+      this.lastKnob = { track: t, knob, at: now };
+    }
+    const ev = describeIncoming(this.controller, message);
+    if (ev) {
+      const head = this.ctrlEvents[0];
+      // A knob being turned replaces its own last line instead of flooding the list.
+      if (knob >= 0 && head && head.text.startsWith(`T${t} knob ${knob + 1} `)) {
+        this.ctrlEvents[0] = { text: ev.text, device: ev.device, at: Date.now() };
+      } else {
+        this.ctrlEvents = [{ text: ev.text, device: ev.device, at: Date.now() }, ...this.ctrlEvents].slice(0, 10);
+      }
+    }
+    if (knob >= 0 && now - this.ctrlNotifyAt < 33) return;
+    this.ctrlNotifyAt = now;
+    this.notify();
+  }
+
   applyMyStudioRoutes(): void {
     const p = portsForRoles(this.assignments);
     if (!p.circuitIn) {
@@ -683,9 +985,23 @@ export class StudioRuntime {
       fm1Firmware: this.fm1Firmware,
       mpcNoteMode: this.mpcNoteMode,
       forwardClockToFm1: this.forwardClockToFm1,
-      trackPlan: this.effectiveTrackPlan(),
+      // Notes and knobs now come from the Circuit Controller; the layout adds clock only.
+      trackPlan: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [] },
       spNoteOffset: this.spNoteOffset,
-    }).map((r) => ({
+    })
+      .concat(
+        buildControllerRoutes(
+          this.controller,
+          {
+            circuitIn: p.circuitIn,
+            mpcOut: p.mpcOut || '__missing_mpc__',
+            spOut: p.spOut || '__missing_sp__',
+            fm1Out: p.fm1Out || '__missing_fm1__',
+          },
+          { fm1Firmware: this.fm1Firmware, mpcNoteMode: this.mpcNoteMode },
+        ),
+      )
+      .map((r) => ({
       ...r,
       destinations: r.destinations.filter((d) => !d.portId.startsWith('__missing_')),
     }));
@@ -766,6 +1082,7 @@ export class StudioRuntime {
       pinnedDeviceId: snap.focus.pinnedDeviceId,
       simulation: false,
       updatedAt: Date.now(),
+      controller: { working: this.controller, presets: this.controllerPresets, savedId: this.controllerSavedId },
     };
     this.session = session;
     return exportSessionJson(session);
@@ -780,6 +1097,25 @@ export class StudioRuntime {
       this.routing.applyPreset(result.session.routingPresets[0]);
     }
     this.roles.setBindings(result.session.roles);
+    const ctrl = result.session.controller as
+      | { working?: unknown; presets?: unknown; savedId?: unknown }
+      | undefined;
+    if (ctrl) {
+      const working = sanitizePreset(ctrl.working);
+      if (working) {
+        this.pushControllerHistory();
+        this.controller = working;
+      }
+      if (Array.isArray(ctrl.presets)) {
+        this.controllerPresets = ctrl.presets
+          .map((x) => sanitizePreset(x))
+          .filter((x): x is ControllerPreset => x !== null)
+          .slice(0, 50);
+      }
+      if (typeof ctrl.savedId === 'string') this.controllerSavedId = ctrl.savedId;
+      this.applyMyStudioRoutes();
+      this.persistSetup();
+    }
     this.arranger.configure(result.session.arranger);
     this.focus.setMode(result.session.focusMode);
     if (result.session.pinnedDeviceId) this.focus.pin(result.session.pinnedDeviceId);
@@ -1002,6 +1338,9 @@ export class StudioRuntime {
       spNoteOffset: this.spNoteOffset,
       ...(this.trackPlan ? { trackPlan: this.trackPlan } : {}),
       sectionBridge: this.sectionBridge,
+      controller: this.controller,
+      controllerPresets: this.controllerPresets,
+      controllerSavedId: this.controllerSavedId,
     });
   }
 
@@ -1023,6 +1362,8 @@ export class StudioRuntime {
         `Learned: Circuit note ${message.note} → SP pad 1 (offset ${this.spNoteOffset >= 0 ? '+' : ''}${this.spNoteOffset})`,
       );
     }
+
+    if (fromCircuit) this.controllerIncoming(message);
 
     if (fromCircuit || this.registry.get(deviceId ?? '')?.kind === 'circuit-rhythm') {
       const interpreted = this.circuitInterpreter.interpret(message);
