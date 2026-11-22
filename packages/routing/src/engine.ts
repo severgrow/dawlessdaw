@@ -23,6 +23,8 @@ export class MidiRoutingEngine {
   private routes: MidiRoute[] = [];
   private clockAuthorityPortId: PortId | null = null;
   private activeNotes = new Map<string, ActiveNoteKey>();
+  /** Last Program Change sent from a knob, per dest port + channel. */
+  private lastKnobProgram = new Map<string, number>();
   /** Ports that recently received our output — suppress echo. */
   private recentOut = new Map<PortId, number>();
   private feedbackWindowMs = 8;
@@ -44,6 +46,7 @@ export class MidiRoutingEngine {
   }
 
   setRoutes(routes: MidiRoute[]): void {
+    this.lastKnobProgram.clear();
     this.routes = routes.map((r) => ({
       ...r,
       destinations: r.destinations.map((d) => ({ ...d })),
@@ -124,7 +127,7 @@ export class MidiRoutingEngine {
         // Never route back to same port
         if (dest.portId === message.portId) continue;
 
-        const transformed = this.transform(message, route);
+        const transformed = this.transform(message, route, dest.portId);
         if (!transformed) continue;
 
         this.sendOut(dest.portId, transformed, route.id);
@@ -141,7 +144,11 @@ export class MidiRoutingEngine {
     this.activeNotes.clear();
   }
 
-  private transform(message: MidiMessage, route: MidiRoute): Uint8Array | null {
+  private transform(
+    message: MidiMessage,
+    route: MidiRoute,
+    destPortId: PortId,
+  ): Uint8Array | null {
     if (isClockLike(message.kind) || message.kind === 'sysex' || message.kind === 'unknown') {
       return cloneMidiData(message.data);
     }
@@ -172,6 +179,15 @@ export class MidiRoutingEngine {
 
     if (message.kind === 'cc') {
       let controller = message.controller ?? 0;
+      const toPc = route.cc?.toProgramChange;
+      if (toPc && controller === toPc.controller) {
+        const steps = clamp(Math.floor(toPc.steps), 1, 128);
+        const program = Math.min(steps - 1, Math.floor(((message.value ?? 0) * steps) / 128));
+        const key = `${destPortId}:${channel}`;
+        if (this.lastKnobProgram.get(key) === program) return null;
+        this.lastKnobProgram.set(key, program);
+        return new Uint8Array([0xc0 | ((channel - 1) & 0x0f), program]);
+      }
       if (route.cc?.dropUnmapped && route.cc.map?.[controller] === undefined) {
         return null;
       }

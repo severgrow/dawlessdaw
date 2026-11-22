@@ -34,9 +34,18 @@ Everything below is **untested on this studio** until Bench Test h, h2 and h3 ar
 | Macro 5 (CC25) | CC72 release |
 | Macro 6 (CC26) | CC94 delay send |
 | Macro 7 (CC27) | CC91 reverb send |
-| Macro 8 (CC28) | CC7 level |
+| Macro 8 (CC28) | **Sound knob**: steps the track's Skiff sound (Program Change 0–7) |
 
-Every other CC and all Program Changes are dropped, so nothing else on the Circuit changes Skiff by accident. To change the knob map, edit `CIRCUIT_MACRO_TO_SKIFF_CC` in `packages/devices/src/studio-layout.ts`.
+Every other CC and all of the Circuit's own Program Changes are dropped, so nothing else on the Circuit changes Skiff by accident. To change the knob map, edit `CIRCUIT_MACRO_TO_SKIFF_CC` in `packages/devices/src/studio-layout.ts`.
+
+### The sound knob (macro 8)
+
+Skiff 1.3+ loads "the track's nth preset of its engine" when it gets Program Change on that track's channel. The app splits macro 8 into 8 equal zones. Turning into a new zone sends one Program Change on the same channel (ch5 → Skiff T1, ch6 → T2, and so on), so each track changes sound on its own. It sends nothing while the knob stays inside a zone, so a sweep never floods the FM1.
+
+- It steps through the sounds of the engine already on that track. Pick the engine on the FM1 itself.
+- Every Skiff engine has at least 8 sounds, which is why the default is 8 steps. To get more steps, change `SKIFF_SOUND_KNOB_STEPS`. Skiff doesn't document what happens past an engine's last sound, so test it with bench test h4 first.
+- To use a different macro, change `SKIFF_SOUND_KNOB_CC`.
+- Macro 8 used to be level (CC7). Set levels on the FM1 or the mixer instead.
 
 Circuit tracks play one note at a time, so each Skiff track gets single-note lines. Skiff shares 8 voices across its tracks (12 with its second-core beta).
 
