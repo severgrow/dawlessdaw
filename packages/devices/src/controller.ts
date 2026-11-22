@@ -12,7 +12,17 @@
  * Circuit's own Program Changes, pitch bend, aftertouch, SysEx) is dropped.
  */
 import type { MidiRoute } from '@dawlessdaw/routing';
-import { CIRCUIT_TRACKS, type Fm1Firmware, type TrackPlan } from './studio-layout';
+import {
+  CIRCUIT_MIXER_LEVEL_CC,
+  CIRCUIT_MIXER_PAN_CC,
+  CIRCUIT_MIXER_TO_DEST_CC,
+  CIRCUIT_TRACKS,
+  MIDI_PAN_CC,
+  MIDI_VOLUME_CC,
+  circuitMixerCcToDest,
+  type Fm1Firmware,
+  type TrackPlan,
+} from './studio-layout';
 
 export type CtrlDevice = 'sp' | 'fm1' | 'mpc';
 export const CTRL_DEVICES: readonly CtrlDevice[] = ['sp', 'fm1', 'mpc'];
@@ -392,6 +402,10 @@ export function buildControllerRoutes(
         map[src] = cc;
         if (slot.min !== 0 || slot.max !== 127) scale[src] = { min: slot.min, max: slot.max };
       });
+      // Mixer Level/Pan (CC29/30) → Volume/Pan on the destination — same as My Studio layout.
+      for (const [src, destCc] of Object.entries(CIRCUIT_MIXER_TO_DEST_CC)) {
+        map[Number(src)] = destCc;
+      }
     }
     const transpose = trackTranspose(track);
     routes.push({
@@ -439,33 +453,22 @@ export function describeIncoming(
   preset: ControllerPreset,
   msg: { kind: string; channel?: number; note?: number; controller?: number; value?: number; velocity?: number },
 ): CtrlEvent | null {
+  const resolved = resolveControlMapping(preset, msg);
+  if (resolved) {
+    return {
+      text: resolved.eventText,
+      device: resolved.dest?.device ?? null,
+      track: resolved.track,
+      knob: resolved.knob,
+      value: resolved.value,
+    };
+  }
   const t = msg.channel ?? 0;
   if (t < 1 || t > 8) return null;
   const track = preset.tracks[t - 1]!;
   const dest = track.dest;
   if (msg.kind === 'cc' && msg.controller != null) {
-    const k = CIRCUIT_MACRO_CCS.indexOf(msg.controller as (typeof CIRCUIT_MACRO_CCS)[number]);
-    if (k < 0) return { text: `T${t} CC ${msg.controller} → dropped (not a macro knob)`, device: null, track: t };
-    const slot = track.knobs[k]!;
-    const v = msg.value ?? 0;
-    if (!dest || !slot.target) {
-      return { text: `T${t} knob ${k + 1} → not mapped (dropped)`, device: dest?.device ?? null, track: t, knob: k, value: v };
-    }
-    const tgt = knobTarget(slot.target);
-    const where = `${DEVICE_NAME[dest.device].replace(' (Skiff)', '')} ${slotLabel(dest)}`;
-    if (tgt?.kind === 'steps') {
-      const steps = tgt.steps ?? 8;
-      const zone = Math.min(steps - 1, Math.floor((v * steps) / 128));
-      return { text: `T${t} knob ${k + 1} → ${where} sound ${zone + 1}`, device: dest.device, track: t, knob: k, value: v };
-    }
-    const out = Math.round(slot.min + (v * (slot.max - slot.min)) / 127);
-    return {
-      text: `T${t} knob ${k + 1} → ${where} ${slotLabelText(slot)} ${out}`,
-      device: dest.device,
-      track: t,
-      knob: k,
-      value: v,
-    };
+    return { text: `T${t} CC ${msg.controller} → dropped (not a user control)`, device: null, track: t };
   }
   if (msg.kind === 'note-on' && (msg.velocity ?? 0) > 0 && msg.note != null) {
     if (!dest) return { text: `T${t} note ${msg.note} → off (dropped)`, device: null, track: t };
@@ -483,6 +486,176 @@ export function describeIncoming(
     };
   }
   return null;
+}
+
+/** User-facing Circuit controls that may open the learn glass (not clock / SysEx). */
+export type LearnControlKind = 'macro' | 'mixer-level' | 'mixer-pan';
+
+export interface ResolvedControlMapping {
+  track: number;
+  kind: LearnControlKind;
+  /** Macro index 0–7 when kind === 'macro'. */
+  knob?: number;
+  sourceLabel: string;
+  sourceCc: number;
+  sourceChannel: number;
+  dest: CtrlDest | null;
+  /** Short param name, e.g. "Level" / "not mapped". */
+  paramLabel: string;
+  /** "→ FM1 Level CC7 on ch5" */
+  detail: string;
+  /** One-line live strip text. */
+  eventText: string;
+  value?: number;
+  /** Whether the glass can edit a knob target for this control. */
+  editableKnob: boolean;
+}
+
+const MIXER_LABEL: Record<number, string> = {
+  [CIRCUIT_MIXER_LEVEL_CC]: 'Mixer Level',
+  [CIRCUIT_MIXER_PAN_CC]: 'Mixer Pan',
+};
+
+const MIXER_DEST_LABEL: Record<number, string> = {
+  [MIDI_VOLUME_CC]: 'Volume (CC7)',
+  [MIDI_PAN_CC]: 'Pan (CC10)',
+};
+
+/**
+ * Resolve a Circuit CC (macro or mixer) to plain-English source → destination.
+ * Returns null for clock, notes, SysEx, and non-user CCs — call sites must not spam UI.
+ */
+export function resolveControlMapping(
+  preset: ControllerPreset,
+  msg: { kind: string; channel?: number; controller?: number; value?: number },
+): ResolvedControlMapping | null {
+  if (msg.kind !== 'cc' || msg.controller == null) return null;
+  const t = msg.channel ?? 0;
+  if (t < 1 || t > 8) return null;
+  const track = preset.tracks[t - 1]!;
+  const dest = track.dest;
+  const v = msg.value;
+  const cc = msg.controller;
+
+  const macroIdx = CIRCUIT_MACRO_CCS.indexOf(cc as (typeof CIRCUIT_MACRO_CCS)[number]);
+  if (macroIdx >= 0) {
+    const slot = track.knobs[macroIdx]!;
+    const sourceLabel = `Circuit Track ${t} · Macro ${macroIdx + 1}`;
+    if (!dest || !slot.target) {
+      return {
+        track: t,
+        kind: 'macro',
+        knob: macroIdx,
+        sourceLabel,
+        sourceCc: cc,
+        sourceChannel: t,
+        dest,
+        paramLabel: 'not mapped',
+        detail: dest ? '→ not mapped (dropped)' : '→ Circuit only (app sends nothing)',
+        eventText: `T${t} knob ${macroIdx + 1} → not mapped (dropped)`,
+        value: v,
+        editableKnob: true,
+      };
+    }
+    const tgt = knobTarget(slot.target);
+    const where = `${DEVICE_NAME[dest.device].replace(' (Skiff)', '')} ${slotLabel(dest)}`;
+    const ch = destChannel(dest, preset);
+    if (tgt?.kind === 'steps') {
+      const steps = tgt.steps ?? 8;
+      const zone = Math.min(steps - 1, Math.floor(((v ?? 0) * steps) / 128));
+      return {
+        track: t,
+        kind: 'macro',
+        knob: macroIdx,
+        sourceLabel,
+        sourceCc: cc,
+        sourceChannel: t,
+        dest,
+        paramLabel: tgt.label,
+        detail: `→ ${where} sound ${zone + 1} (Program Change on ch${ch})`,
+        eventText: `T${t} knob ${macroIdx + 1} → ${where} sound ${zone + 1}`,
+        value: v,
+        editableKnob: true,
+      };
+    }
+    const out = Math.round(slot.min + (((v ?? 0) * (slot.max - slot.min)) / 127));
+    const outCc = slotCc(slot);
+    const param = slotLabelText(slot);
+    return {
+      track: t,
+      kind: 'macro',
+      knob: macroIdx,
+      sourceLabel,
+      sourceCc: cc,
+      sourceChannel: t,
+      dest,
+      paramLabel: param,
+      detail:
+        outCc != null
+          ? `→ ${where} ${param} CC${outCc} on ch${ch} · ${out}`
+          : `→ ${where} ${param} · ${out}`,
+      eventText: `T${t} knob ${macroIdx + 1} → ${where} ${param} ${out}`,
+      value: v,
+      editableKnob: true,
+    };
+  }
+
+  const mixerDestCc = circuitMixerCcToDest(cc);
+  if (mixerDestCc != null) {
+    const kind: LearnControlKind = cc === CIRCUIT_MIXER_LEVEL_CC ? 'mixer-level' : 'mixer-pan';
+    const sourceLabel = `Circuit Track ${t} · ${MIXER_LABEL[cc] ?? `CC ${cc}`}`;
+    const destParam = MIXER_DEST_LABEL[mixerDestCc] ?? `CC${mixerDestCc}`;
+    if (!dest) {
+      return {
+        track: t,
+        kind,
+        sourceLabel,
+        sourceCc: cc,
+        sourceChannel: t,
+        dest: null,
+        paramLabel: destParam,
+        detail: '→ Circuit only (app sends nothing)',
+        eventText: `T${t} ${MIXER_LABEL[cc]} → Circuit only`,
+        value: v,
+        editableKnob: false,
+      };
+    }
+    const where = `${DEVICE_NAME[dest.device].replace(' (Skiff)', '')} ${slotLabel(dest)}`;
+    const ch = destChannel(dest, preset);
+    return {
+      track: t,
+      kind,
+      sourceLabel,
+      sourceCc: cc,
+      sourceChannel: t,
+      dest,
+      paramLabel: destParam,
+      detail: `→ ${where} ${destParam} on ch${ch}`,
+      eventText: `T${t} ${MIXER_LABEL[cc]} → ${where} ${destParam}`,
+      value: v,
+      editableKnob: false,
+    };
+  }
+
+  return null;
+}
+
+/** Stable id for debounce / “same control still moving” checks. */
+export function controlMappingKey(r: Pick<ResolvedControlMapping, 'track' | 'kind' | 'knob'>): string {
+  return r.kind === 'macro' ? `t${r.track}:macro${r.knob ?? 0}` : `t${r.track}:${r.kind}`;
+}
+
+/** True for realtime MIDI that must never open the learn glass (clock / transport). */
+export function isLearnGlassIgnoredMidi(kind: string): boolean {
+  return (
+    kind === 'clock' ||
+    kind === 'start' ||
+    kind === 'stop' ||
+    kind === 'continue' ||
+    kind === 'song-position' ||
+    kind === 'active-sensing' ||
+    kind === 'sysex'
+  );
 }
 
 /** Plain warnings: two tracks on one slot, Skiff channel clashes. */

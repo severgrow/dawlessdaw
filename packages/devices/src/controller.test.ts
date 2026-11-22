@@ -68,7 +68,7 @@ describe('Circuit Controller', () => {
   it('unmapped knobs, other CCs, Program Change, pitch bend and SysEx are dropped', () => {
     load(myStudioPreset('sp'));
     transport.inject('c', [0xb0, 21, 64]); // T1 → SP, knob not mapped
-    transport.inject('c', [0xb4, 30, 64]); // not a macro knob
+    transport.inject('c', [0xb4, 31, 64]); // Reverb send — not a macro / mixer Level-Pan
     transport.inject('c', [0xc4, 3]); // Program Change
     transport.inject('c', [0xe4, 0, 64]); // pitch bend
     transport.inject('c', [0xf0, 0x00, 0x20, 0x29, 0xf7]); // SysEx

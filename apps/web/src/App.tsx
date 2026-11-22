@@ -10,6 +10,7 @@ import { SectionsWorkspace } from './workspaces/SectionsWorkspace';
 import { SessionsWorkspace } from './workspaces/SessionsWorkspace';
 import { TestWorkspace } from './workspaces/TestWorkspace';
 import { SetupWorkspace } from './workspaces/SetupWorkspace';
+import { MidiLearnGlass } from './components/MidiLearnGlass';
 
 export function App() {
   useBindStudio();
@@ -40,6 +41,7 @@ export function App() {
           {workspace === 'setup' && <SetupWorkspace />}
         </main>
       </div>
+      <MidiLearnGlass />
       <footer className="footer-bar">
         <span>dawlessdaw · local-first hardware studio · no sysex · no firmware writes</span>
         <span className={`mono ${midiReady ? 'live' : 'err'}`}>
