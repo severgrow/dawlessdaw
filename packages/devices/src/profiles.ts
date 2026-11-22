@@ -122,6 +122,8 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
     portNameHints: [
       'fm1',
       'fm-1',
+      'felucca',
+      'h-1',
       'm-vave',
       'm vave',
       'mvave',
@@ -133,6 +135,7 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
     hasMidi: true,
     hasAudioCapture: false,
     // User studio runs community H-1 (jakehandy/h1), not FM1 Open / stock.
+    // Chrome may show the CDC port as "Felucca" instead of FM1 / M-VAVE.
     // Until Bench Pass: treat as generic MIDI only — every H-1 capability unknown/untested.
     firmwareProfiles: ['h-1', 'stock', 'open', 'generic'],
     defaultFirmwareProfile: 'h-1',

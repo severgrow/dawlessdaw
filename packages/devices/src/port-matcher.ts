@@ -71,7 +71,7 @@ function exclusiveHintsForRole(role: StudioRoleDef): string[] {
     case 'sp404':
       return ['sp404', 'sp-404', '404mkii', '404'];
     case 'fm1':
-      return ['fm1', 'fm-1', 'mvave', 'm-vave', 'mvav', 'ch345', 'wch'];
+      return ['fm1', 'fm-1', 'felucca', 'h-1', 'mvave', 'm-vave', 'mvav', 'ch345', 'wch'];
     default:
       return role.portNameHints;
   }

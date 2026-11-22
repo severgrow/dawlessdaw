@@ -85,7 +85,7 @@ Common Mac Chrome names:
 | Gear | Names you may see |
 |------|-------------------|
 | MPC One | `MPC One`, `Akai Professional MPC One`, sometimes Port 1 / Port 2 |
-| FM1 (H-1) | `M-VAVE FM1`, `M-VAVE`, `MVAV`, or generic `CH345` / `USB-MIDI` (WCH CDC) — may **not** contain `fm1` |
+| FM1 (H-1) | `M-VAVE FM1`, `M-VAVE`, `MVAV`, `Felucca`, or generic `CH345` / `USB-MIDI` (WCH CDC) — may **not** contain `fm1` |
 | Circuit / SP | Usually contain `Circuit` / `SP-404` — leave those alone when assigning MPC/FM1 |
 
 Manual assign beats auto-match and is saved on this Mac.

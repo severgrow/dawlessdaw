@@ -81,6 +81,8 @@ describe('Mac / Live hint matching', () => {
     expect(scorePortAgainstHints({ name: 'M-VAVE' }, fm1Hints)).toBeGreaterThan(0);
     expect(scorePortAgainstHints({ name: 'MVAV' }, fm1Hints)).toBeGreaterThan(0);
     expect(scorePortAgainstHints({ name: 'CH345' }, fm1Hints)).toBeGreaterThan(0);
+    expect(scorePortAgainstHints({ name: 'Felucca' }, fm1Hints)).toBeGreaterThan(0);
+    expect(scorePortAgainstHints({ name: 'H-1 MIDI' }, fm1Hints)).toBeGreaterThan(0);
     expect(
       scorePortAgainstHints({ name: 'USB-MIDI', manufacturer: 'wch.cn' }, fm1Hints),
     ).toBeGreaterThan(0);
