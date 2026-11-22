@@ -6,25 +6,29 @@ Plain-English steps for Patryk’s studio. Nothing here marks hardware as verifi
 
 | Gear | Role |
 |------|------|
-| Novation Circuit Rhythm | Arranger / clock master (thru box) |
-| Akai MPC One | Tracks 1–4 via USB remap **ch9–12** (not 1–4) |
-| M-VAVE FM1 on **H-1** firmware | Track 5 (MIDI ch 5) — generic MIDI until Bench Pass |
-| Roland SP-404MKII | Track 6 via USB remap **ch13** |
+| Novation Circuit Rhythm | Arranger / clock master (thru box optional) |
+| M-VAVE FM1 on **H-1** firmware (Felucca) | **Tracks 5 + 6** via USB → FM1 **ch5 + ch6** — generic MIDI until Bench Pass |
+| Akai MPC One | Optional — Tracks 1–4 via USB remap **ch9–12** when connected |
+| Roland SP-404MKII | Optional — **not** on Circuit T6 USB in this preset; Section Bridge / Bench PC still use **ch13** |
 | Circuit tracks 7–8 | Stay on Circuit only |
 | Allen & Heath ZED-10FX | **Audio only** — ignore for MIDI |
 
-**Thru box:** Circuit MIDI Out → thru → MPC MIDI In + SP MIDI In. The thru carries **all** Circuit MIDI (notes 1–8 + ch16 PGM + clock), not just clock. App clock stays **OFF**. USB remaps avoid doubled notes on MPC/SP.
+**FM1 jam (default):** Circuit + FM1 USB is enough. MPC / SP can stay unplugged — their My Studio routes no-op until ports are assigned.
 
-**FM1 H-1 note:** Community firmware ([jakehandy/h1](https://github.com/jakehandy/h1)), **not** FM1 Open and **not** stock. Dawlessdaw treats H-1 as **generic MIDI** with every capability **unknown/untested** until Bench Pass. Do not assume Open/stock CC maps. Do not flash or send SysEx from the app.
+**Thru box (optional):** Circuit MIDI Out → thru → MPC MIDI In + SP MIDI In. The thru carries **all** Circuit MIDI (notes 1–8 + ch16 PGM + clock), not just clock. App clock stays **OFF**. USB remaps avoid doubled notes on MPC when connected.
+
+**SP note:** Circuit T6 no longer USB-routes to the SP-404 in My Studio. T5 and T6 both go to FM1.
+
+**FM1 H-1 note:** Community firmware ([jakehandy/h1](https://github.com/jakehandy/h1)), **not** FM1 Open and **not** stock. Dawlessdaw treats H-1 as **generic MIDI** with every capability **unknown/untested** until Bench Pass. Do not assume Open/stock CC maps. Do not flash or send SysEx from the app. Default routing preserves track identity (**5→5, 6→6**). If FM1 / H-1 only listens on one channel, remap both tracks to **ch5**.
 
 ---
 
-## 1. Power and cables
+## 1. Power and cables (FM1 jam)
 
-1. Power on Circuit, MPC, SP-404, FM1, ZED.
-2. USB: Circuit, MPC, SP-404, FM1 → MacBook. ZED USB if you want audio later.
-3. DIN: Circuit Out → thru → MPC In + SP In.
-4. Audio: each device into the ZED as you normally mix (no MIDI on ZED).
+1. Power on Circuit + FM1 (and ZED for audio). MPC / SP optional.
+2. USB: Circuit + FM1 → MacBook. (Add MPC / SP USB later if you want those routes.)
+3. Audio: FM1 (and anything else) into the ZED as you normally mix.
+4. Optional DIN: Circuit Out → thru → MPC In + SP In.
 
 ## 2. Run Dawlessdaw on the Mac
 
@@ -57,13 +61,18 @@ npm run dev
 
 Open **http://localhost:5173** in **Chrome**.
 
-## 3. Live mode
+## 3. Live mode — Circuit T5/T6 → FM1
+
+Exact clicks:
 
 1. Confirm the UI loads in Simulation.
 2. Click **Switch to Live** → allow MIDI.
-3. Open **Settings** — check Circuit / MPC / SP / FM1 ports. Fix any wrong name match.
-4. Confirm FM1 firmware shows **H-1** (or set it). Leave app clock forwarding **off** unless you are on **USB-only clock** (next section).
-5. Click **Re-apply My Studio routes** (ch1–4→MPC 9–12, ch5→FM1 5, ch6→SP 13).
+3. Open **Settings**.
+4. Under **Port assignments**, confirm **FM1** In/Out is **Felucca** (or your FM1 CDC name). If not auto-matched, set **FM1 → Felucca** for both In and Out.
+5. Confirm Circuit **In** is assigned. MPC / SP can stay unassigned for an FM1-only jam.
+6. Confirm FM1 firmware shows **H-1** (or set it). Leave app clock forwarding **off** unless you are on **USB-only clock**.
+7. Click **Re-apply My Studio routes** (ch5→FM1 5, ch6→FM1 6; ch1–4→MPC 9–12 no-op if MPC absent).
+8. Play Circuit **track 5** and **track 6** — you should hear FM1.
 
 ### Mac troubleshooting — Device Strip says NOT CONNECTED
 
@@ -73,20 +82,20 @@ The strip shows **CONNECTED** only when that gear has a **port assignment** (aut
 
 1. Open **Settings → All Web MIDI ports (raw)**.
 2. **Copy/paste every port name** listed there (inputs and outputs), including odd ones like `CH345`, `USB-MIDI`, `Akai Professional …`, `IAC Driver…`.
-3. If you see a name that is clearly the MPC or FM1, use the **In / Out** dropdowns under Port assignments to attach it, then **Re-apply My Studio routes**.
-4. If MPC / FM1 USB cables are plugged in but **no extra ports appear at all**, this is OS/Chrome/hardware — not app matching:
+3. If you see a name that is clearly the FM1 (often **Felucca**), use the **In / Out** dropdowns under Port assignments to attach it, then **Re-apply My Studio routes**.
+4. If FM1 USB is plugged in but **no extra ports appear at all**, this is OS/Chrome/hardware — not app matching:
    - Open **Audio MIDI Setup → Window → Show MIDI Studio**; confirm the devices appear and are online.
-   - Unplug USB → wait 3 s → replug (powered hub if you use one).
-   - Quit Chrome fully (⌘Q) and reopen; click **Switch to Live** and allow MIDI again.
-   - Try another USB port / cable; avoid unpowered daisy-chains for MPC + SP + Circuit + FM1.
+   - Unplug USB → wait 3 s → replug (direct MacBook port for the flaky device).
+   - Quit competing DAWs; quit Chrome fully (⌘Q) and reopen; **Switch to Live**; Settings or Patchbay → **Rescan MIDI ports**.
+   - Full ranked checklist: [mpc-one-mac-midi-missing.md](./mpc-one-mac-midi-missing.md) (same USB class of issues).
 
 Common Mac Chrome names:
 
 | Gear | Names you may see |
 |------|-------------------|
-| MPC One | `MPC One`, `Akai Professional MPC One`, sometimes Port 1 / Port 2 |
-| FM1 (H-1) | `M-VAVE FM1`, `M-VAVE`, `MVAV`, `Felucca`, or generic `CH345` / `USB-MIDI` (WCH CDC) — may **not** contain `fm1` |
-| Circuit / SP | Usually contain `Circuit` / `SP-404` — leave those alone when assigning MPC/FM1 |
+| FM1 (H-1) | `Felucca`, `M-VAVE FM1`, `M-VAVE`, `MVAV`, or generic `CH345` / `USB-MIDI` (WCH CDC) — may **not** contain `fm1` |
+| Circuit / SP | Usually contain `Circuit` / `SP-404` — leave those alone when assigning FM1 |
+| MPC One | `MPC One`, `Akai Professional MPC One`, sometimes Port 1 / Port 2 (optional for this jam) |
 
 Manual assign beats auto-match and is saved on this Mac.
 
@@ -94,23 +103,21 @@ Manual assign beats auto-match and is saved on this Mac.
 
 Open **Bench Test**. For each item, play the hardware and mark Pass / Fail / Unsure. Export JSON when done.
 
-Suggested order:
+Suggested order (FM1-first):
 
 1. Circuit notes appear in the app (Live RX on ch 1–8).
-2. Circuit track 1–4 notes reach the MPC on **ch9–12** (USB remap).
-3. Circuit track 5 notes reach the FM1 (ch 5) — generic H-1 until you mark Pass.
-4. Optional: twist FM1 knobs — community docs claim CC 20–23; mark Unsure/Fail until proven (do not assume Open maps).
-5. Circuit track 6 notes reach the SP on **ch13**.
-6. Tracks 7–8 stay on Circuit only.
-7. **Close the app, play the Circuit: MPC and SP should follow tempo but play no notes.** (Thru-box clock without USB remapped notes.)
-8. Mute Learn: CC 20 on **channel 15** (not 16).
-9. Section Bridge: Circuit Project change (ch16 PGM) → SP PC **ch13** / MPC PC **ch15** only after the above looks good.
+2. Circuit **tracks 5 and 6** notes reach the FM1 (**ch5 and ch6**) — generic H-1 until you mark Pass. (**Bench h.**)
+3. Optional: twist FM1 knobs — community docs claim CC 20–23; mark Unsure/Fail until proven (do not assume Open maps).
+4. Tracks 7–8 stay on Circuit only.
+5. Optional if MPC connected: tracks 1–4 → MPC **ch9–12**.
+6. Optional if DIN thru: close the app, play Circuit → MPC/SP follow tempo but play no notes.
+7. Section Bridge / Mute Learn only after the FM1 path sounds good (SP PC still **ch13**, MPC PC **ch15**).
 
 **Do not** enable app clock unless you deliberately want a second clock path (or USB-only — see below).
 
 ### USB-only clock (no DIN thru)
 
-Use this when you want Circuit clock through Dawlessdaw over USB. **Important limitation:** Akai’s own KB says the MPC **USB-B port does not support receiving MIDI Clock from a DAW** — they require a **5-pin MIDI → USB interface into the MPC DIN In**. So even when Dawlessdaw correctly forwards FA/F8 to the Mac→MPC USB out, **MPC One may stay silent**. Prefer **DIN thru** for MPC start/tempo.
+Use this when you want Circuit clock through Dawlessdaw over USB. **Important limitation:** Akai’s own KB says the MPC **USB-B port does not support receiving MIDI Clock from a DAW** — they require a **5-pin MIDI → USB interface into the MPC DIN In**. So even when Dawlessdaw correctly forwards FA/F8 to the Mac→MPC USB out, **MPC One may stay silent**. Prefer **DIN thru** for MPC start/tempo. FM1 jam does not need app clock.
 
 #### Circuit Rhythm (do this first)
 
@@ -142,7 +149,7 @@ There is **no separate USB vs DIN clock switch**. One Tx pad feeds **both** USB 
 | **IN = 0** (receive-none) | App never saw Circuit clock | Live MIDI? Pad 32 bright? Circuit actually playing? Settings → Circuit **In** port correct? |
 | **IN > 0, OUT = 0** | Received but not forwarded | App clock forwarding ON? Route `mystudio-clock` enabled? MPC/SP **Out** assigned? Re-apply My Studio routes. |
 | **IN > 0, OUT > 0**, MPC silent | App did its job (Mac sent FA/F8) | **Akai USB-B typically ignores MIDI Clock** — use **DIN thru fallback** below. Bench → **Send test Start/Clock → MPC** should also raise OUT without starting MPC. |
-| Patchbay counters | `F8` = Timing Clock, `FA` = Start, `FB` = Continue, `FC` = Stop | Bench **k.** Focus → Play; detections show `start [fa]` / sampled `clock [f8]`. |
+| Patchbay counters | `F8` = Timing Clock, `FA` = Start, `FB` = Continue, `FC` = Stop | Bench **l.** Focus → Play; detections show `start [fa]` / sampled `clock [f8]`. |
 
 Chrome Web MIDI honesty: F8/FA arrive on the **main thread** with jitter; fine for coarse start/stop checks, **not** sample-accurate master clock. Prefer DIN for groove.
 

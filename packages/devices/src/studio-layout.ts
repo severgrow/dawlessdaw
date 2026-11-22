@@ -14,12 +14,19 @@ export interface StudioRoleDef {
 /**
  * Patryk's studio — USB MIDI to Mac; hardware MIDI thru outside the app.
  *
- * Thru box forwards ALL Circuit MIDI (notes 1–8 + ch16 PGM + clock) to MPC + SP.
- * App remaps so USB notes land on non-conflicting channels:
- *   Circuit ch1–4 → MPC ch9–12
- *   Circuit ch5   → FM1 ch5 (USB only; unchanged)
- *   Circuit ch6   → SP-404 ch13
+ * FM1 jam path (default focus): Circuit T5 + T6 → Felucca / FM1 over USB.
+ * MPC / SP USB note routes remain in the template for when those devices are
+ * connected; they simply no-op (missing port placeholders) when absent.
+ *
+ * Thru box (when used) forwards ALL Circuit MIDI (notes 1–8 + ch16 PGM + clock)
+ * to MPC + SP DIN. App remaps USB notes:
+ *   Circuit ch1–4 → MPC ch9–12 (optional — leave MPC unplugged for FM1-only jam)
+ *   Circuit ch5   → FM1 ch5
+ *   Circuit ch6   → FM1 ch6 (no longer USB-routes to SP in this preset)
  *   T7–8 internal; Project ch16 observed by Section Bridge (never forwarded as notes)
+ *
+ * If FM1 / H-1 only responds on one channel, remap both tracks to ch5 in Settings
+ * (or edit routes) — default preserves track identity: 5→5, 6→6.
  */
 export const MY_STUDIO_ROLES: StudioRoleDef[] = [
   {
@@ -91,7 +98,7 @@ export const MY_STUDIO_CHANNEL_REMAP: Readonly<Record<number, number>> = {
   3: 11,
   4: 12,
   5: 5,
-  6: 13,
+  6: 6,
 };
 
 export interface PortAssignment {
@@ -174,12 +181,12 @@ export function buildMyStudioRoutes(ports: {
       blockKinds: ['program-change'],
     },
     {
-      id: 'mystudio-t6-sp',
-      name: 'Circuit T6 → SP-404 ch13',
+      id: 'mystudio-t6-fm1',
+      name: 'Circuit T6 → FM1 ch6',
       enabled: true,
       sourcePortId: ports.circuitIn,
-      destinations: [{ portId: ports.spOut }],
-      channel: { allow: [6], remap: { 6: 13 } },
+      destinations: [{ portId: ports.fm1Out }],
+      channel: { allow: [6], remap: { 6: 6 } },
       forwardClock: false,
       blockKinds: ['program-change'],
     },

@@ -35,9 +35,9 @@ Dawlessdaw therefore **remaps** USB note routes so they do not double with the t
 
 | Circuit | USB remap | Target |
 |---------|-----------|--------|
-| ch 1–4 | → **9–12** | MPC |
-| ch 5 | → 5 | FM1 (USB only) |
-| ch 6 | → **13** | SP-404 |
+| ch 5 | → 5 | FM1 / Felucca (USB) |
+| ch 6 | → 6 | FM1 / Felucca (USB; **not** SP in this preset) |
+| ch 1–4 | → **9–12** | MPC (optional — no-op when absent) |
 | ch 16 Project | observed only | Section Bridge → SP PC **ch13**, MPC PC **ch15** (never 1–8 or 16) |
 
 Mute Learn target: **CC 20 on MPC control channel 15**.

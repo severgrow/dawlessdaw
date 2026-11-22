@@ -62,13 +62,15 @@ export function SettingsWorkspace() {
       <div className="panel">
         <h2>My Studio channel plan</h2>
         <p className="lead">
-          Thru box sends all Circuit MIDI (notes + ch16 PGM + clock) into MPC and SP. USB routes
-          remap so notes are not doubled:
+          FM1 jam: Circuit T5 + T6 → Felucca / FM1 over USB (MPC optional — routes no-op when
+          unplugged). Thru box (when used) still mirrors Circuit MIDI into MPC/SP DIN; USB remaps
+          avoid doubles on MPC when connected:
         </p>
         <ul className="cap-list mono" style={{ fontSize: 12 }}>
-          <li>Circuit ch1–4 → MPC ch9–12</li>
-          <li>Circuit ch5 → FM1 ch5 (USB only; H-1 = generic MIDI until bench)</li>
-          <li>Circuit ch6 → SP-404 ch13</li>
+          <li>Circuit ch1–4 → MPC ch9–12 (optional; no-op if MPC absent)</li>
+          <li>Circuit ch5 → FM1 ch5 · ch6 → FM1 ch6 (USB; H-1 = generic MIDI until bench)</li>
+          <li>SP: T6 is not USB-routed in this preset (Bridge/Bench PC still uses SP ch13)</li>
+          <li>If FM1 only listens on one channel, remap both tracks to ch5</li>
           <li>Mute Learn: CC 20 on MPC control ch15 (not 16)</li>
           <li>Section Bridge: SP PC ch13 · MPC PC ch15 · never 1–8 or 16</li>
         </ul>

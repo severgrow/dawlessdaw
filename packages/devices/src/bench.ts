@@ -84,32 +84,40 @@ export const BENCH_TESTS: BenchTestDef[] = [
     capabilityKey: 'mpc-mute-learn',
   },
   {
-    id: 'timing-circuit-to-mpc',
-    title: 'h. Timing Circuit → app → MPC',
+    id: 'fm1-t5-t6-notes',
+    title: 'h. Circuit T5 + T6 → FM1 (Felucca) USB',
     instruction:
-      'Play a Circuit track routed to the MPC (USB remaps ch1–4 → ch9–12). The app measures note-in to note-out delay on the Mac. Read the verdict — be honest if it feels loose.',
+      'Assign Felucca → FM1 if needed, Re-apply My Studio. Play Circuit tracks 5 and 6 — both should reach FM1 (ch5 and ch6). MPC is optional. If FM1 only responds on one channel, remap both to ch5 and re-test. Mark Pass only when you hear FM1.',
+    listenHint: 'note-on ch5/ch6 Circuit in → FM1 out (hardware verify)',
+    capabilityKey: 'fm1-usb-notes',
+  },
+  {
+    id: 'timing-circuit-to-mpc',
+    title: 'i. Timing Circuit → app → MPC (optional)',
+    instruction:
+      'Skip if MPC is unplugged. Play a Circuit track routed to the MPC (USB remaps ch1–4 → ch9–12). The app measures note-in to note-out delay on the Mac. Read the verdict — be honest if it feels loose.',
     listenHint: 'latency/jitter stats',
     capabilityKey: 'app-midi-latency',
   },
   {
     id: 'reconnect',
-    title: 'i. Unplug / replug devices',
+    title: 'j. Unplug / replug devices',
     instruction:
-      'Unplug one USB MIDI device, wait 3 s, plug it back. Confirm it shows connected again and routes re-attach.',
+      'Unplug one USB MIDI device (try FM1/Felucca), wait 3 s, plug it back. Confirm it shows connected again and routes re-attach. Re-apply My Studio if needed.',
     listenHint: 'port connect events',
     capabilityKey: 'port-reconnect',
   },
   {
     id: 'thru-box-clock-no-notes',
-    title: 'j. Thru box: clock without app notes',
+    title: 'k. Thru box: clock without app notes (optional)',
     instruction:
-      'Close the app, play the Circuit: MPC and SP should follow tempo but play no notes. (Proves DIN thru carries clock; musical notes only arrive via USB remapped channels 9–12 / 13 when the app is open.)',
+      'Skip if no DIN thru / MPC/SP. Close the app, play the Circuit: MPC and SP should follow tempo but play no notes. (Proves DIN thru carries clock; musical notes only arrive via USB when the app is open — T5/T6 → FM1, T1–4 → MPC 9–12.)',
     listenHint: 'hardware-only check — no app detections',
     capabilityKey: 'thru-clock-isolation',
   },
   {
     id: 'usb-app-clock',
-    title: 'k. USB-only: Circuit clock through app → MPC/SP',
+    title: 'l. USB-only: Circuit clock through app → MPC/SP (optional)',
     instruction:
       'Settings → App clock forwarding ON. Circuit Setup (Shift+Save): Clock Tx pad 32 bright. Focus this test, press Play on Circuit. Patchbay should show IN FA/F8 and OUT FA/F8. If OUT rises but MPC stays silent: Akai USB-B typically does not take MIDI Clock — use DIN thru and turn app forwarding OFF. Optional: Send test Start/Clock → MPC (direct) to prove Mac→MPC out without Circuit.',
     listenHint: 'IN/OUT hex: FA start, F8 clock (sampled), FC stop',

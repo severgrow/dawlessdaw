@@ -22,20 +22,20 @@ npm run build
 
 ## Your studio plan (My Studio)
 
-Thru box forwards **all** Circuit MIDI (notes 1–8 + ch16 PGM + clock) into MPC + SP DIN.
-USB routes **remap** so the app does not double those notes:
+**FM1 jam focus:** Circuit T5 + T6 → Felucca / FM1 over USB. MPC is optional (routes no-op when unplugged).
 
 | Circuit track | Circuit ch | USB dest channel | Destination |
 |---------------|------------|------------------|-------------|
-| 1–4 | 1–4 | **9–12** (remap) | MPC One |
-| 5 | 5 | 5 (unchanged) | M-VAVE FM1 **H-1** (USB only; generic MIDI until bench) |
-| 6 | 6 | **13** (remap) | SP-404MKII |
+| 5 | 5 | 5 | M-VAVE FM1 **H-1** / Felucca (USB; generic MIDI until bench) |
+| 6 | 6 | 6 | M-VAVE FM1 **H-1** / Felucca (same; **not** SP) |
+| 1–4 | 1–4 | **9–12** (remap) | MPC One (optional) |
 | 7–8 | 7–8 | — | Internal Circuit only |
 | Project | 16 | Bridge → SP **ch13** PC · MPC **ch15** PC | Section Bridge (+ optional Scene) |
 
-- MIDI clock: **hardware** Circuit Out → thru → MPC + SP. App clock forwarding OFF by default.
+- If FM1 only listens on one channel, remap both tracks to **ch5** (default is 5→5 / 6→6).
+- SP: Circuit T6 is **not** USB-routed in this preset; Bridge/Bench PC still use SP **ch13**.
+- MIDI clock: **hardware** Circuit Out → thru → MPC + SP when thru is used. App clock forwarding OFF by default.
 - MPC mute MIDI Learn: **CC 20 on channel 15** (control channel — not 16).
-- Bench check: close the app, play Circuit → MPC/SP follow tempo but play **no** notes.
 
 ZED-10FX: USB **audio only** — no MIDI.
 

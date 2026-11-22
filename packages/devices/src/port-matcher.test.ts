@@ -191,11 +191,28 @@ describe('My Studio routing restore', () => {
       allow: [5],
       remap: { 5: 5 },
     });
-    expect(routes.find((r) => r.id === 'mystudio-t6-sp')?.channel).toEqual({
+    const t6 = routes.find((r) => r.id === 'mystudio-t6-fm1');
+    expect(t6?.channel).toEqual({
       allow: [6],
-      remap: { 6: 13 },
+      remap: { 6: 6 },
     });
+    expect(t6?.destinations[0]?.portId).toBe('f-out');
+    expect(routes.some((r) => r.id === 'mystudio-t6-sp')).toBe(false);
     expect(routes.some((r) => r.id.includes('t7'))).toBe(false);
+  });
+
+  it('FM1 jam works without MPC (T5/T6 still bind to FM1 out)', () => {
+    const routes = buildMyStudioRoutes({
+      circuitIn: 'c-in',
+      mpcOut: '__missing_mpc__',
+      spOut: '__missing_sp__',
+      fm1Out: 'f-out',
+    });
+    expect(routes.find((r) => r.id === 'mystudio-t5-fm1')?.destinations[0]?.portId).toBe('f-out');
+    expect(routes.find((r) => r.id === 'mystudio-t6-fm1')?.destinations[0]?.portId).toBe('f-out');
+    expect(routes.find((r) => r.id === 'mystudio-t1-mpc')?.destinations[0]?.portId).toBe(
+      '__missing_mpc__',
+    );
   });
 
   it('rebinds template placeholders to real ports', () => {

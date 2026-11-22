@@ -48,8 +48,9 @@ export const DEFAULT_SECTION_BRIDGE: SectionBridgeConfig = {
 };
 
 /**
- * SP-404 pattern / notes USB channel after My Studio remap (Circuit ch6 → 13).
- * Section Bridge Program Change for SP must use this channel — never 1–8 or 16.
+ * SP-404 pattern Program Change channel (Section Bridge).
+ * My Studio no longer USB-routes Circuit T6 notes to SP (T5+T6 → FM1); this
+ * channel is only for Bridge / Bench test PC — never 1–8 or 16.
  */
 export const SP_PATTERN_PC_CHANNEL = 13;
 
