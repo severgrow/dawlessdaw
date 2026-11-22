@@ -116,10 +116,10 @@ export const BENCH_TESTS: BenchTestDef[] = [
   {
     id: 'mpc-scarlett-clock',
     group: 'mpc',
-    title: 'g3. MPC follows Circuit tempo / start / stop via Scarlett',
+    title: 'g3. MPC follows Circuit Play — sequencer runs via Scarlett→DIN',
     instruction:
-      'Rig tab → Tempo: → MPC on. On the MPC: Menu → Preferences → MIDI/Sync: MIDI In row on, Receive = MIDI Clock, MIDI clock send off. Circuit: Clock Tx (pad 32) bright. Press Play on the Circuit — the MPC should start; change the Circuit tempo — the MPC should follow; press Stop — the MPC should stop. "Send test Start/Clock/Stop → MPC" sends a short burst straight from the app if the Circuit is not ready.',
-    listenHint: 'IN start/stop from Circuit · OUT start/clock/stop → MPC Out (Scarlett)',
+      'Setup › MPC follows Circuit Play = On (or Rig → Tempo → MPC on). MPC Out must be the Scarlett / MIDI interface — NOT the “MPC One” USB port. Cable: interface MIDI Out → MPC MIDI In. On the MPC: Preferences → MIDI/Sync: MIDI In row on, Receive = MIDI Clock, send clock off. Circuit: Clock Tx (pad 32) bright. Press Play on the Circuit — the MPC *sequence* should start (not just pad hits from note routes); change Circuit tempo — MPC follows; Stop — MPC stops. Note routes (T1–T4 → ch9–12) can stay on at the same time. “Send test Start/Clock/Stop → MPC” bursts from the app if Circuit is not ready. Mark Pass only when you see the sequencer run on your firmware — app-side forward is sim-verified; hardware still untested until you Pass.',
+    listenHint: 'IN start/stop/clock (+ SPP if sent) from Circuit · OUT same → MPC Out (Scarlett DIN path)',
     capabilityKey: 'din-clock-via-interface',
   },
   {

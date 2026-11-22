@@ -138,7 +138,7 @@ export function RigMap() {
             on={mpcOn}
             pulse={snap.destActivity.mpc}
             d="M672 61 L 792 61"
-            label={snap.clockToMpc ? 'DIN · notes+clock' : 'DIN · notes'}
+            label={snap.clockToMpc ? 'DIN · notes+transport' : 'DIN · notes'}
             lx={730}
             ly={84}
           />
