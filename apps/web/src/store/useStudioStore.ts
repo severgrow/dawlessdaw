@@ -36,6 +36,7 @@ export function useStudioActions() {
   return {
     start: () => runtime.start(),
     setSimulation: (on: boolean) => runtime.setSimulation(on),
+    rescanMidiPorts: () => runtime.rescanMidiPorts(),
     setWorkspace: (w: WorkspaceId) => runtime.setWorkspace(w),
     setFocusMode: (m: 'follow' | 'smart' | 'manual') => runtime.setFocusMode(m),
     pinDevice: (id: string | null) => runtime.pinDevice(id),

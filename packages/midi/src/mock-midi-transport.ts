@@ -73,6 +73,11 @@ export class MockMidiTransport implements HardwareTransport {
     return [...this.ports];
   }
 
+  async rescanPorts(): Promise<MidiPortInfo[]> {
+    this.emitPorts();
+    return this.listPorts();
+  }
+
   send(portId: PortId, data: Uint8Array, timestamp?: number): void {
     this.sent.push({ portId, data: new Uint8Array(data), timestamp: timestamp ?? performanceNow() });
   }

@@ -363,6 +363,25 @@ export class StudioRuntime {
     await this.start();
   }
 
+  /**
+   * Re-read Web MIDI ports. Cannot invent devices missing from Audio MIDI Setup.
+   */
+  async rescanMidiPorts(): Promise<void> {
+    if (!this.started) await this.start();
+    const ports = await this.transport.rescanPorts();
+    this.syncLivePorts(ports);
+    this.applyMyStudioRoutes();
+    const connected = ports.filter((p) => p.state === 'connected').length;
+    this.setStatus(
+      this.simulation
+        ? `Rescanned mock ports (${connected} connected)`
+        : connected === 0
+          ? 'Rescan: no Web MIDI ports — fix Audio MIDI Setup / USB first'
+          : `Rescanned Web MIDI (${connected} connected). If MPC still missing, OS does not see it.`,
+    );
+    this.notify();
+  }
+
   getNativeBridgeStub(): NativeBridgeTransport {
     return new NativeBridgeTransport();
   }
