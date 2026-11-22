@@ -55,6 +55,9 @@ export function useStudioActions() {
     setFm1Firmware: (firmware: 'skiff' | 'h1') => runtime.setFm1Firmware(firmware),
     setMpcNoteMode: (mode: 'usb' | 'din-only') => runtime.setMpcNoteMode(mode),
     setForwardClockToFm1: (on: boolean) => runtime.setForwardClockToFm1(on),
+    setCircuitT1to4Target: (t: 'mpc' | 'sp' | 'both') => runtime.setCircuitT1to4Target(t),
+    setSpNoteOffset: (n: number) => runtime.setSpNoteOffset(n),
+    learnSpPadOffset: () => runtime.learnSpPadOffset(),
     assignStudioPort: (
       roleId: StudioRoleId,
       which: 'input' | 'output',

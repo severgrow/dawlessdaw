@@ -116,6 +116,14 @@ export const BENCH_TESTS: BenchTestDef[] = [
     capabilityKey: 'skiff-usb-clock',
   },
   {
+    id: 'sp-banks-a-d',
+    title: 'h4. Circuit T1–T4 → SP banks A–D',
+    instruction:
+      'SP: MIDI settings → MIDI Mode A. App: Settings → Circuit tracks 1–4 = SP banks A–D, then Learn pad 1 and play the lowest note on Circuit track 1. Play tracks 1–4: track 1 should play bank A, 2 → B, 3 → C, 4 → D, and higher notes should walk up the pads. If every hit plays twice, the thru cable is already playing the SP — tell the app (offset 0 warning).',
+    listenHint: 'note-on ch1–4 Circuit in → SP out, notes 36–51 (hardware verify)',
+    capabilityKey: 'sp-banks-mode-a',
+  },
+  {
     id: 'timing-circuit-to-mpc',
     title: 'i. Timing Circuit → app → MPC (optional)',
     instruction:

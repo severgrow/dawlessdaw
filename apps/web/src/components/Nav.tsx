@@ -6,6 +6,7 @@ const ITEMS: { id: WorkspaceId; label: string }[] = [
   { id: 'patchbay', label: 'Patchbay' },
   { id: 'bridge', label: 'Section Bridge' },
   { id: 'bench', label: 'Bench Test' },
+  { id: 'sp-samples', label: 'SP-404 Samples' },
   { id: 'performance', label: 'Performance' },
   { id: 'library', label: 'Library' },
   { id: 'sessions', label: 'Sessions' },

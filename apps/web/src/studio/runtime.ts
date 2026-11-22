@@ -22,6 +22,8 @@ import {
   MPC_MUTE_LEARN_CHANNEL,
   SP_PATTERN_PC_CHANNEL,
   MY_STUDIO_ROLES,
+  DEFAULT_SP_NOTE_OFFSET,
+  SP_MODE_A_PAD1_NOTE,
   STORAGE_KEY_STUDIO_SETUP,
   assignPort,
   buildBenchExport,
@@ -37,6 +39,7 @@ import {
   type BenchTestResult,
   type BenchVerdict,
   type CircuitInterpretation,
+  type CircuitT1to4Target,
   type Fm1Firmware,
   type MpcNoteMode,
   type PersistedStudioSetup,
@@ -67,7 +70,8 @@ export type WorkspaceId =
   | 'sessions'
   | 'settings'
   | 'bench'
-  | 'bridge';
+  | 'bridge'
+  | 'sp-samples';
 
 export interface StudioRuntimeSnapshot {
   /** True once Chrome granted Web MIDI access. */
@@ -94,6 +98,9 @@ export interface StudioRuntimeSnapshot {
   fm1Firmware: Fm1Firmware;
   mpcNoteMode: MpcNoteMode;
   forwardClockToFm1: boolean;
+  circuitT1to4Target: CircuitT1to4Target;
+  spNoteOffset: number;
+  learningSpPadOffset: boolean;
   sectionBridge: SectionBridgeConfig;
   benchResults: BenchTestResult[];
   benchDetections: string[];
@@ -176,6 +183,9 @@ export class StudioRuntime {
   private fm1Firmware: Fm1Firmware = 'skiff';
   private mpcNoteMode: MpcNoteMode = 'usb';
   private forwardClockToFm1 = false;
+  private circuitT1to4Target: CircuitT1to4Target = 'mpc';
+  private spNoteOffset = DEFAULT_SP_NOTE_OFFSET;
+  private learningSpPadOffset = false;
   private sectionBridge: SectionBridgeConfig = {
     ...DEFAULT_SECTION_BRIDGE,
     rows: DEFAULT_SECTION_BRIDGE.rows.map((r) => ({ ...r })),
@@ -225,6 +235,11 @@ export class StudioRuntime {
       this.fm1Firmware = saved.fm1Firmware === 'h1' ? 'h1' : 'skiff';
       this.mpcNoteMode = saved.mpcNoteMode === 'din-only' ? 'din-only' : 'usb';
       this.forwardClockToFm1 = Boolean(saved.forwardClockToFm1);
+      const t = saved.circuitT1to4Target;
+      this.circuitT1to4Target = t === 'sp' || t === 'both' ? t : 'mpc';
+      if (typeof saved.spNoteOffset === 'number' && Number.isFinite(saved.spNoteOffset)) {
+        this.spNoteOffset = Math.max(-127, Math.min(127, Math.round(saved.spNoteOffset)));
+      }
     }
     this.registerDefaultAssistantTools();
   }
@@ -258,6 +273,9 @@ export class StudioRuntime {
       fm1Firmware: this.fm1Firmware,
       mpcNoteMode: this.mpcNoteMode,
       forwardClockToFm1: this.forwardClockToFm1,
+      circuitT1to4Target: this.circuitT1to4Target,
+      spNoteOffset: this.spNoteOffset,
+      learningSpPadOffset: this.learningSpPadOffset,
       sectionBridge: {
         enabled: this.sectionBridge.enabled,
         rows: this.sectionBridge.rows.map((r) => ({ ...r })),
@@ -469,6 +487,36 @@ export class StudioRuntime {
     this.notify();
   }
 
+  setCircuitT1to4Target(target: CircuitT1to4Target): void {
+    this.circuitT1to4Target = target;
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    const label =
+      target === 'sp'
+        ? 'Circuit T1–T4 → SP banks A–D (SP must be in MIDI Mode A)'
+        : target === 'both'
+          ? 'Circuit T1–T4 → MPC and SP banks A–D'
+          : 'Circuit T1–T4 → MPC';
+    this.setStatus(label);
+    this.notify();
+  }
+
+  setSpNoteOffset(offset: number): void {
+    this.spNoteOffset = Math.max(-127, Math.min(127, Math.round(offset)));
+    this.learningSpPadOffset = false;
+    this.applyMyStudioRoutes();
+    this.persistSetup();
+    this.setStatus(`SP note offset ${this.spNoteOffset >= 0 ? '+' : ''}${this.spNoteOffset}`);
+    this.notify();
+  }
+
+  /** Next Circuit note on ch1–4 becomes SP pad 1. */
+  learnSpPadOffset(): void {
+    this.learningSpPadOffset = true;
+    this.setStatus('Learn: play the note on Circuit track 1–4 that should hit SP pad 1');
+    this.notify();
+  }
+
   setFocusMode(mode: 'follow' | 'smart' | 'manual'): void {
     this.focus.setMode(mode);
     this.notify();
@@ -514,6 +562,8 @@ export class StudioRuntime {
       fm1Firmware: this.fm1Firmware,
       mpcNoteMode: this.mpcNoteMode,
       forwardClockToFm1: this.forwardClockToFm1,
+      circuitT1to4Target: this.circuitT1to4Target,
+      spNoteOffset: this.spNoteOffset,
     }).map((r) => ({
       ...r,
       destinations: r.destinations.filter((d) => !d.portId.startsWith('__missing_')),
@@ -824,12 +874,29 @@ export class StudioRuntime {
       fm1Firmware: this.fm1Firmware,
       mpcNoteMode: this.mpcNoteMode,
       forwardClockToFm1: this.forwardClockToFm1,
+      circuitT1to4Target: this.circuitT1to4Target,
+      spNoteOffset: this.spNoteOffset,
     });
   }
 
   private handleIncoming(message: MidiMessage, deviceId?: string): void {
     const circuitIn = portsForRoles(this.assignments).circuitIn;
     const fromCircuit = circuitIn && message.portId === circuitIn;
+
+    if (
+      this.learningSpPadOffset &&
+      fromCircuit &&
+      message.kind === 'note-on' &&
+      message.channel !== undefined &&
+      message.channel >= 1 &&
+      message.channel <= 4 &&
+      message.note !== undefined
+    ) {
+      this.setSpNoteOffset(SP_MODE_A_PAD1_NOTE - message.note);
+      this.setStatus(
+        `Learned: Circuit note ${message.note} → SP pad 1 (offset ${this.spNoteOffset >= 0 ? '+' : ''}${this.spNoteOffset})`,
+      );
+    }
 
     if (fromCircuit || this.registry.get(deviceId ?? '')?.kind === 'circuit-rhythm') {
       const interpreted = this.circuitInterpreter.interpret(message);

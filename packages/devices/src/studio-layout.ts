@@ -112,6 +112,18 @@ export type Fm1Firmware = 'skiff' | 'h1';
 /** How the MPC receives Circuit notes. */
 export type MpcNoteMode = 'usb' | 'din-only';
 
+/** Where Circuit tracks 1–4 go. */
+export type CircuitT1to4Target = 'mpc' | 'sp' | 'both';
+
+/**
+ * SP-404MKII MIDI Mode A (Roland): bank A–J = MIDI ch1–10, pads 1–16 = notes 36–51.
+ * Circuit T1–T4 (ch1–4) therefore map straight to banks A–D.
+ */
+export const SP_MODE_A_PAD1_NOTE = 36;
+export const SP_MODE_A_PAD16_NOTE = 51;
+/** Default shift from Circuit notes to SP pad notes (Circuit 60 → pad 1). Learnable in the app. */
+export const DEFAULT_SP_NOTE_OFFSET = -24;
+
 /**
  * Skiff (illuminus5/skiff) — Circuit macro knobs (CC 21–28, sent on each track's
  * own channel) translated to Skiff's standard per-track CCs.
@@ -167,6 +179,10 @@ export interface PersistedStudioSetup {
   mpcNoteMode?: MpcNoteMode;
   /** Forward Circuit clock to FM1 over USB (Skiff CLOCK = USB). Default false. */
   forwardClockToFm1?: boolean;
+  /** Where Circuit T1–T4 go (default 'mpc'). */
+  circuitT1to4Target?: CircuitT1to4Target;
+  /** Semitones added to Circuit T1–T4 notes before they reach the SP (default -24). */
+  spNoteOffset?: number;
 }
 
 export const STORAGE_KEY_STUDIO_SETUP = 'dawlessdaw.studioSetup.v1';
@@ -184,7 +200,13 @@ export function buildMyStudioRoutes(ports: {
   mpcNoteMode?: MpcNoteMode;
   /** default false — forward Circuit clock/start/stop to FM1 over USB */
   forwardClockToFm1?: boolean;
+  /** default 'mpc' — 'sp' sends Circuit T1–T4 to SP banks A–D, 'both' does both */
+  circuitT1to4Target?: CircuitT1to4Target;
+  /** default DEFAULT_SP_NOTE_OFFSET */
+  spNoteOffset?: number;
 }): MidiRoute[] {
+  const t1to4: CircuitT1to4Target = ports.circuitT1to4Target ?? 'mpc';
+  const spNoteOffset = ports.spNoteOffset ?? DEFAULT_SP_NOTE_OFFSET;
   const fm1Firmware: Fm1Firmware = ports.fm1Firmware ?? 'skiff';
   const mpcNoteMode: MpcNoteMode = ports.mpcNoteMode ?? 'usb';
   const routes: MidiRoute[] = [
@@ -261,6 +283,31 @@ export function buildMyStudioRoutes(ports: {
         forwardClock: false,
         blockKinds: ['program-change', 'cc'],
       });
+    }
+  }
+
+  if (t1to4 === 'sp' || t1to4 === 'both') {
+    const banks = ['A', 'B', 'C', 'D'];
+    for (const track of [1, 2, 3, 4]) {
+      routes.push({
+        id: `mystudio-t${track}-sp`,
+        name: `Circuit T${track} → SP bank ${banks[track - 1]} (ch${track})`,
+        enabled: true,
+        sourcePortId: ports.circuitIn,
+        destinations: [{ portId: ports.spOut }],
+        // SP MIDI Mode A: bank A–D listen on ch1–4, so the channel stays the same.
+        channel: { allow: [track], remap: { [track]: track } },
+        note: { transpose: spNoteOffset },
+        forwardClock: false,
+        // SP reads CC 20–27 as DJ/Looper controls and PC as pattern select — block both.
+        blockKinds: ['program-change', 'cc', 'pitch-bend'],
+      });
+    }
+  }
+
+  if (t1to4 === 'sp') {
+    for (let i = routes.length - 1; i >= 0; i--) {
+      if (/^mystudio-t[1-4]-mpc$/.test(routes[i]!.id)) routes.splice(i, 1);
     }
   }
 

@@ -127,3 +127,67 @@ describe('Skiff port naming', () => {
     expect(portsForRoles(matchPortsToRoles(ports)).fm1Out).toBe('sk-out');
   });
 });
+
+describe('Circuit T1–T4 → SP-404 banks A–D (MIDI Mode A)', () => {
+  let transport: MockMidiTransport;
+  let engine: MidiRoutingEngine;
+
+  const setup = async (target: 'mpc' | 'sp' | 'both', spNoteOffset?: number) => {
+    transport = new MockMidiTransport();
+    await transport.start();
+    engine = new MidiRoutingEngine(transport);
+    engine.start();
+    engine.setRoutes(
+      buildMyStudioRoutes({
+        circuitIn: 'mock-circuit-in',
+        mpcOut: 'mock-mpc-out',
+        spOut: 'mock-sp404-out',
+        fm1Out: 'mock-fm1-out',
+        circuitT1to4Target: target,
+        spNoteOffset,
+      }),
+    );
+  };
+  const sentTo = (portId: string) =>
+    transport
+      .getSent()
+      .filter((m) => m.portId === portId)
+      .map((m) => Array.from(m.data));
+
+  it('keeps each track on its own channel (= bank) and shifts notes to pads', async () => {
+    await setup('sp');
+    transport.inject('mock-circuit-in', [0x90, 60, 100]); // T1, note 60
+    transport.inject('mock-circuit-in', [0x93, 61, 90]); // T4, note 61
+    expect(sentTo('mock-sp404-out')).toEqual([
+      [0x90, 36, 100], // bank A pad 1
+      [0x93, 37, 90], // bank D pad 2
+    ]);
+    expect(sentTo('mock-mpc-out')).toEqual([]);
+  });
+
+  it('uses a learned offset', async () => {
+    await setup('sp', 36 - 48);
+    transport.inject('mock-circuit-in', [0x91, 48, 100]); // T2 note 48 → pad 1
+    expect(sentTo('mock-sp404-out')).toEqual([[0x91, 36, 100]]);
+  });
+
+  it('never sends knobs or Program Change to the SP', async () => {
+    await setup('sp');
+    transport.inject('mock-circuit-in', [0xb0, 21, 100]); // CC21 = SP DJ-mode control
+    transport.inject('mock-circuit-in', [0xc0, 2]);
+    expect(sentTo('mock-sp404-out')).toEqual([]);
+  });
+
+  it('"both" plays the MPC and the SP', async () => {
+    await setup('both');
+    transport.inject('mock-circuit-in', [0x90, 60, 100]);
+    expect(sentTo('mock-sp404-out')).toEqual([[0x90, 36, 100]]);
+    expect(sentTo('mock-mpc-out')).toEqual([[0x98, 60, 100]]); // ch9
+  });
+
+  it('defaults to MPC only', async () => {
+    await setup('mpc');
+    transport.inject('mock-circuit-in', [0x90, 60, 100]);
+    expect(sentTo('mock-sp404-out')).toEqual([]);
+  });
+});
