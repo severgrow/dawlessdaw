@@ -34,6 +34,7 @@ import {
   emptyBenchResults,
   latencyVerdict,
   matchPortsToRoles,
+  normalizePortId,
   portsForRoles,
   resolveSectionBridge,
   type BenchExport,
@@ -200,7 +201,19 @@ export class StudioRuntime {
     this.transport = this.mock;
     this.routing = new MidiRoutingEngine(this.transport, this.bus);
     const saved = loadSetup();
-    if (saved?.assignments?.length) this.assignments = saved.assignments;
+    if (saved?.assignments?.length) {
+      // Strip mock / dash sentinels so Live sync can auto-bind Felucca → FM1.
+      this.assignments = saved.assignments.map((a) => {
+        const inputPortId = normalizePortId(a.inputPortId);
+        const outputPortId = normalizePortId(a.outputPortId);
+        return {
+          ...a,
+          inputPortId,
+          outputPortId,
+          connected: a.roleId === 'zed' || Boolean(inputPortId || outputPortId),
+        };
+      });
+    }
     if (saved) this.routeClockThroughApp = Boolean(saved.routeClockThroughApp);
     this.registerDefaultAssistantTools();
   }
@@ -760,8 +773,10 @@ export class StudioRuntime {
   // —— internals ——
 
   private syncLivePorts(ports: ReturnType<HardwareTransport['listPorts']>): void {
+    // Empty / dash / mock previous slots must not block Felucca → FM1 (and peers).
     this.assignments = matchPortsToRoles(ports, this.assignments);
-    this.registry.syncFromPorts(ports);
+    // Role claims win so Felucca bound to FM1 is m-vave-fm1, not generic-midi.
+    this.registry.syncFromPorts(ports, this.assignments);
     this.registry.ensureZed();
     this.remapFocusPorts();
     this.persistSetup();

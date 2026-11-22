@@ -7,7 +7,9 @@ import {
   scorePortAgainstHints,
   unmatchedConnectedPorts,
   roleUsingPort,
+  normalizePortId,
 } from './port-matcher';
+import { DeviceRegistry } from './registry';
 import {
   buildMyStudioRoutes,
   myStudioTemplateRoutes,
@@ -108,6 +110,101 @@ describe('Mac / Live hint matching', () => {
     expect(a.find((x) => x.roleId === 'circuit')?.inputPortId).toBe('c-in');
     expect(a.find((x) => x.roleId === 'sp404')?.outputPortId).toBe('s-out');
     expect(a.find((x) => x.roleId === 'mpc')?.connected).toBe(false);
+  });
+
+  it('binds Felucca in+out when FM1 previous is empty / dash persisted', () => {
+    const live: MidiPortInfo[] = [
+      { id: 'c-in', name: 'Circuit Rhythm MIDI', type: 'input', state: 'connected' },
+      { id: 'c-out', name: 'Circuit Rhythm MIDI', type: 'output', state: 'connected' },
+      { id: 's-in', name: 'SP-404MKII', type: 'input', state: 'connected' },
+      { id: 's-out', name: 'SP-404MKII', type: 'output', state: 'connected' },
+      { id: 'fel-in', name: 'Felucca', type: 'input', state: 'connected' },
+      { id: 'fel-out', name: 'Felucca', type: 'output', state: 'connected' },
+    ];
+    const previous = [
+      {
+        roleId: 'circuit' as const,
+        inputPortId: 'c-in',
+        outputPortId: 'c-out',
+        connected: true,
+        inputPortName: 'Circuit Rhythm MIDI',
+        outputPortName: 'Circuit Rhythm MIDI',
+      },
+      { roleId: 'mpc' as const, inputPortId: null, outputPortId: null, connected: false },
+      {
+        roleId: 'sp404' as const,
+        inputPortId: 's-in',
+        outputPortId: 's-out',
+        connected: true,
+        inputPortName: 'SP-404MKII',
+        outputPortName: 'SP-404MKII',
+      },
+      {
+        roleId: 'fm1' as const,
+        inputPortId: '-' as unknown as null,
+        outputPortId: '' as unknown as null,
+        connected: false,
+        inputPortName: '—',
+        outputPortName: '—',
+      },
+      { roleId: 'zed' as const, inputPortId: null, outputPortId: null, connected: true },
+    ];
+    expect(normalizePortId('-')).toBeNull();
+    expect(normalizePortId('')).toBeNull();
+    expect(normalizePortId('mock-fm1-out')).toBeNull();
+
+    const a = matchPortsToRoles(live, previous);
+    const fm1 = a.find((x) => x.roleId === 'fm1')!;
+    expect(fm1.inputPortId).toBe('fel-in');
+    expect(fm1.outputPortId).toBe('fel-out');
+    expect(fm1.connected).toBe(true);
+    expect(fm1.inputPortName).toBe('Felucca');
+    expect(fm1.outputPortName).toBe('Felucca');
+    expect(unmatchedConnectedPorts(live, a)).toHaveLength(0);
+  });
+
+  it('registry classifies Felucca as m-vave-fm1 after role assignment', () => {
+    const live: MidiPortInfo[] = [
+      { id: 'c-in', name: 'Circuit Rhythm MIDI', type: 'input', state: 'connected' },
+      { id: 'c-out', name: 'Circuit Rhythm MIDI', type: 'output', state: 'connected' },
+      { id: 'fel-in', name: 'Felucca', type: 'input', state: 'connected' },
+      { id: 'fel-out', name: 'Felucca', type: 'output', state: 'connected' },
+    ];
+    const assignments = matchPortsToRoles(live);
+    const reg = new DeviceRegistry();
+    const byName = reg.syncFromPorts(live);
+    expect(byName.find((d) => d.inputPortIds.includes('fel-in'))?.kind).toBe('m-vave-fm1');
+
+    const byRole = reg.syncFromPorts(live, assignments);
+    const fm1 = byRole.find((d) => d.kind === 'm-vave-fm1');
+    expect(fm1?.inputPortIds).toContain('fel-in');
+    expect(fm1?.outputPortIds).toContain('fel-out');
+    expect(byRole.some((d) => d.kind === 'generic-midi' && d.displayName === 'Felucca')).toBe(
+      false,
+    );
+  });
+
+  it('still binds Felucca after clearing sticky mock FM1 ids from sim', () => {
+    const live: MidiPortInfo[] = [
+      { id: 'fel-in', name: 'Felucca', type: 'input', state: 'connected' },
+      { id: 'fel-out', name: 'Felucca', type: 'output', state: 'connected' },
+    ];
+    const previous = [
+      {
+        roleId: 'fm1' as const,
+        inputPortId: 'mock-fm1-in',
+        outputPortId: 'mock-fm1-out',
+        connected: true,
+        inputPortName: 'M-VAVE FM1 MIDI In',
+        outputPortName: 'M-VAVE FM1 MIDI Out',
+      },
+    ];
+    const a = matchPortsToRoles(live, previous);
+    expect(a.find((x) => x.roleId === 'fm1')).toMatchObject({
+      inputPortId: 'fel-in',
+      outputPortId: 'fel-out',
+      connected: true,
+    });
   });
 
   it('does not score Circuit/SP names against MPC or FM1 hints', () => {

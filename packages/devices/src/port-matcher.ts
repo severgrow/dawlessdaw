@@ -16,6 +16,19 @@ function tokens(s: string): string[] {
 }
 
 /**
+ * Treat UI / localStorage empties as null so a persisted "—" / "" never blocks auto-match.
+ * Mock transport ids are cleared on Live sync so sim leftovers cannot sticky-claim slots.
+ */
+export function normalizePortId(id: string | null | undefined): string | null {
+  if (id == null) return null;
+  const t = String(id).trim();
+  if (!t) return null;
+  if (t === '-' || t === '—' || t === '–' || t === '−') return null;
+  if (t.startsWith('mock-') || t.startsWith('__missing_') || t.startsWith('__')) return null;
+  return t;
+}
+
+/**
  * Score how well a port name/manufacturer matches role hints.
  * Supports contiguous substring, compact (hyphen/space-insensitive), and
  * multi-token hints so "akai mpc" matches "Akai Professional MPC One".
@@ -119,9 +132,27 @@ function isClaimedByStrongerRole(
   return false;
 }
 
+function rankPortsForRole(
+  candidates: MidiPortInfo[],
+  used: Set<string>,
+  role: StudioRoleDef,
+  midiRoles: StudioRoleDef[],
+  hints: string[],
+): MidiPortInfo | undefined {
+  const ranked = [...candidates]
+    .filter((p) => !used.has(p.id))
+    .filter((p) => !isClaimedByStrongerRole(p, role, midiRoles))
+    .map((p) => ({ p, s: scorePortAgainstHints(p, hints) }))
+    .filter((x) => x.s > 0)
+    .sort((a, b) => b.s - a.s);
+  return ranked[0]?.p;
+}
+
 /**
  * Auto-match Web MIDI ports to studio roles by name hints.
  * Preserves manual overrides when `previous` has port ids still present.
+ * Empty / dash / mock previous slots never lock a role — strong hints (e.g. Felucca → FM1)
+ * still bind on Live sync when those ports are unmatched.
  */
 export function matchPortsToRoles(
   ports: MidiPortInfo[],
@@ -136,7 +167,7 @@ export function matchPortsToRoles(
   const prevByRole = new Map(previous.map((a) => [a.roleId, a]));
   const midiRoles = MY_STUDIO_ROLES.filter((r) => r.midi);
 
-  return MY_STUDIO_ROLES.map((role) => {
+  const assignments: PortAssignment[] = MY_STUDIO_ROLES.map((role) => {
     const prev = prevByRole.get(role.id);
     if (!role.midi) {
       return {
@@ -149,29 +180,18 @@ export function matchPortsToRoles(
       };
     }
 
-    // Honour manual / previous if ports still exist
-    let inputPortId = prev?.inputPortId ?? null;
-    let outputPortId = prev?.outputPortId ?? null;
+    // Honour manual / previous if ports still exist (normalize empties / mock ids first)
+    let inputPortId = normalizePortId(prev?.inputPortId);
+    let outputPortId = normalizePortId(prev?.outputPortId);
     if (inputPortId && !inputs.some((p) => p.id === inputPortId)) inputPortId = null;
     if (outputPortId && !outputs.some((p) => p.id === outputPortId)) outputPortId = null;
 
     if (!inputPortId) {
-      const ranked = [...inputs]
-        .filter((p) => !usedIn.has(p.id))
-        .filter((p) => !isClaimedByStrongerRole(p, role, midiRoles))
-        .map((p) => ({ p, s: scorePortAgainstHints(p, role.portNameHints) }))
-        .filter((x) => x.s > 0)
-        .sort((a, b) => b.s - a.s);
-      inputPortId = ranked[0]?.p.id ?? null;
+      inputPortId = rankPortsForRole(inputs, usedIn, role, midiRoles, role.portNameHints)?.id ?? null;
     }
     if (!outputPortId) {
-      const ranked = [...outputs]
-        .filter((p) => !usedOut.has(p.id))
-        .filter((p) => !isClaimedByStrongerRole(p, role, midiRoles))
-        .map((p) => ({ p, s: scorePortAgainstHints(p, role.portNameHints) }))
-        .filter((x) => x.s > 0)
-        .sort((a, b) => b.s - a.s);
-      outputPortId = ranked[0]?.p.id ?? null;
+      outputPortId =
+        rankPortsForRole(outputs, usedOut, role, midiRoles, role.portNameHints)?.id ?? null;
     }
 
     if (inputPortId) usedIn.add(inputPortId);
@@ -185,11 +205,45 @@ export function matchPortsToRoles(
       roleId: role.id,
       inputPortId,
       outputPortId,
-      inputPortName: inPort?.name ?? prev?.inputPortName ?? null,
-      outputPortName: outPort?.name ?? prev?.outputPortName ?? null,
+      inputPortName: inPort?.name ?? null,
+      outputPortName: outPort?.name ?? null,
       connected: connectedNow,
     };
   });
+
+  // Second pass: empty roles reclaim unmatched ports via exclusive (strong) hints.
+  // Covers Felucca → FM1 when a prior localStorage row left FM1 as "—" / null.
+  for (const role of midiRoles) {
+    const a = assignments.find((x) => x.roleId === role.id);
+    if (!a) continue;
+    const exclusive = exclusiveHintsForRole(role);
+    if (!a.inputPortId) {
+      const hit = rankPortsForRole(inputs, usedIn, role, midiRoles, exclusive);
+      if (hit) {
+        a.inputPortId = hit.id;
+        a.inputPortName = hit.name;
+        usedIn.add(hit.id);
+      }
+    }
+    if (!a.outputPortId) {
+      const hit = rankPortsForRole(outputs, usedOut, role, midiRoles, exclusive);
+      if (hit) {
+        a.outputPortId = hit.id;
+        a.outputPortName = hit.name;
+        usedOut.add(hit.id);
+      }
+    }
+    a.connected = Boolean(a.inputPortId || a.outputPortId);
+    if (a.inputPortId) {
+      a.inputPortName = inputs.find((p) => p.id === a.inputPortId)?.name ?? a.inputPortName ?? null;
+    }
+    if (a.outputPortId) {
+      a.outputPortName =
+        outputs.find((p) => p.id === a.outputPortId)?.name ?? a.outputPortName ?? null;
+    }
+  }
+
+  return assignments;
 }
 
 export function assignPort(

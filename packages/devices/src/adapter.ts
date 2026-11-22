@@ -17,15 +17,15 @@ export interface DeviceAdapter {
   createDevice(id: DeviceId, ports: { inputs: PortId[]; outputs: PortId[] }): StudioDevice;
   /** Optional message interpretation for UI / roles. */
   interpret?(message: MidiMessage): Record<string, unknown> | null;
-  matchPortName(name: string): boolean;
+  matchPortName(name: string, manufacturer?: string): boolean;
 }
 
 export abstract class BaseAdapter implements DeviceAdapter {
   abstract readonly kind: DeviceKind;
   abstract readonly profile: DP;
 
-  matchPortName(name: string): boolean {
-    return scorePortAgainstHints({ name }, this.profile.portNameHints) > 0;
+  matchPortName(name: string, manufacturer?: string): boolean {
+    return scorePortAgainstHints({ name, manufacturer }, this.profile.portNameHints) > 0;
   }
 
   createDevice(id: DeviceId, ports: { inputs: PortId[]; outputs: PortId[] }): StudioDevice {
@@ -215,7 +215,7 @@ export class Zed10fxAdapter extends BaseAdapter {
     };
   }
 
-  override matchPortName(_name: string): boolean {
+  override matchPortName(_name: string, _manufacturer?: string): boolean {
     // ZED does not appear as MIDI — matched only via manual registration
     return false;
   }

@@ -93,6 +93,12 @@ export function SettingsWorkspace() {
         >
           App clock forwarding: {snap.routeClockThroughApp ? 'ON' : 'OFF'}
         </button>
+        {snap.routeClockThroughApp ? (
+          <p className="muted" style={{ marginTop: '0.5rem' }}>
+            Forwarding is ON. For FM1-only note routing this does not matter much — turn OFF unless
+            you are intentionally sending USB clock to MPC/SP (and prefer DIN thru for MPC).
+          </p>
+        ) : null}
       </div>
 
       <div className="panel">
