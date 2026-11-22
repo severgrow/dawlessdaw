@@ -1,4 +1,4 @@
-import type { MidiMessage, MidiPortInfo, PortId } from '@nervos/core';
+import type { MidiMessage, MidiPortInfo, PortId } from '@dawlessdaw/core';
 
 export type MidiInputHandler = (message: MidiMessage) => void;
 export type PortChangeHandler = (ports: MidiPortInfo[]) => void;

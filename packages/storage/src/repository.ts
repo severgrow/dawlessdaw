@@ -15,7 +15,7 @@ export interface KvRepository {
   delete(key: string): Promise<void>;
 }
 
-const DB_NAME = 'nervos-v01';
+const DB_NAME = 'dawlessdaw-v01';
 const DB_VERSION = 1;
 const STORE_SESSIONS = 'sessions';
 const STORE_SCENES = 'scenes';

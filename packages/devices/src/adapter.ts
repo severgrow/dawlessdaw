@@ -6,8 +6,8 @@ import type {
   MidiMessage,
   PortId,
   StudioDevice,
-} from '@nervos/core';
-import type { DeviceProfile as DP } from '@nervos/core';
+} from '@dawlessdaw/core';
+import type { DeviceProfile as DP } from '@dawlessdaw/core';
 import { CircuitRhythmInterpreter, trackFromChannel } from './circuit-rhythm';
 
 export interface DeviceAdapter {

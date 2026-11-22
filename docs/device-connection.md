@@ -2,7 +2,7 @@
 
 ## Simulation
 
-On first start, NervOS seeds mock ports and five studio members:
+On first start, Dawlessdaw seeds mock ports and five studio members:
 
 | Device | Mock ports | MIDI |
 |--------|------------|------|
@@ -23,7 +23,7 @@ Use **Replay groove fixture** or per-device **Tap note** to exercise routing and
 
 ## Capability honesty
 
-| Device | What NervOS claims |
+| Device | What Dawlessdaw claims |
 |--------|--------------------|
 | MPC One | Port I/O untested; MPC 3 remote **unavailable** |
 | SP-404MKII stock | Notes/CC untested; pad remote **unavailable** |

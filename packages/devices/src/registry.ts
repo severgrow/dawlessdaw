@@ -1,4 +1,4 @@
-import type { DeviceId, MidiPortInfo, PortId, StudioDevice } from '@nervos/core';
+import type { DeviceId, MidiPortInfo, PortId, StudioDevice } from '@dawlessdaw/core';
 import { DEVICE_PROFILES } from './profiles';
 import {
   CircuitRhythmAdapter,

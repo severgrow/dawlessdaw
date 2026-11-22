@@ -1,4 +1,4 @@
-import type { DeviceProfile } from '@nervos/core';
+import type { DeviceProfile } from '@dawlessdaw/core';
 
 export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
   'mpc-one': {
@@ -104,7 +104,7 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
         id: 'arranger-direct',
         label: 'Direct-sequencing arranger adapter',
         status: 'experimental',
-        notes: 'NervOS routes track channels → external devices (sim verified)',
+        notes: 'Dawlessdaw routes track channels → external devices (sim verified)',
       },
     ],
   },

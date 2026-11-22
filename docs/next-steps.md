@@ -9,4 +9,4 @@ Priorities refined by the hardware feasibility pass (`docs/hardware-integration/
 5. **Live port rebind** — map sim Scenes onto real Web MIDI port IDs.
 6. **ZED Web Audio meter** — capture only.
 7. **Optional librarians** — Circuit SD pack builder (original code); open404/Sparky read-only sidecar.
-8. **NativeBridgeTransport / SQLite / Playwright** — as before; Plugin SDK only for on-device audio plugins (no NervOS IPC).
+8. **NativeBridgeTransport / SQLite / Playwright** — as before; Plugin SDK only for on-device audio plugins (no Dawlessdaw IPC).

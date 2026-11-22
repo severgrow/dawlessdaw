@@ -1,41 +1,40 @@
+import { MY_STUDIO_ROLES } from '@dawlessdaw/devices';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 export function DeviceStrip() {
   const snap = useStudioStore();
-  const { selectDevice, pinDevice } = useStudioActions();
+  const { selectDevice } = useStudioActions();
   const softId = snap.focus.softFocus?.deviceId;
 
   return (
     <div className="device-strip" role="list">
-      {snap.devices.map((d) => {
-        const isFocus = snap.focus.activeDeviceId === d.id;
-        const isSoft = softId === d.id && !isFocus;
-        const isPinned = snap.focus.pinnedDeviceId === d.id;
-        const topCap = d.capabilities[0];
+      {MY_STUDIO_ROLES.map((role) => {
+        const assignment = snap.assignments.find((a) => a.roleId === role.id);
+        const device = snap.devices.find((d) => d.kind === role.kind);
+        const connected = assignment?.connected ?? Boolean(device?.connected);
+        const isFocus = device && snap.focus.activeDeviceId === device.id;
+        const isSoft = device && softId === device.id && !isFocus;
         return (
           <button
-            key={d.id}
+            key={role.id}
             type="button"
             role="listitem"
-            className={`device-chip ${isFocus ? 'focus' : ''} ${isSoft ? 'soft' : ''}`}
-            onClick={() => selectDevice(d.id)}
-            onDoubleClick={() => pinDevice(isPinned ? null : d.id)}
-            title="Click to focus · double-click to pin"
+            className={`device-chip ${isFocus ? 'focus' : ''} ${isSoft ? 'soft' : ''} ${
+              connected ? '' : 'disconnected'
+            }`}
+            onClick={() => device && selectDevice(device.id)}
+            title={
+              connected
+                ? `${assignment?.inputPortName ?? ''} / ${assignment?.outputPortName ?? ''}`
+                : 'Not connected'
+            }
+            style={connected ? undefined : { opacity: 0.45 }}
           >
-            <span className="name">
-              {isPinned ? '[PIN] ' : ''}
-              {d.displayName}
-            </span>
+            <span className="name">{role.label}</span>
             <span className="meta">
-              {d.midiEnabled ? 'MIDI' : 'AUDIO'}
-              {d.firmwareProfile ? ` · ${d.firmwareProfile}` : ''}
-              {topCap ? (
-                <>
-                  {' · '}
-                  <span className={`cap-dot ${topCap.status}`} />
-                  {topCap.status}
-                </>
-              ) : null}
+              {role.midi ? 'MIDI' : 'AUDIO'}
+              {' · '}
+              {connected ? 'connected' : 'not connected'}
             </span>
           </button>
         );

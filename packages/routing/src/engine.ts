@@ -1,13 +1,13 @@
-import type { MidiMessage, PortId } from '@nervos/core';
+import type { MidiMessage, PortId } from '@dawlessdaw/core';
 import {
   buildCc,
   buildNoteOff,
   buildNoteOn,
   cloneMidiData,
   isClockLike,
-} from '@nervos/core';
-import type { StudioEventBus } from '@nervos/events';
-import type { HardwareTransport } from '@nervos/midi';
+} from '@dawlessdaw/core';
+import type { StudioEventBus } from '@dawlessdaw/events';
+import type { HardwareTransport } from '@dawlessdaw/midi';
 import type { ActiveNoteKey, MidiRoute, RoutingPreset } from './types';
 
 function noteKey(destPortId: PortId, channel: number, note: number): string {

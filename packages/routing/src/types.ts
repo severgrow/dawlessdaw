@@ -1,4 +1,4 @@
-import type { PortId, RouteId } from '@nervos/core';
+import type { PortId, RouteId } from '@dawlessdaw/core';
 
 export interface ChannelFilter {
   /** Allowed source channels (1–16). Empty = all. */

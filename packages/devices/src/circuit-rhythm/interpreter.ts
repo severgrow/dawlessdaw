@@ -1,5 +1,5 @@
-import type { MidiMessage } from '@nervos/core';
-import { isClockLike } from '@nervos/core';
+import type { MidiMessage } from '@dawlessdaw/core';
+import { isClockLike } from '@dawlessdaw/core';
 import {
   DEFAULT_TRACK_CHANNELS,
   FX_CCS,

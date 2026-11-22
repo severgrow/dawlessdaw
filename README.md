@@ -1,57 +1,43 @@
-# NervOS v0.1
+# Dawlessdaw
 
-Local-first web application for hardware music studio connectivity.
+Local-first web app for hardware music studio connectivity (Mac + Chrome + Web MIDI).
 
-**Simulation mode is the default.** Live Web MIDI is optional (Chrome / Edge on macOS).
+Formerly prototyped as NervOS. This repository is the source of truth.
 
 ## Quick start (macOS + Chrome)
 
 ```bash
-cd nervos
+git clone https://github.com/severgrow/dawlessdaw.git
+cd dawlessdaw
 npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. Allow MIDI if prompted when switching to Live.
+Open **http://localhost:5173**. Default mode is Simulation. Click **Switch to Live** and allow MIDI when your Circuit / MPC / SP-404 / FM1 are on USB.
 
 ```bash
 npm test
+npm run build
 ```
 
-## Stack
+## Your studio plan (My Studio)
 
-- React + TypeScript + Vite
-- Zustand-style store via `useSyncExternalStore` over `StudioRuntime`
-- IndexedDB repository interface (Memory fallback; SQLite later)
-- Web MIDI + MockMidiTransport (+ NativeBridgeTransport stub)
-- Vitest
+| Circuit track | MIDI ch | Destination |
+|---------------|---------|-------------|
+| 1–4 | 1–4 | MPC One |
+| 5 | 5 | M-VAVE FM1 (notes only, no clock) |
+| 6 | 6 | SP-404MKII |
+| 7–8 | 7–8 | Internal Circuit only |
+| Project | 16 | Section Bridge (optional SP/MPC PC + Scene) |
 
-## Packages
+MIDI clock: **hardware** Circuit Out → thru box → MPC + SP. App clock forwarding is OFF by default.
 
-| Package | Role |
-|---------|------|
-| `@nervos/core` | Types, MIDI parse, AssistantTool extension point |
-| `@nervos/events` | Typed studio event bus (clock partitioned) |
-| `@nervos/midi` | HardwareTransport implementations |
-| `@nervos/routing` | MIDI routing engine |
-| `@nervos/focus` | Follow / Smart / Manual focus |
-| `@nervos/devices` | Registry + adapters (MPC, SP-404, Circuit, FM1, ZED) |
-| `@nervos/scenes` | Scenes, roles, arranger provider |
-| `@nervos/sessions` | Session JSON schema import/export |
-| `@nervos/storage` | Repository interface + IndexedDB |
-| `@nervos/web` | UI app |
+ZED-10FX: USB **audio only** — no MIDI.
 
 ## Docs
 
-See `../docs/` in the Project store:
-
-- architecture.md
-- setup-macos.md
-- device-connection.md
-- module-adapter-api.md
-- limitations.md
-- next-steps.md
+See `/docs` in this repo (architecture, setup, hardware-integration research, limitations).
 
 ## Honesty
 
-ZED-10FX has **no MIDI**. Circuit Scene Sync is **not** faked. Unverified firmware features are marked untested / experimental / unavailable / unknown.
+Simulated tests do not prove hardware behaviour. Use **Bench Test** with real gear and export the JSON for follow-up.

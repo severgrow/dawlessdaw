@@ -1,5 +1,5 @@
 {
-  "name": "@nervos/focus",
+  "name": "@dawlessdaw/focus",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@nervos/core": "*",
-    "@nervos/events": "*"
+    "@dawlessdaw/core": "*",
+    "@dawlessdaw/events": "*"
   }
 }

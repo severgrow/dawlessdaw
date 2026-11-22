@@ -1,5 +1,5 @@
-import type { MidiMessage, MidiPortInfo, PortId } from '@nervos/core';
-import { parseMidiMessage } from '@nervos/core';
+import type { MidiMessage, MidiPortInfo, PortId } from '@dawlessdaw/core';
+import { parseMidiMessage } from '@dawlessdaw/core';
 import type { HardwareTransport, MidiInputHandler, PortChangeHandler } from './transport';
 
 type MidiAccessLike = {

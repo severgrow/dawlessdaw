@@ -3,6 +3,8 @@ import { useStudioActions, useStudioStore, type WorkspaceId } from '../store/use
 const ITEMS: { id: WorkspaceId; label: string }[] = [
   { id: 'studio', label: 'Studio' },
   { id: 'patchbay', label: 'Patchbay' },
+  { id: 'bridge', label: 'Section Bridge' },
+  { id: 'bench', label: 'Bench Test' },
   { id: 'performance', label: 'Performance' },
   { id: 'library', label: 'Library' },
   { id: 'sessions', label: 'Sessions' },
@@ -10,7 +12,7 @@ const ITEMS: { id: WorkspaceId; label: string }[] = [
 ];
 
 export function Nav() {
-  const { workspace } = useStudioStore();
+  const workspace = useStudioStore((s) => s.workspace);
   const { setWorkspace } = useStudioActions();
 
   return (

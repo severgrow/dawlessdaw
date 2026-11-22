@@ -1,5 +1,5 @@
 {
-  "name": "@nervos/devices",
+  "name": "@dawlessdaw/devices",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,8 +9,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@nervos/core": "*",
-    "@nervos/midi": "*",
-    "@nervos/routing": "*"
+    "@dawlessdaw/core": "*",
+    "@dawlessdaw/midi": "*",
+    "@dawlessdaw/routing": "*"
   }
 }

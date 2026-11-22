@@ -1,5 +1,5 @@
 {
-  "name": "nervos",
+  "name": "dawlessdaw",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w @nervos/web",
-    "build": "npm run build -w @nervos/web",
+    "dev": "npm run dev -w @dawlessdaw/web",
+    "build": "npm run build -w @dawlessdaw/web",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b --pretty false"

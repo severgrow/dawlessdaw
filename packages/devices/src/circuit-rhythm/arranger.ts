@@ -1,5 +1,5 @@
-import type { DeviceId, MusicalRole, RoleBinding } from '@nervos/core';
-import type { MidiRoute } from '@nervos/routing';
+import type { DeviceId, MusicalRole, RoleBinding } from '@dawlessdaw/core';
+import type { MidiRoute } from '@dawlessdaw/routing';
 import { DEFAULT_TRACK_CHANNELS, PROJECT_MIDI_CHANNEL } from './midi-map';
 
 export type CircuitArrangerMode = 'direct-sequencing' | 'observe-only';
@@ -21,7 +21,7 @@ export interface CircuitArrangerProfile {
   circuitInputPortId: string;
   channelMap: Readonly<Record<number, number>>;
   destinations: CircuitDestinationPorts;
-  /** When Project PGM observed, recall these NervOS scenes (optional). */
+  /** When Project PGM observed, recall these Dawlessdaw scenes (optional). */
   projectSceneMap: ProjectSceneMapEntry[];
   clockToAllExternal: boolean;
 }
@@ -54,7 +54,7 @@ export function defaultCircuitArrangerProfile(
 }
 
 /**
- * Build NervOS routes for Circuit-as-arranger (approach A: direct sequencing).
+ * Build Dawlessdaw routes for Circuit-as-arranger (approach A: direct sequencing).
  * Does not invent Scene Sync — Project PGM is handled separately as observation.
  */
 export function buildDirectSequencingRoutes(profile: CircuitArrangerProfile): MidiRoute[] {

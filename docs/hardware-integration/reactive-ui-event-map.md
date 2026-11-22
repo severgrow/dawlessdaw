@@ -1,6 +1,6 @@
 # E — Reactive UI event map
 
-What can realistically change NervOS active context.  
+What can realistically change Dawlessdaw active context.  
 **Direct** = hardware transmits observable MIDI · **Inferred** = soft heuristics · **Unavailable** = not transmitted.
 
 | Gesture / event | MPC One | SP-404MKII stock | Circuit Rhythm | FM1 (Open preferred) |
@@ -29,4 +29,4 @@ Extend (PoC):
 | `performer-gesture` | sparse notes, macros CC 21–28, level/pan | Strong Follow candidate |
 | `arrangement` | ch16 Project PGM | Context event → optional Scene recall; do not thrash device focus |
 
-Do **not** claim NervOS detects touches the hardware does not transmit.
+Do **not** claim Dawlessdaw detects touches the hardware does not transmit.

@@ -6,7 +6,7 @@ export function StatusBar() {
 
   return (
     <header className="status-bar">
-      <div className="brand">NervOS</div>
+      <div className="brand">Dawlessdaw</div>
       <div className={snap.simulation ? 'sim-badge' : 'sim-badge live-badge'}>
         <span className="dot" />
         {snap.simulation ? 'Simulation' : 'Live MIDI'}

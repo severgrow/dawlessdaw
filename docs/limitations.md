@@ -1,4 +1,4 @@
-# NervOS v0.1 — Limitations & Hardware Honesty
+# Dawlessdaw v0.1 — Limitations & Hardware Honesty
 
 Capability statuses used throughout the app: **verified** | **untested** | **experimental** | **unavailable** | **unknown**.
 

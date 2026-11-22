@@ -1,5 +1,5 @@
-import type { DeviceId, MidiMessage, FocusState, SceneId, SessionId } from '@nervos/core';
-import { isClockLike } from '@nervos/core';
+import type { DeviceId, MidiMessage, FocusState, SceneId, SessionId } from '@dawlessdaw/core';
+import { isClockLike } from '@dawlessdaw/core';
 
 export type StudioEvent =
   | { type: 'midi:in'; message: MidiMessage; deviceId?: DeviceId }

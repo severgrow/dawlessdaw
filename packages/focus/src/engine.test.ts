@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { FocusEngine } from './engine';
-import type { MidiMessage } from '@nervos/core';
+import type { MidiMessage } from '@dawlessdaw/core';
 
 function note(portId: string, n = 60): MidiMessage {
   return {

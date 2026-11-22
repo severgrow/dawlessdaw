@@ -1,8 +1,8 @@
-import type { DeviceId, MusicalRole, RoleBinding, RoleId } from '@nervos/core';
+import type { DeviceId, MusicalRole, RoleBinding, RoleId } from '@dawlessdaw/core';
 
 /**
  * Logical musical roles resolving Circuit tracks → roles → destinations.
- * This is NervOS-level routing semantics, not hardware Scene Sync.
+ * This is Dawlessdaw-level routing semantics, not hardware Scene Sync.
  */
 export class RoleResolver {
   private bindings = new Map<RoleId, RoleBinding>();

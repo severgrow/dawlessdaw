@@ -9,7 +9,7 @@
 ## Install & run
 
 ```bash
-cd /path/to/nervos   # Project store: …/cursor/stores/self/nervos
+cd /path/to/dawlessdaw   # Project store: …/github.com/severgrow/dawlessdaw
 npm install
 npm run dev
 ```

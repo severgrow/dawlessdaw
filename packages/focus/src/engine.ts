@@ -1,6 +1,6 @@
-import type { DeviceId, FocusMode, FocusState, MidiMessage } from '@nervos/core';
-import { isClockLike } from '@nervos/core';
-import type { StudioEventBus } from '@nervos/events';
+import type { DeviceId, FocusMode, FocusState, MidiMessage } from '@dawlessdaw/core';
+import { isClockLike } from '@dawlessdaw/core';
+import type { StudioEventBus } from '@dawlessdaw/events';
 
 export interface FocusEngineOptions {
   /** Minimum ms between automatic focus changes (hysteresis). Default 400. */

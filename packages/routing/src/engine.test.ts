@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MockMidiTransport } from '@nervos/midi';
+import { MockMidiTransport } from '@dawlessdaw/midi';
 import { MidiRoutingEngine } from './engine';
 import type { MidiRoute } from './types';
 

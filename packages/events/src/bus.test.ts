@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { StudioEventBus } from './bus';
-import { buildNoteOn } from '@nervos/core';
+import { buildNoteOn } from '@dawlessdaw/core';
 
 describe('StudioEventBus', () => {
   it('retains bounded non-clock history', () => {

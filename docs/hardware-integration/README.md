@@ -1,4 +1,4 @@
-# NervOS hardware integration research (Nov 2026)
+# Dawlessdaw hardware integration research (Nov 2026)
 
 Feasibility pass over MPC One (MPC 3), SP-404MKII, Circuit Rhythm, M-VAVE FM1, and ZED-10FX.
 
@@ -12,6 +12,6 @@ Feasibility pass over MPC One (MPC 3), SP-404MKII, Circuit Rhythm, M-VAVE FM1, a
 | [connection-plan.md](./connection-plan.md) | F — MIDI/USB/audio wiring |
 | [development-priorities.md](./development-priorities.md) | G — Next three phases |
 
-**H — PoC shipped in app:** Circuit Rhythm MIDI map + gesture classifier + direct-sequencing arranger routes + Project PGM→Scene map (simulation fixtures). See `@nervos/devices` `circuit-rhythm/` and Studio “Simulate Project PGM”.
+**H — PoC shipped in app:** Circuit Rhythm MIDI map + gesture classifier + direct-sequencing arranger routes + Project PGM→Scene map (simulation fixtures). See `@dawlessdaw/devices` `circuit-rhythm/` and Studio “Simulate Project PGM”.
 
 Simulated tests do **not** confirm hardware compatibility.
