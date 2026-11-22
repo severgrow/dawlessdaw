@@ -10,6 +10,8 @@ import {
   type TrackSend,
 } from '@dawlessdaw/devices';
 import { AudioPreview } from '../components/AudioPreview';
+import { DeviceArt } from '../components/DeviceArt';
+import { RigMap } from '../components/RigMap';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 const DEST_LABEL: Record<TrackDestId, string> = { mpc: 'MPC One', sp: 'SP-404MKII', fm1: 'FM1' };
@@ -123,6 +125,8 @@ export function RigWorkspace() {
         </p>
       ) : null}
 
+      <RigMap />
+
       <AudioPreview />
 
       <div className="panel">
@@ -141,9 +145,19 @@ export function RigWorkspace() {
             <span role="columnheader">Circuit</span>
             {TRACK_DESTS.map((d) => (
               <span key={d} role="columnheader" className={outConnected(d) ? '' : 'rg-off'}>
-                <ActivityLed at={snap.destActivity[d]} label={`${DEST_LABEL[d]} activity`} />
-                {DEST_LABEL[d]}
-                {!outConnected(d) ? <span className="rg-missing">not connected</span> : null}
+                <span className="rg-dev">
+                  <DeviceArt
+                    kind={d}
+                    lit={outConnected(d)}
+                    pulse={snap.destActivity[d]}
+                    className="rg-art"
+                    title={DEST_LABEL[d]}
+                  />
+                  <span>
+                    {DEST_LABEL[d]}
+                    {!outConnected(d) ? <span className="rg-missing"> · not connected</span> : null}
+                  </span>
+                </span>
               </span>
             ))}
           </div>

@@ -211,7 +211,7 @@ export function AudioPreview() {
         c.height = h;
       }
       const css = getComputedStyle(c);
-      const accent = css.getPropertyValue('--accent').trim() || '#ff5f1f';
+      const accent = css.getPropertyValue('--accent').trim() || '#8cf5cf';
       const grid = css.getPropertyValue('--line').trim() || '#2b2b2b';
       g.clearRect(0, 0, w, h);
       g.strokeStyle = grid;

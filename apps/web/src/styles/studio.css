@@ -1,31 +1,44 @@
 /*
  * Dawlessdaw visual system
- * Ableton-flat panels × terminal type × hardware LEDs.
- * One accent (hot orange LED). Everything else is greyscale.
+ * Two colours on black: MINT = on / live / OK / MIDI, BURGUNDY = stop / fail /
+ * warn / clip / audio. Everything else is greyscale. Rounded, playful hardware
+ * shapes (OP-1-ish) on tidy Ableton-style grids.
  */
 :root {
   --bg-0: #0a0a0a; /* page */
-  --bg-1: #111111; /* bars, rails */
-  --bg-2: #171717; /* modules */
-  --bg-3: #1f1f1f; /* hover / inset */
-  --bg-4: #2a2a2a; /* pressed */
-  --line: #2b2b2b;
-  --line-soft: #1c1c1c;
-  --line-hard: #3a3a3a;
-  --text: #e8e6e1;
-  --text-dim: #9b9892;
-  --text-mute: #5f5d59;
+  --bg-1: #101010; /* bars, rails */
+  --bg-2: #161616; /* modules */
+  --bg-3: #1e1e1e; /* hover / inset */
+  --bg-4: #292929; /* pressed / unlit pads */
+  --line: #262626;
+  --line-soft: #1a1a1a;
+  --line-hard: #363636;
+  --text: #ecebe6;
+  --text-dim: #a09d96;
+  --text-mute: #64615c;
 
-  --accent: #ff5f1f; /* LED orange */
-  --accent-dim: #7a2e10;
-  --accent-glow: rgba(255, 95, 31, 0.45);
+  --mint: #8cf5cf;
+  --mint-2: #5fd9ae;
+  --mint-dim: #1d4a3b;
+  --mint-glow: rgba(140, 245, 207, 0.38);
+  --mint-wash: rgba(140, 245, 207, 0.1);
+
+  --burgundy: #8e1f3d; /* fills */
+  --burgundy-hi: #c24a6c; /* text and lines on black */
+  --burgundy-dim: #3a1220;
+  --burgundy-glow: rgba(194, 74, 108, 0.42);
+  --burgundy-wash: rgba(194, 74, 108, 0.12);
+
+  /* Roles */
+  --accent: var(--mint);
+  --accent-dim: var(--mint-dim);
+  --accent-glow: var(--mint-glow);
   --accent-ink: #0a0a0a;
-
-  --ok: #3ddc84;
-  --ok-glow: rgba(61, 220, 132, 0.4);
-  --warn: #ffc23d;
-  --err: #ff4d4d;
-  --cyan: #5ad1ff;
+  --ok: var(--mint);
+  --ok-glow: var(--mint-glow);
+  --warn: var(--burgundy-hi);
+  --err: var(--burgundy-hi);
+  --cyan: var(--mint);
 
   /* kept for older inline styles */
   --amber: var(--accent);
@@ -35,7 +48,8 @@
 
   --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-ui: 'Inter', 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
-  --radius: 3px;
+  --radius: 8px;
+  --radius-lg: 14px;
   --bar-h: 34px;
   --strip-h: 64px;
   --foot-h: 26px;
@@ -170,14 +184,14 @@ button.ghost {
 }
 
 button.danger {
-  border-color: var(--err);
-  color: var(--err);
-  background: transparent;
+  border-color: var(--burgundy);
+  color: #f6dde4;
+  background: var(--burgundy);
 }
 button.danger:hover:not(:disabled) {
-  background: var(--err);
-  color: var(--accent-ink);
-  border-color: var(--err);
+  background: var(--burgundy-hi);
+  color: #fff;
+  border-color: var(--burgundy-hi);
 }
 
 /* Bench verdict pads */
@@ -186,15 +200,20 @@ button.verdict-pass.active {
   border-color: var(--ok);
   box-shadow: 0 0 14px -2px var(--ok-glow);
 }
-button.verdict-fail.active {
-  background: var(--err);
-  border-color: var(--err);
-  box-shadow: 0 0 14px -2px rgba(255, 77, 77, 0.45);
+button.verdict-fail.active,
+button.verdict-fail.active:hover:not(:disabled) {
+  background: var(--burgundy);
+  border-color: var(--burgundy-hi);
+  color: #fff;
+  box-shadow: 0 0 14px -2px var(--burgundy-glow);
 }
-button.verdict-unsure.active {
-  background: var(--warn);
-  border-color: var(--warn);
-  box-shadow: 0 0 14px -2px rgba(255, 194, 61, 0.4);
+/* Unsure = neutral: a white outline, no colour */
+button.verdict-unsure.active,
+button.verdict-unsure.active:hover:not(:disabled) {
+  background: var(--bg-4);
+  border-color: var(--text);
+  color: var(--text);
+  box-shadow: none;
 }
 
 select,
@@ -321,7 +340,7 @@ label {
   height: 6px;
   border-radius: 50%;
   background: var(--warn);
-  box-shadow: 0 0 6px rgba(255, 194, 61, 0.6);
+  box-shadow: 0 0 6px var(--burgundy-glow);
   animation: led-breathe 2s ease-in-out infinite;
 }
 
@@ -337,7 +356,7 @@ label {
 
 .error-badge .dot {
   background: var(--err);
-  box-shadow: 0 0 8px rgba(255, 77, 77, 0.6);
+  box-shadow: 0 0 8px var(--burgundy-glow);
 }
 
 .live-badge .dot {
@@ -821,7 +840,7 @@ kbd {
   box-shadow: 0 0 6px var(--ok-glow);
 }
 .cap-dot.untested {
-  background: var(--warn);
+  background: var(--text-dim);
 }
 .cap-dot.experimental {
   background: var(--accent);
@@ -918,13 +937,13 @@ textarea.session-io {
 }
 
 .bench-card[data-verdict='pass'] {
-  border-color: rgba(61, 220, 132, 0.45);
+  border-color: var(--mint-dim);
 }
 .bench-card[data-verdict='fail'] {
-  border-color: rgba(255, 77, 77, 0.5);
+  border-color: var(--burgundy);
 }
 .bench-card[data-verdict='unsure'] {
-  border-color: rgba(255, 194, 61, 0.45);
+  border-color: var(--text-mute);
 }
 .bench-card.is-active {
   box-shadow: 0 0 0 1px var(--accent);
@@ -1298,7 +1317,7 @@ button.send-remove:hover:not(:disabled) {
 }
 
 .st-hit {
-  background: linear-gradient(90deg, rgba(61, 220, 132, 0.1), transparent);
+  background: linear-gradient(90deg, var(--mint-wash), transparent);
 }
 
 .st-row .text-input {
@@ -1401,7 +1420,7 @@ details.diag h3 {
   border-left: 3px solid var(--err);
 }
 .bench-item[data-verdict='unsure'] {
-  border-left: 3px solid var(--warn);
+  border-left: 3px solid var(--text-dim);
 }
 
 button.bench-head {
@@ -1445,12 +1464,17 @@ button.bench-head:hover:not(:disabled) {
   color: var(--ok);
 }
 .verdict-tag.v-fail {
-  border-color: var(--err);
-  color: var(--err);
+  background: var(--burgundy);
+  border-color: var(--burgundy);
+  color: #fff;
+}
+.verdict-tag.v-pass {
+  background: var(--mint);
+  color: var(--accent-ink);
 }
 .verdict-tag.v-unsure {
-  border-color: var(--warn);
-  color: var(--warn);
+  border-color: var(--text-dim);
+  color: var(--text);
 }
 
 .bench-body {
@@ -1741,7 +1765,7 @@ select.ap-select:hover:not(:disabled) {
 
 select.ap-select.ap-output {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 95, 31, 0.12);
+  box-shadow: 0 0 0 3px var(--mint-wash);
 }
 
 button.ap-start {
@@ -1845,9 +1869,9 @@ button.ap-clip {
 }
 
 button.ap-clip.on {
-  background: var(--err);
-  border-color: var(--err);
-  color: var(--accent-ink);
+  background: var(--burgundy);
+  border-color: var(--burgundy-hi);
+  color: #fff;
 }
 
 @media (max-width: 720px) {
@@ -1860,4 +1884,400 @@ button.ap-clip.on {
   .ap-stage {
     height: 160px;
   }
+}
+
+/* ─── Hardware drawings ────────────────────────────────── */
+
+.device-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.art-body {
+  fill: var(--bg-3);
+  stroke: var(--line-hard);
+  stroke-width: 1.5;
+}
+
+.art-screen {
+  fill: #050806;
+  stroke: var(--line-hard);
+  stroke-width: 1;
+}
+
+.lit .art-screen {
+  fill: #07130f;
+  stroke: var(--mint-dim);
+}
+
+.art-label {
+  fill: var(--mint);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.unlit .art-label {
+  fill: var(--text-mute);
+}
+
+.art-pad {
+  fill: var(--bg-4);
+  stroke: #333;
+  stroke-width: 0.75;
+}
+
+.art-white-key {
+  fill: #d8d6cf;
+  stroke: #0a0a0a;
+}
+
+.art-black-key {
+  fill: #0d0d0d;
+}
+
+.art-key {
+  fill: var(--bg-4);
+}
+
+.art-key.wine {
+  fill: var(--burgundy);
+}
+
+.art-fader {
+  fill: var(--text);
+}
+
+.art-jack {
+  fill: #0b0b0b;
+  stroke: var(--line-hard);
+  stroke-width: 2;
+}
+
+.art-knob circle {
+  stroke: #0a0a0a;
+  stroke-width: 1;
+}
+.art-knob line {
+  stroke: #0a0a0a;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.art-knob-mint circle {
+  fill: var(--mint);
+}
+.art-knob-wine circle {
+  fill: var(--burgundy-hi);
+}
+.art-knob-white circle {
+  fill: #e9e7e0;
+}
+.art-knob-grey circle {
+  fill: #5d5b57;
+}
+
+.unlit {
+  opacity: 0.38;
+  filter: grayscale(1);
+}
+
+/* Pads light mint briefly when notes arrive */
+.art-hit .art-pad:not(.art-white-key) {
+  animation: pad-hit 520ms ease-out both;
+}
+.art-hit .art-white-key {
+  animation: key-hit 520ms ease-out both;
+}
+
+@keyframes pad-hit {
+  0%,
+  20% {
+    fill: var(--mint);
+    stroke: var(--mint);
+  }
+  100% {
+    fill: var(--bg-4);
+    stroke: #333;
+  }
+}
+
+@keyframes key-hit {
+  0%,
+  20% {
+    fill: var(--mint);
+  }
+  100% {
+    fill: #d8d6cf;
+  }
+}
+
+/* ─── Rig map ──────────────────────────────────────────── */
+
+.rig-map {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1000 / 400;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 1px 1px, #1a1a1a 1px, transparent 0) 0 0 / 20px 20px,
+    var(--bg-0);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.rig-cables {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cable path {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.cable-base {
+  stroke-width: 3;
+}
+
+.cable-midi.on .cable-base {
+  stroke: var(--mint-dim);
+}
+.cable-clock .cable-base {
+  stroke: var(--mint-dim);
+  stroke-dasharray: 2 7;
+}
+.cable-audio .cable-base {
+  stroke: var(--burgundy);
+  stroke-dasharray: 9 7;
+  stroke-width: 2.5;
+  opacity: 0.8;
+}
+.cable.off .cable-base {
+  stroke: var(--line);
+}
+
+.cable-hit {
+  stroke: var(--mint);
+  stroke-width: 4;
+  filter: drop-shadow(0 0 5px var(--mint));
+  animation: cable-hit 600ms ease-out both;
+}
+
+@keyframes cable-hit {
+  0%,
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.cable-label {
+  fill: var(--text-mute);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.cable-midi.on .cable-label {
+  fill: var(--mint-2);
+}
+
+button.rig-device {
+  position: absolute;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition: transform 140ms ease;
+}
+
+button.rig-device:hover:not(:disabled) {
+  background: transparent;
+  border: none;
+  transform: translateY(-2px) scale(1.02);
+}
+
+.rig-name {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  margin-top: 3px;
+  white-space: nowrap;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.rig-name em {
+  display: block;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 9.5px;
+  color: var(--text-mute);
+}
+
+.rig-device.off .rig-name {
+  color: var(--text-mute);
+}
+
+/* names that would sit under a cable/edge go above instead */
+.rig-mpc .rig-name,
+.rig-scarlett .rig-name {
+  top: auto;
+  bottom: auto;
+}
+.rig-fm1 .rig-name {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 3px;
+}
+
+.rig-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.1rem;
+  margin-top: 0.6rem;
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+.rig-legend i {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+  border-top: 3px solid var(--mint);
+}
+.rig-legend .lg-clock {
+  border-top: 3px dotted var(--mint-2);
+}
+.rig-legend .lg-audio {
+  border-top: 3px dashed var(--burgundy-hi);
+}
+.rig-legend .lg-off {
+  border-top-color: var(--line-hard);
+}
+
+@media (max-width: 720px) {
+  .rig-name em,
+  .cable-label {
+    display: none;
+  }
+  .rig-name {
+    font-size: 8.5px;
+  }
+}
+
+/* ─── OP-1-ish shapes ──────────────────────────────────── */
+
+.panel {
+  border-radius: var(--radius-lg);
+}
+
+.panel > h2:first-child {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+button {
+  border-radius: 8px;
+}
+
+.nav button .key {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.switch-row button,
+button.ap-start {
+  border-radius: 999px;
+}
+
+.send-chip,
+button.send-add {
+  border-radius: 999px;
+}
+
+.sim-badge,
+.readout,
+.verdict-tag {
+  border-radius: 999px;
+}
+
+.route-grid,
+.bench-item,
+.steps li,
+.dropzone,
+.ap-stage {
+  border-radius: var(--radius-lg);
+}
+
+.bench-item {
+  overflow: hidden;
+}
+
+/* Device strip: tiny drawing + name */
+.device-chip {
+  display: grid !important;
+  grid-template-columns: 46px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 0.6rem;
+  align-items: center;
+  padding-left: 0.8rem !important;
+}
+
+.device-chip::before {
+  display: none;
+}
+
+.device-chip .chip-art {
+  grid-row: 1 / span 2;
+  width: 46px;
+  height: 34px;
+}
+
+.device-chip .name,
+.device-chip .meta {
+  grid-column: 2;
+}
+
+/* Rig grid column headers with drawings */
+.rg-head .rg-dev {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rg-head .rg-art {
+  width: 40px;
+  height: 30px;
+  flex: none;
+}
+
+.brand-mark {
+  width: 16px;
+  height: 16px;
+  margin-right: 0.45rem;
+}
+.bm-a {
+  fill: var(--mint);
+}
+.bm-b {
+  fill: var(--mint-dim);
+}
+.bm-c {
+  fill: var(--burgundy-hi);
 }

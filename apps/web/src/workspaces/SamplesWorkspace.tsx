@@ -93,7 +93,7 @@ function Waveform({ audio, edit }: { audio: PadAudio; edit: PadEdit }) {
     if (!canvas || !g) return;
     const { width, height } = canvas;
     const css = getComputedStyle(canvas);
-    const accent = css.getPropertyValue('--accent').trim() || '#ff5f1f';
+    const accent = css.getPropertyValue('--accent').trim() || '#8cf5cf';
     const dim = css.getPropertyValue('--line-hard').trim() || '#3a3a3a';
     const dur = durationSeconds(audio) || 1;
     const x0 = (edit.trimStart / dur) * width;
