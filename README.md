@@ -1,4 +1,4 @@
-# Dawlessdaw
+# dawless/daw MIDI Brain
 
 Local-first web app for hardware music studio connectivity (Mac + Chrome + Web MIDI).
 

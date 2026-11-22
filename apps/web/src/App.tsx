@@ -43,7 +43,7 @@ export function App() {
       </div>
       <MidiLearnGlass />
       <footer className="footer-bar">
-        <span>dawlessdaw · local-first hardware studio · no sysex · no firmware writes</span>
+        <span>dawless/daw MIDI Brain · local-first hardware studio · no sysex · no firmware writes</span>
         <span className={`mono ${midiReady ? 'live' : 'err'}`}>
           {midiReady ? '● live web midi' : '● no midi access'}
         </span>
