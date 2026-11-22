@@ -38,11 +38,19 @@ import {
   persistAllowPlayWhileRec,
 } from './feedback';
 import {
+  applyHandoffMutes,
+  restoreHandoffMutes,
+  sanitizeHandoffTracks,
+  type FlipHandoffTrack,
+  type FlipMuteSnapshot,
+} from './handoff';
+import {
   FLIP_DEFAULT_BARS,
   FLIP_INPUT_KEY,
   makeFlipClipId,
   type FlipBarCount,
   type FlipClipMeta,
+  type FlipHandoffPrefs,
   type FlipPhase,
   type FlipSessionRef,
   isFlipBarCount,
@@ -54,6 +62,12 @@ export interface FlipClockSnapshot {
   playhead: number;
   bpm: number;
   clockSource: 'circuit' | 'internal';
+}
+
+/** Injected from Sequencer UI — Dawlessdaw Pattern mute only. */
+export interface FlipHandoffHooks {
+  getMuted: (track: FlipHandoffTrack) => boolean;
+  setMute: (track: FlipHandoffTrack, muted: boolean) => void;
 }
 
 export interface FlipEngineStatus {
@@ -76,6 +90,9 @@ export interface FlipEngineStatus {
   targetCaptureMs: number;
   loopPlaying: boolean;
   undoCount: number;
+  handoff: FlipHandoffPrefs;
+  /** True while a handoff mute snapshot is active (FLIP loop playing with replace on). */
+  handoffActive: boolean;
 }
 
 type StatusListener = (s: FlipEngineStatus) => void;
@@ -110,6 +127,8 @@ export class FlipEngine {
   private playing = false;
   private captureUnsub: (() => void) | null = null;
   private undoStack: FlipClipMeta[] = [];
+  private handoffHooks: FlipHandoffHooks | null = null;
+  private handoffSnapshot: FlipMuteSnapshot[] | null = null;
 
   constructor() {
     this.captureUnsub = getCaptureEngine().subscribe(() => this.notify());
@@ -124,6 +143,11 @@ export class FlipEngine {
       void this.playCtx.close();
       this.playCtx = null;
     }
+  }
+
+  /** Wire Sequencer mute accessors (call from FlipLane mount). */
+  setHandoffHooks(hooks: FlipHandoffHooks | null): void {
+    this.handoffHooks = hooks;
   }
 
   subscribe(fn: StatusListener): () => void {
@@ -157,6 +181,11 @@ export class FlipEngine {
       targetCaptureMs: this.targetCaptureMs,
       loopPlaying: this.playing,
       undoCount: this.undoStack.length,
+      handoff: {
+        replaceMidiWhilePlaying: this.session.handoff.replaceMidiWhilePlaying,
+        tracks: [...this.session.handoff.tracks],
+      },
+      handoffActive: this.handoffSnapshot != null,
     };
   }
 
@@ -225,6 +254,39 @@ export class FlipEngine {
     this.notify();
   }
 
+  setReplaceMidiWhilePlaying(on: boolean): void {
+    this.session = {
+      ...this.session,
+      handoff: {
+        ...this.session.handoff,
+        replaceMidiWhilePlaying: on === true,
+      },
+    };
+    this.persist();
+    if (!on && this.handoffSnapshot) {
+      this.restoreHandoff();
+    }
+    this.notify();
+  }
+
+  setHandoffTracks(tracks: number[]): void {
+    this.session = {
+      ...this.session,
+      handoff: {
+        ...this.session.handoff,
+        tracks: sanitizeHandoffTracks(tracks),
+      },
+    };
+    this.persist();
+    this.notify();
+  }
+
+  /** Restore sequencer mutes from the last handoff snapshot (undo). */
+  undoHandoffMutes(): void {
+    this.restoreHandoff();
+    this.notify();
+  }
+
   armQuantised(): void {
     if (this.playing && !this.allowPlayWhileRec) {
       const gate = gateRecordWhilePlaying({
@@ -273,6 +335,27 @@ export class FlipEngine {
     this.notify();
   }
 
+  private applyHandoffIfNeeded(): void {
+    if (!this.session.handoff.replaceMidiWhilePlaying) return;
+    if (!this.handoffHooks) return;
+    if (this.handoffSnapshot) return;
+    const tracks = sanitizeHandoffTracks(this.session.handoff.tracks);
+    this.handoffSnapshot = applyHandoffMutes(
+      tracks,
+      this.handoffHooks.getMuted,
+      this.handoffHooks.setMute,
+    );
+  }
+
+  private restoreHandoff(): void {
+    if (!this.handoffSnapshot) return;
+    const snap = this.handoffSnapshot;
+    this.handoffSnapshot = null;
+    if (this.handoffHooks) {
+      restoreHandoffMutes(snap, this.handoffHooks.setMute);
+    }
+  }
+
   async playLoop(): Promise<void> {
     const gate = gatePlayWhileRecording({
       recording: this.machine.phase === 'recording',
@@ -297,6 +380,7 @@ export class FlipEngine {
     this.activeAudio = source;
     const rendered = renderFlipAudio(source, clip);
     await this.startBufferLoop(rendered, clip.gain);
+    this.applyHandoffIfNeeded();
     if (gate.warnPlaybackReentry) {
       this.feedbackWarn =
         'Software playback may re-enter the mix if FLIP out feeds the capture interface.';
@@ -312,6 +396,7 @@ export class FlipEngine {
     }
     this.playSource = null;
     this.playing = false;
+    this.restoreHandoff();
     this.notify();
   }
 
@@ -649,6 +734,7 @@ export class FlipEngine {
     this.playSource = src;
     src.onended = () => {
       this.playing = false;
+      this.restoreHandoff();
       this.notify();
     };
     src.start();

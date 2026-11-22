@@ -1,21 +1,32 @@
 # FLIP — hardware loop capture lane
 
-FLIP sits **under the 8 MIDI tracks** on the Sequencer workspace. Play hardware → capture a timed loop → flip / chop / play / export.
+FLIP sits **under the 8 MIDI tracks** on the Sequencer workspace. Play hardware → capture a timed stereo loop → play / chop / export. Optional: mute selected **Dawlessdaw Pattern** tracks while the loop plays.
 
-It is **not** a 9th Circuit MIDI track. Circuit **audio** is unused — capture from Scarlett, ZED-10FX, or any browser audio input.
+It is **not** a 9th Circuit MIDI track and **not** MIDI→audio conversion by itself. Circuit **USB audio** is unused — capture from Scarlett, ZED-10FX, or any browser audio input that hears your hardware mix.
 
 Brand: **dawless/daw MIDI Brain**.
 
-## How to try
+## How to actually flip (Mac)
 
-1. `npm run dev` → Chrome → **Sequencer**.
-2. Set BPM (or follow Circuit clock). Allow mic when prompted.
-3. Pick an input (Scarlett / ZED / etc.). Default length **4 bars** (1 / 2 / 4 / 8).
-4. **PLAY** the sequencer, then **ARM** — FLIP waits for the next bar boundary (step 0), records, then **Ready**.
-5. Or **CAPTURE NOW** for an immediate unaligned take (labelled honestly).
-6. Trim on the waveform, **PLAY LOOP**, optional Reverse / Fades / **CHOP** 4·8·16, **EXPORT WAV** 16/24.
+1. `npm run dev` → Chrome → **Sequencer**. Allow microphone / audio input when prompted.
+2. In **Setup**, assign Circuit MIDI as usual. Route MPC / SP / FM1 audio into Scarlett or ZED so the mix is audible on that interface.
+3. In FLIP: pick that **Input**. Bars default **4**.
+4. Press sequencer **PLAY** (Circuit clock or internal BPM), then **ARM** — FLIP waits for the next bar boundary, records, then **Ready**.
+5. Press **PLAY LOOP** to hear the capture in the browser.
+6. Optional: enable **Replace MIDI tracks while FLIP plays** and pick T1–T8 — those Dawlessdaw Pattern tracks mute for the loop (outbound sequencer notes stop). **UNDO MUTES** / STOP restores prior mute state.
+7. Timing / export / reverse / fades live under **More / Advanced**.
 
-Capture Offset (ms) is per input and applied as **non-destructive trim** — never silent time-stretch or pitch.
+Circuit-only MIDI with **no** Circuit audio into the interface will produce silence or room noise — FLIP cannot invent a stem from MIDI.
+
+## What works today
+
+| Capability | Status |
+|------------|--------|
+| Arm → bar-boundary capture → waveform → PLAY LOOP | **Yes** (Phase A) |
+| Reverse / fades / CHOP / WAV export | **Yes** (Phase B) |
+| Mute Dawlessdaw Pattern tracks while PLAY LOOP | **Yes** (minimal handoff) |
+| Mute Circuit’s internal sequencer / hardware mute | **No** |
+| Isolate one part from a stereo mix (“stem FLIP”) | **No** — never claimed |
 
 ## Reuse
 
@@ -26,7 +37,7 @@ Capture Offset (ms) is per input and applied as **non-destructive trim** — nev
 | WAV 16/24 | `recorder/wav` |
 | Waveform peaks / trim maths | `recorder/pcmMath` |
 | Transport / BPM / playhead | Sequencer engine (Circuit or internal) |
-| SP IMPORT (optional later) | Existing Sessions export pipeline |
+| Handoff mutes | Sequencer `setTrackMute` (Dawlessdaw-owned only) |
 
 FLIP stores **takeId refs** in `localStorage` (`dawlessdaw.flip.v1`) — not giant PCM JSON blobs.
 
@@ -37,9 +48,9 @@ FLIP stores **takeId refs** in `localStorage` (`dawlessdaw.flip.v1`) — not gia
 
 ## Feedback safety
 
-- **Monitor** default **OFF** (same Session Recorder graph policy).
+- **Monitor** default **OFF** (under Advanced; same Session Recorder graph policy).
 - Warn when software playback may re-enter the mix.
-- **Play + Record** blocked unless **Adv. resample** (intentional).
+- **Play + Record** blocked unless **Intentional resample** (Advanced).
 
 ## Timing honesty
 
@@ -62,11 +73,10 @@ Lane UI, input select, 1/2/4/8 bar capture (default 4), state machine, quantised
 
 Reverse, fades, CHOP 4/8/16 equal slices, compact 16-step slice pad row (mono/choke flag), undo stack for clip edits.
 
-### Phase C — design only (not implemented)
+### Phase C — partial (minimal safe handoff)
 
-- **No** unverified Circuit mute / stem APIs.
-- **No** fake stem isolation from a stereo mix.
-- Possible future: user-owned mute maps if hardware-proven; explicit “mix dump” labelling only.
+- **Shipped:** “Replace MIDI tracks while FLIP plays” — mutes selected Dawlessdaw Pattern tracks for the duration of PLAY LOOP; STOP / UNDO MUTES restores prior mute flags. Stops outbound sequencer notes to Controller destinations for those tracks.
+- **Not shipped / not claimed:** Circuit internal mute, hardware mute CC maps, fake stem isolation from a stereo mix.
 
 ## Hardware checklist (owner)
 
@@ -78,5 +88,6 @@ Reverse, fades, CHOP 4/8/16 equal slices, compact 16-step slice pad row (mono/ch
 | F4 | Monitor OFF: no feedback into take | **needs hardware** |
 | F5 | Play loop while mix is dry / headphones | **needs hardware** |
 | F6 | Export WAV 24 → DAW / SP IMPORT listen | **needs hardware** |
+| F7 | Replace MIDI tracks: selected T* mute on PLAY LOOP, restore on STOP | **needs hardware** |
 
-Automated tests cover durations, state machine, latency trim, persistence refs, export headers, and a simulated capture→preview→chop→export path. Live interface capture remains **unverified** until this checklist is Pass.
+Automated tests cover durations, state machine, latency trim, persistence refs, handoff mute apply/restore, export headers, and a simulated capture→preview→chop→export path. Live interface capture remains **unverified** until this checklist is Pass.

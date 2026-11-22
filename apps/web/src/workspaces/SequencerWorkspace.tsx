@@ -216,6 +216,8 @@ export function SequencerWorkspace() {
         playhead={seq.playhead}
         playing={seq.playing}
         clockSource={seq.bank.clockSource}
+        trackMutes={pattern.tracks.map((t) => t.muted)}
+        setTrackMute={(track, muted) => a.seqSetTrackMute(track, muted)}
       />
 
       {selStep ? (

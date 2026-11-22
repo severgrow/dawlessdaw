@@ -108,6 +108,13 @@ export interface FlipClipMeta {
   clockSource: 'circuit' | 'internal' | 'none';
 }
 
+/** MIDI handoff prefs persisted with the FLIP session (Dawlessdaw mute only). */
+export interface FlipHandoffPrefs {
+  replaceMidiWhilePlaying: boolean;
+  /** Tracks 1–8 muted while FLIP loop plays (when replaceMidiWhilePlaying). */
+  tracks: number[];
+}
+
 /** Lightweight session ref — never embed PCM. */
 export interface FlipSessionRef {
   schemaVersion: typeof FLIP_SCHEMA_VERSION;
@@ -116,6 +123,7 @@ export interface FlipSessionRef {
   bars: FlipBarCount;
   monitorInput: boolean;
   allowPlayWhileRec: boolean;
+  handoff: FlipHandoffPrefs;
   updatedAt: number;
 }
 

@@ -1,6 +1,7 @@
 /**
  * FLIP session persistence — clip meta + takeId refs only (no PCM blobs).
  */
+import { DEFAULT_HANDOFF, sanitizeHandoff } from './handoff';
 import {
   FLIP_DEFAULT_BARS,
   FLIP_SCHEMA_VERSION,
@@ -19,6 +20,10 @@ export function emptyFlipSession(): FlipSessionRef {
     bars: FLIP_DEFAULT_BARS,
     monitorInput: false,
     allowPlayWhileRec: false,
+    handoff: {
+      replaceMidiWhilePlaying: DEFAULT_HANDOFF.replaceMidiWhilePlaying,
+      tracks: [...DEFAULT_HANDOFF.tracks],
+    },
     updatedAt: Date.now(),
   };
 }
@@ -83,6 +88,7 @@ export function sanitizeSession(raw: unknown): FlipSessionRef {
     typeof o.activeClipId === 'string' && clips.some((c) => c.id === o.activeClipId)
       ? o.activeClipId
       : clips[0]?.id ?? null;
+  const handoff = sanitizeHandoff(o.handoff);
   return {
     schemaVersion: FLIP_SCHEMA_VERSION,
     activeClipId: active,
@@ -90,6 +96,10 @@ export function sanitizeSession(raw: unknown): FlipSessionRef {
     bars,
     monitorInput: o.monitorInput === true,
     allowPlayWhileRec: o.allowPlayWhileRec === true,
+    handoff: {
+      replaceMidiWhilePlaying: handoff.replaceMidiWhilePlaying,
+      tracks: [...handoff.tracks],
+    },
     updatedAt: Number(o.updatedAt) || Date.now(),
   };
 }

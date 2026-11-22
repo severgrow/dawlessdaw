@@ -96,4 +96,19 @@ describe('FLIP persistence', () => {
     s = removeClip(s, 'b');
     expect(s.activeClipId).toBe('a');
   });
+
+  it('persists handoff prefs and defaults when missing', () => {
+    const empty = emptyFlipSession();
+    expect(empty.handoff.replaceMidiWhilePlaying).toBe(false);
+    expect(empty.handoff.tracks).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    saveFlipSession({
+      ...empty,
+      handoff: { replaceMidiWhilePlaying: true, tracks: [1, 5] },
+    });
+    const loaded = loadFlipSession();
+    expect(loaded.handoff).toEqual({ replaceMidiWhilePlaying: true, tracks: [1, 5] });
+    const legacy = sanitizeSession({ schemaVersion: 1, clips: [], bars: 4 });
+    expect(legacy.handoff.replaceMidiWhilePlaying).toBe(false);
+    expect(legacy.handoff.tracks).toHaveLength(8);
+  });
 });
