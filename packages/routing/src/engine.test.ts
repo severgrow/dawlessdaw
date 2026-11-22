@@ -14,6 +14,29 @@ describe('MidiRoutingEngine', () => {
     engine.start();
   });
 
+  it('never forwards SysEx or unparsed bytes, on any route', () => {
+    engine.setRoutes([
+      {
+        id: 'open',
+        name: 'no filters at all',
+        enabled: true,
+        sourcePortId: 'mock-circuit-in',
+        destinations: [{ portId: 'mock-mpc-out' }],
+      },
+      {
+        id: 'ch1',
+        name: 'channel 1 notes',
+        enabled: true,
+        sourcePortId: 'mock-circuit-in',
+        destinations: [{ portId: 'mock-fm1-out' }],
+        channel: { allow: [1] },
+      },
+    ]);
+    transport.inject('mock-circuit-in', [0xf0, 0x00, 0x20, 0x29, 0x01, 0xf7]);
+    transport.inject('mock-circuit-in', [0xf7]);
+    expect(transport.getSent()).toEqual([]);
+  });
+
   it('routes note-on to destination with transpose', () => {
     const route: MidiRoute = {
       id: 'r1',
