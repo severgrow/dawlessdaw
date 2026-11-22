@@ -134,6 +134,10 @@ export class FlipEngine {
   constructor() {
     this.captureUnsub = getCaptureEngine().subscribe(() => this.notify());
     this.syncOffsetFromDevice();
+    // Restore Ready when a persisted clip ref exists (meta only — PCM may still load async).
+    if (this.session.activeClipId) {
+      this.machine = { phase: 'ready', error: null, lastQuantized: true };
+    }
   }
 
   dispose(): void {

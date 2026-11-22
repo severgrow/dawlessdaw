@@ -49,9 +49,9 @@ export class InputPreviewEngine {
   private running = false;
   private raf = 0;
   private listeners = new Set<StatusListener>();
-  private leftBuf: Float32Array<ArrayBuffer> | null = null;
-  private rightBuf: Float32Array<ArrayBuffer> | null = null;
-  private mixByte: Uint8Array<ArrayBuffer> | null = null;
+  private leftBuf: Float32Array | null = null;
+  private rightBuf: Float32Array | null = null;
+  private mixByte: Uint8Array | null = null;
 
   subscribe(fn: StatusListener): () => void {
     this.listeners.add(fn);
@@ -70,9 +70,9 @@ export class InputPreviewEngine {
   }
 
   /** Latest mix time-domain bytes for mini-wave drawing (or null if idle). */
-  readMixTimeDomain(into: Uint8Array<ArrayBuffer>): boolean {
+  readMixTimeDomain(into: Uint8Array): boolean {
     if (!this.mix || !this.running) return false;
-    this.mix.getByteTimeDomainData(into);
+    this.mix.getByteTimeDomainData(into as Uint8Array<ArrayBuffer>);
     return true;
   }
 
@@ -203,8 +203,8 @@ export class InputPreviewEngine {
 
   private tick = (): void => {
     if (!this.running || !this.left || !this.right || !this.leftBuf || !this.rightBuf) return;
-    this.left.getFloatTimeDomainData(this.leftBuf);
-    this.right.getFloatTimeDomainData(this.rightBuf);
+    this.left.getFloatTimeDomainData(this.leftBuf as Float32Array<ArrayBuffer>);
+    this.right.getFloatTimeDomainData(this.rightBuf as Float32Array<ArrayBuffer>);
     const peakL = peakFromTimeDomain(this.leftBuf);
     const peakR = peakFromTimeDomain(this.rightBuf);
     this.meters = {
