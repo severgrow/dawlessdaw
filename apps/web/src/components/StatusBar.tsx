@@ -18,7 +18,7 @@ export function StatusBar() {
       <span className="readout">
         ports <b>{connected}</b>
       </span>
-      {snap.routeClockThroughApp ? (
+      {snap.anyClockForwarding ? (
         <span className="readout" title={snap.clockActivity.hint}>
           clk <b>{snap.clockActivity.inTicks}</b>↓ <b>{snap.clockActivity.outTicks}</b>↑
         </span>

@@ -130,9 +130,13 @@ There is **no separate USB vs DIN clock switch**. One Tx pad feeds **both** USB 
 4. Press **Play** to save/exit Setup, then press **Play** again so the project is actually running (Start + Clock only while playing).
 5. Do **not** use the analogue **Sync** 3.5 mm jack for this path — that is not MIDI Clock.
 
-#### Dawlessdaw + MPC (USB attempt)
+#### Dawlessdaw + MPC (via the Scarlett — current setup)
 
-1. **Dawlessdaw → Settings → MIDI clock through app** → **App clock forwarding: ON**. Confirm Patchbay lists route **Circuit clock → MPC + SP (app path)**.
+The MPC now gets notes and clock from the Scarlett 2i4's MIDI Out (DIN), not from USB or the thru box. Follow [mpc-via-scarlett.md](./mpc-via-scarlett.md). The steps below are the older **MPC USB** attempt, kept for reference.
+
+#### Dawlessdaw + MPC (USB attempt — older)
+
+1. **Dawlessdaw → Settings → App clock forwarding** → **Circuit clock → MPC: ON** (with MPC Out = the MPC's own USB port). Confirm Patchbay lists route **Circuit clock → MPC**.
 2. **MPC Preferences → MIDI / SYNC:**
    - **SYNC RECEIVE → RECEIVE**: **MIDI Clock**
    - **ABLETON START/STOP SYNC**: **OFF**; Ableton Link off
@@ -141,14 +145,14 @@ There is **no separate USB vs DIN clock switch**. One Tx pad feeds **both** USB 
    - **INPUT PORTS → MPC** (hardware DIN row): **GLOBAL OFF** while DIN is unused
    - **OUTPUT PORTS → MPC + Remote → SYNC**: both **OFF**
 3. Live on, Circuit **Play** → watch Patchbay (below). SP may follow USB sync; **MPC often will not** (Akai USB-B clock limitation).
-4. **Warn:** if you add DIN thru, turn **App clock forwarding** **OFF** so you do not double-clock.
+4. **Warn:** if the MPC also gets DIN clock from the thru box, turn **Circuit clock → MPC** **OFF** so you do not double-clock.
 
 #### See F8 / FA in Patchbay / Bench (diagnose)
 
 | Monitor | Meaning | Next step |
 |---------|---------|-----------|
 | **IN = 0** (receive-none) | App never saw Circuit clock | Live MIDI? Pad 32 bright? Circuit actually playing? Settings → Circuit **In** port correct? |
-| **IN > 0, OUT = 0** | Received but not forwarded | App clock forwarding ON? Route `mystudio-clock` enabled? MPC/SP **Out** assigned? Re-apply My Studio routes. |
+| **IN > 0, OUT = 0** | Received but not forwarded | The right **Circuit clock → MPC / SP / FM1** switch ON? Route `mystudio-clock-mpc` (or `-sp`, `-fm1`) enabled? That device's **Out** assigned? Re-apply My Studio routes. |
 | **IN > 0, OUT > 0**, MPC silent | App did its job (Mac sent FA/F8) | **Akai USB-B typically ignores MIDI Clock** — use **DIN thru fallback** below. Bench → **Send test Start/Clock → MPC** should also raise OUT without starting MPC. |
 | Patchbay counters | `F8` = Timing Clock, `FA` = Start, `FB` = Continue, `FC` = Stop | Bench **l.** Focus → Play; detections show `start [fa]` / sampled `clock [f8]`. |
 
@@ -156,7 +160,7 @@ Chrome Web MIDI honesty: F8/FA arrive on the **main thread** with jitter; fine f
 
 #### DIN thru fallback (recommended for MPC)
 
-1. Settings → **App clock forwarding: OFF**.
+1. Settings → **Circuit clock → MPC: OFF**, and MPC connection = **MIDI cable from thru box only**.
 2. Cable: Circuit **MIDI Out** → thru → MPC **MIDI In** (and SP In if needed).
 3. MPC **INPUT PORTS → MPC → GLOBAL ON**; **Remote GLOBAL** can stay ON for notes but Sync Receive still MIDI Clock.
 4. Circuit Play → MPC should start/follow tempo on the DIN path.

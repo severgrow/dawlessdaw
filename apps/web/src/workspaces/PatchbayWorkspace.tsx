@@ -13,7 +13,7 @@ export function PatchbayWorkspace() {
   const snap = useStudioStore();
   const { enableRoute, setClockAuthority, rescanMidiPorts } = useStudioActions();
   const clock = snap.clockActivity;
-  const clockRoute = snap.routes.find((r) => r.id === 'mystudio-clock' || r.forwardClock);
+  const clockRoute = snap.routes.find((r) => r.id.startsWith('mystudio-clock') || r.forwardClock);
 
   return (
     <div className="section-enter">
@@ -90,7 +90,7 @@ export function PatchbayWorkspace() {
                     setClockAuthority(snap.clockAuthorityPortId === p.id ? null : p.id)
                   }
                   title={
-                    snap.routeClockThroughApp
+                    snap.anyClockForwarding
                       ? 'App clock forwarding sets authority to Circuit — prefer Settings toggle'
                       : 'Mark this input as the only allowed clock source'
                   }

@@ -84,6 +84,22 @@ export const BENCH_TESTS: BenchTestDef[] = [
     capabilityKey: 'mpc-mute-learn',
   },
   {
+    id: 'mpc-scarlett-notes',
+    title: 'g2. MPC via Scarlett: notes (Circuit T1–T4 → MPC ch9–12)',
+    instruction:
+      'Settings → MPC Out = the Scarlett port (e.g. "Scarlett 2i4 USB"), MPC connection = "App sends notes (USB or Scarlett)", Circuit tracks 1–4 = MPC. On the MPC, set tracks 1–4 to MIDI input = the MIDI In port, channels 9, 10, 11, 12. Program a few steps on Circuit tracks 1–4 and press Play. Pass only if each MPC track plays its Circuit track — and nothing plays twice.',
+    listenHint: 'note-on ch1–4 Circuit in → ch9–12 out to the MPC Out (Scarlett) port',
+    capabilityKey: 'din-notes-via-interface',
+  },
+  {
+    id: 'mpc-scarlett-clock',
+    title: 'g3. MPC follows Circuit tempo / start / stop via Scarlett',
+    instruction:
+      'Settings → App clock forwarding → Circuit clock → MPC = ON. On the MPC: Menu → Preferences → MIDI/Sync: MIDI In row on, Receive = MIDI Clock, MIDI clock send off. Circuit: Clock Tx (pad 32) bright. Press Play on the Circuit — the MPC should start; change the Circuit tempo — the MPC should follow; press Stop — the MPC should stop. "Send test Start/Clock/Stop → MPC" sends a short burst straight from the app if the Circuit is not ready.',
+    listenHint: 'IN start/stop from Circuit · OUT start/clock/stop → MPC Out (Scarlett)',
+    capabilityKey: 'din-clock-via-interface',
+  },
+  {
     id: 'fm1-t5-t6-notes',
     title: 'h. Circuit T5–T8 → FM1 (Skiff) over USB',
     instruction:
@@ -125,10 +141,10 @@ export const BENCH_TESTS: BenchTestDef[] = [
   },
   {
     id: 'timing-circuit-to-mpc',
-    title: 'i. Timing Circuit → app → MPC (optional)',
+    title: 'i. Timing Circuit → app → Scarlett → MPC',
     instruction:
-      'Skip if MPC is unplugged. Play a Circuit track routed to the MPC (USB remaps ch1–4 → ch9–12). The app measures note-in to note-out delay on the Mac. Read the verdict — be honest if it feels loose.',
-    listenHint: 'latency/jitter stats',
+      'Play a busy pattern on Circuit tracks 1–4 for 30 seconds with the MPC set up as in g2. The app measures how long each note takes from Circuit USB in to the moment it is sent to the MPC Out (Scarlett) port, and shows the average delay and jitter. Honest limits: this is the Mac side only — the Scarlett adds its USB → DIN hop (about 1 ms per note on the DIN cable; 4 notes on the same step go out one after another, so the last is about 4 ms late) and the MPC adds its own. Also listen: play the same pattern on Circuit tracks 1–4 to the SP or Circuit itself and compare by ear. Mark Pass only if it sounds tight to you.',
+    listenHint: 'latency/jitter stats (Mac side: Circuit in → MPC Out send)',
     capabilityKey: 'app-midi-latency',
   },
   {
@@ -143,15 +159,15 @@ export const BENCH_TESTS: BenchTestDef[] = [
     id: 'thru-box-clock-no-notes',
     title: 'k. Thru box: clock without app notes (optional)',
     instruction:
-      'Skip if no DIN thru / MPC/SP. Close the app, play the Circuit: MPC and SP should follow tempo but play no notes. (Proves DIN thru carries clock; musical notes only arrive via USB when the app is open — T5–T8 → FM1, T1–4 → MPC 9–12. In "MPC via MIDI cable only" mode the MPC plays tracks 1–4 straight from the cable instead.)',
+      'Close the app and play the Circuit: the SP should follow tempo from the thru box but play no notes (unless the SP is in MIDI Mode A with notes on channels 1–4). The MPC is no longer on the thru box, so with the app closed it should do nothing at all.',
     listenHint: 'hardware-only check — no app detections',
     capabilityKey: 'thru-clock-isolation',
   },
   {
     id: 'usb-app-clock',
-    title: 'l. USB-only: Circuit clock through app → MPC/SP (optional)',
+    title: 'l. Clock monitor: Circuit clock in → app clock out (optional)',
     instruction:
-      'Settings → App clock forwarding ON. Circuit Setup (Shift+Save): Clock Tx pad 32 bright. Focus this test, press Play on Circuit. Patchbay should show IN FA/F8 and OUT FA/F8. If OUT rises but MPC stays silent: Akai USB-B typically does not take MIDI Clock — use DIN thru and turn app forwarding OFF. Optional: Send test Start/Clock → MPC (direct) to prove Mac→MPC out without Circuit.',
+      'Turn on one of the App clock forwarding switches in Settings. Circuit Setup (Shift+Save): Clock Tx pad 32 bright. Press Play on the Circuit. Patchbay should show IN FA/F8 and OUT FA/F8 counts rising. This only proves the app forwards clock; g3 and h3 check that the MPC / FM1 actually follow.',
     listenHint: 'IN/OUT hex: FA start, F8 clock (sampled), FC stop',
     capabilityKey: 'usb-app-clock',
   },

@@ -48,11 +48,11 @@ npm run build
 ## Hardware checklist before Bench Test
 
 1. **Circuit:** Note Tx ON, Program Change Tx ON, Clock Tx ON (for the thru box). USB to Mac.
-2. **MPC:** USB to Mac; MIDI In from thru box; listen to **ch9–12** for Circuit tracks 1–4 notes; in MIDI/Sync enable the Mac/Dawlessdaw port for **Control**; mute Learn = **CC 20 on channel 15** (not 16).
+2. **MPC:** MIDI In from the **Scarlett 2i4 MIDI Out** (not the thru box); listen to **ch9–12** for Circuit tracks 1–4 notes; mute Learn = **CC 20 on channel 15** (not 16). Full steps: [mpc-via-scarlett.md](./mpc-via-scarlett.md).
 3. **SP-404MKII (optional):** USB to Mac; MIDI In from thru box. My Studio does **not** USB-route Circuit T6 to SP; Bridge/Bench pattern PC still uses **ch13**.
 4. **FM1 (H-1):** USB to Mac; listen on **ch5 + ch6** (or remap both to ch5 if H-1 is single-channel). Profile **h-1**. Treat as generic MIDI until Bench Pass. Do not flash firmware or send SysEx from the app.
 5. **ZED:** USB audio only — ignore for MIDI benches.
-6. Do **not** enable app clock forwarding in Settings unless you intentionally want a second clock path.
-7. Sanity: **close the app**, play Circuit → MPC + SP follow tempo but play **no** notes.
+6. App clock: turn on **Circuit clock → MPC** (the MPC is off the thru box). Leave **→ SP** off while the SP is on the thru box.
+7. Sanity: **close the app**, play Circuit → the SP follows tempo; the MPC does nothing (it only hears the app).
 
 For the numbered Live + Bench walkthrough, see [live-run-guide.md](./live-run-guide.md).

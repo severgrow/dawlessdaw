@@ -132,6 +132,20 @@ function isClaimedByStrongerRole(
   return false;
 }
 
+/** Find a manually picked port: same id if still present, else exact same name. */
+function findManualPort(
+  candidates: MidiPortInfo[],
+  used: Set<string>,
+  id: string | null | undefined,
+  name: string | null | undefined,
+): MidiPortInfo | null {
+  const wantId = normalizePortId(id);
+  const byId = wantId ? candidates.find((p) => p.id === wantId && !used.has(p.id)) : undefined;
+  if (byId) return byId;
+  if (!name) return null;
+  return candidates.find((p) => p.name === name && !used.has(p.id)) ?? null;
+}
+
 function rankPortsForRole(
   candidates: MidiPortInfo[],
   used: Set<string>,
@@ -167,6 +181,24 @@ export function matchPortsToRoles(
   const prevByRole = new Map(previous.map((a) => [a.roleId, a]));
   const midiRoles = MY_STUDIO_ROLES.filter((r) => r.midi);
 
+  // Manual picks first: find the port by id, else by the remembered name (ids can
+  // change between sessions). Reserve them so auto-matching can never take them.
+  const manualIn = new Map<StudioRoleId, MidiPortInfo | null>();
+  const manualOut = new Map<StudioRoleId, MidiPortInfo | null>();
+  for (const role of midiRoles) {
+    const prev = prevByRole.get(role.id);
+    if (prev?.inputManual) {
+      const hit = findManualPort(inputs, usedIn, prev.inputPortId, prev.inputPortName);
+      if (hit) usedIn.add(hit.id);
+      manualIn.set(role.id, hit);
+    }
+    if (prev?.outputManual) {
+      const hit = findManualPort(outputs, usedOut, prev.outputPortId, prev.outputPortName);
+      if (hit) usedOut.add(hit.id);
+      manualOut.set(role.id, hit);
+    }
+  }
+
   const assignments: PortAssignment[] = MY_STUDIO_ROLES.map((role) => {
     const prev = prevByRole.get(role.id);
     if (!role.midi) {
@@ -180,16 +212,26 @@ export function matchPortsToRoles(
       };
     }
 
-    // Honour manual / previous if ports still exist (normalize empties / mock ids first)
-    let inputPortId = normalizePortId(prev?.inputPortId);
-    let outputPortId = normalizePortId(prev?.outputPortId);
-    if (inputPortId && !inputs.some((p) => p.id === inputPortId)) inputPortId = null;
-    if (outputPortId && !outputs.some((p) => p.id === outputPortId)) outputPortId = null;
+    const inManual = manualIn.has(role.id);
+    const outManual = manualOut.has(role.id);
 
-    if (!inputPortId) {
+    // Honour previous auto matches if ports still exist (normalize empties / mock ids first)
+    let inputPortId = inManual
+      ? (manualIn.get(role.id)?.id ?? null)
+      : normalizePortId(prev?.inputPortId);
+    let outputPortId = outManual
+      ? (manualOut.get(role.id)?.id ?? null)
+      : normalizePortId(prev?.outputPortId);
+    if (!inManual && inputPortId && (!inputs.some((p) => p.id === inputPortId) || usedIn.has(inputPortId)))
+      inputPortId = null;
+    if (!outManual && outputPortId && (!outputs.some((p) => p.id === outputPortId) || usedOut.has(outputPortId)))
+      outputPortId = null;
+
+    // A manual slot whose port is unplugged stays empty until it comes back.
+    if (!inputPortId && !inManual) {
       inputPortId = rankPortsForRole(inputs, usedIn, role, midiRoles, role.portNameHints)?.id ?? null;
     }
-    if (!outputPortId) {
+    if (!outputPortId && !outManual) {
       outputPortId =
         rankPortsForRole(outputs, usedOut, role, midiRoles, role.portNameHints)?.id ?? null;
     }
@@ -205,9 +247,12 @@ export function matchPortsToRoles(
       roleId: role.id,
       inputPortId,
       outputPortId,
-      inputPortName: inPort?.name ?? null,
-      outputPortName: outPort?.name ?? null,
+      // Manual slots keep the remembered name while unplugged, so they can re-bind.
+      inputPortName: inPort?.name ?? (inManual ? (prev?.inputPortName ?? null) : null),
+      outputPortName: outPort?.name ?? (outManual ? (prev?.outputPortName ?? null) : null),
       connected: connectedNow,
+      ...(inManual ? { inputManual: true } : {}),
+      ...(outManual ? { outputManual: true } : {}),
     };
   });
 
@@ -217,7 +262,7 @@ export function matchPortsToRoles(
     const a = assignments.find((x) => x.roleId === role.id);
     if (!a) continue;
     const exclusive = exclusiveHintsForRole(role);
-    if (!a.inputPortId) {
+    if (!a.inputPortId && !a.inputManual) {
       const hit = rankPortsForRole(inputs, usedIn, role, midiRoles, exclusive);
       if (hit) {
         a.inputPortId = hit.id;
@@ -225,7 +270,7 @@ export function matchPortsToRoles(
         usedIn.add(hit.id);
       }
     }
-    if (!a.outputPortId) {
+    if (!a.outputPortId && !a.outputManual) {
       const hit = rankPortsForRole(outputs, usedOut, role, midiRoles, exclusive);
       if (hit) {
         a.outputPortId = hit.id;
@@ -257,10 +302,22 @@ export function assignPort(
     if (a.roleId !== roleId) {
       // Clear duplicate use of same port on other roles
       if (which === 'input' && portId && a.inputPortId === portId) {
-        return { ...a, inputPortId: null, inputPortName: null, connected: Boolean(a.outputPortId) };
+        return {
+          ...a,
+          inputPortId: null,
+          inputPortName: null,
+          inputManual: false,
+          connected: Boolean(a.outputPortId),
+        };
       }
       if (which === 'output' && portId && a.outputPortId === portId) {
-        return { ...a, outputPortId: null, outputPortName: null, connected: Boolean(a.inputPortId) };
+        return {
+          ...a,
+          outputPortId: null,
+          outputPortName: null,
+          outputManual: false,
+          connected: Boolean(a.inputPortId),
+        };
       }
       return a;
     }
@@ -270,6 +327,8 @@ export function assignPort(
         ...a,
         inputPortId: portId,
         inputPortName: port?.name ?? null,
+        // Picking a port pins it; picking "—" hands the slot back to auto-matching.
+        inputManual: Boolean(portId),
         connected: Boolean(portId || a.outputPortId),
       };
     }
@@ -277,6 +336,7 @@ export function assignPort(
       ...a,
       outputPortId: portId,
       outputPortName: port?.name ?? null,
+      outputManual: Boolean(portId),
       connected: Boolean(a.inputPortId || portId),
     };
   });

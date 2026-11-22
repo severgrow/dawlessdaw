@@ -165,13 +165,27 @@ export interface PortAssignment {
   inputPortName?: string | null;
   outputPortName?: string | null;
   connected: boolean;
+  /**
+   * True when the user picked this port by hand in Settings. Manual picks are
+   * remembered by port name, survive reloads and unplugging, and are never
+   * replaced by auto-matching (e.g. MPC Out = "Scarlett 2i4 USB").
+   */
+  inputManual?: boolean;
+  outputManual?: boolean;
 }
 
 export interface PersistedStudioSetup {
-  version: 1;
+  version: 1 | 2;
   assignments: PortAssignment[];
-  /** When true, app may forward MIDI clock (default false — hardware thru box). */
-  routeClockThroughApp: boolean;
+  /**
+   * Version 1 only: one switch that forwarded clock to MPC + SP together.
+   * Read once by migrateClockForwarding(); newer saves write the per-device flags.
+   */
+  routeClockThroughApp?: boolean;
+  /** Forward Circuit clock/start/stop to the MPC's assigned output. Default false. */
+  clockToMpc?: boolean;
+  /** Forward Circuit clock/start/stop to the SP's output. Default false (SP uses the thru box). */
+  clockToSp?: boolean;
   lastRoutingPresetId: string;
   /** FM1 firmware profile for routing (default 'skiff'). Optional for older saves. */
   fm1Firmware?: Fm1Firmware;
@@ -187,13 +201,57 @@ export interface PersistedStudioSetup {
 
 export const STORAGE_KEY_STUDIO_SETUP = 'dawlessdaw.studioSetup.v1';
 
+/** Per-device app clock forwarding (each one: clock/start/stop/continue only). */
+export interface ClockForwarding {
+  mpc: boolean;
+  sp: boolean;
+  fm1: boolean;
+}
+
+/**
+ * Read per-device clock switches from a saved setup, migrating version-1 saves:
+ * the old single "app clock forwarding" ON becomes MPC ON, SP OFF (the SP gets
+ * clock from the thru box, so sending it app clock too would double it).
+ */
+export function migrateClockForwarding(
+  saved: Partial<PersistedStudioSetup> | null | undefined,
+): ClockForwarding {
+  if (!saved) return { mpc: false, sp: false, fm1: false };
+  const hasNewFlags = typeof saved.clockToMpc === 'boolean' || typeof saved.clockToSp === 'boolean';
+  return {
+    mpc: hasNewFlags ? Boolean(saved.clockToMpc) : Boolean(saved.routeClockThroughApp),
+    sp: hasNewFlags ? Boolean(saved.clockToSp) : false,
+    fm1: Boolean(saved.forwardClockToFm1),
+  };
+}
+
+/** True when any device gets app clock — then Circuit input is the clock authority. */
+export function anyClockForwarding(c: ClockForwarding): boolean {
+  return c.mpc || c.sp || c.fm1;
+}
+
+/** Everything except clock / start / stop / continue — clock routes carry nothing else. */
+export const CLOCK_ROUTE_BLOCK_KINDS = [
+  'note-on',
+  'note-off',
+  'cc',
+  'program-change',
+  'aftertouch',
+  'pitch-bend',
+  'song-position',
+  'sysex',
+  'unknown',
+];
+
 export function buildMyStudioRoutes(ports: {
   circuitIn: string;
   mpcOut: string;
   spOut: string;
   fm1Out: string;
-  /** default false — clock stays on hardware thru */
-  forwardClock?: boolean;
+  /** default false — forward Circuit clock/start/stop to the MPC output (e.g. via Scarlett DIN) */
+  clockToMpc?: boolean;
+  /** default false — forward Circuit clock/start/stop to the SP output (SP normally uses the thru box) */
+  clockToSp?: boolean;
   /** default 'skiff' — Circuit T5–T8 → FM1 with macro CC translation */
   fm1Firmware?: Fm1Firmware;
   /** default 'usb' — 'din-only' drops all app routes to the MPC */
@@ -318,42 +376,27 @@ export function buildMyStudioRoutes(ports: {
     }
   }
 
-  if (ports.forwardClockToFm1) {
-    routes.push({
-      id: 'mystudio-clock-fm1',
-      name: 'Circuit clock → FM1 (USB, Skiff CLOCK = USB)',
-      enabled: true,
-      sourcePortId: ports.circuitIn,
-      destinations: [{ portId: ports.fm1Out }],
-      forwardClock: true,
-      blockKinds: [
-        'note-on',
-        'note-off',
-        'cc',
-        'program-change',
-        'aftertouch',
-        'pitch-bend',
-      ],
-    });
-  }
+  const clockRoute = (id: string, name: string, portId: string): MidiRoute => ({
+    id,
+    name,
+    enabled: true,
+    sourcePortId: ports.circuitIn,
+    destinations: [{ portId }],
+    forwardClock: true,
+    blockKinds: [...CLOCK_ROUTE_BLOCK_KINDS],
+  });
 
-  if (ports.forwardClock) {
-    routes.push({
-      id: 'mystudio-clock',
-      name: 'Circuit clock → MPC + SP (app path)',
-      enabled: true,
-      sourcePortId: ports.circuitIn,
-      destinations: [{ portId: ports.mpcOut }, { portId: ports.spOut }],
-      forwardClock: true,
-      blockKinds: [
-        'note-on',
-        'note-off',
-        'cc',
-        'program-change',
-        'aftertouch',
-        'pitch-bend',
-      ],
-    });
+  // "MIDI cable from thru box only" means the app sends the MPC nothing — clock included.
+  if (ports.clockToMpc && mpcNoteMode !== 'din-only') {
+    routes.push(clockRoute('mystudio-clock-mpc', 'Circuit clock → MPC', ports.mpcOut));
+  }
+  if (ports.clockToSp) {
+    routes.push(clockRoute('mystudio-clock-sp', 'Circuit clock → SP', ports.spOut));
+  }
+  if (ports.forwardClockToFm1) {
+    routes.push(
+      clockRoute('mystudio-clock-fm1', 'Circuit clock → FM1 (Skiff CLOCK = USB)', ports.fm1Out),
+    );
   }
 
   return routes;
@@ -399,6 +442,5 @@ export function myStudioTemplateRoutes(): MidiRoute[] {
     mpcOut: '__mpc_out__',
     spOut: '__sp_out__',
     fm1Out: '__fm1_out__',
-    forwardClock: false,
   });
 }
