@@ -19,7 +19,15 @@ const runtime = getStudioRuntime();
 
 /** Browser-local memory of the last open tab (a convenience; ignored if storage is blocked). */
 export const LAST_TAB_KEY = 'dawlessdaw.lastTab';
-const TABS: readonly WorkspaceId[] = ['rig', 'controller', 'samples', 'sections', 'test', 'setup'];
+const TABS: readonly WorkspaceId[] = [
+  'rig',
+  'controller',
+  'samples',
+  'sections',
+  'sessions',
+  'test',
+  'setup',
+];
 try {
   const last = localStorage.getItem(LAST_TAB_KEY) as WorkspaceId | null;
   if (last && TABS.includes(last)) runtime.setWorkspace(last);

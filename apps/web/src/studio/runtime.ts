@@ -88,8 +88,15 @@ import {
 } from '@dawlessdaw/sessions';
 import { MemoryRepository } from '@dawlessdaw/storage';
 
-/** Rig = track routing home · Samples = SP-404 pads · Sections = Section Bridge · Test = bench · Setup = ports. */
-export type WorkspaceId = 'rig' | 'controller' | 'samples' | 'sections' | 'test' | 'setup';
+/** Rig · Controller · Samples · Sections · Sessions (audio) · Test · Setup. */
+export type WorkspaceId =
+  | 'rig'
+  | 'controller'
+  | 'samples'
+  | 'sections'
+  | 'sessions'
+  | 'test'
+  | 'setup';
 
 export interface StudioRuntimeSnapshot {
   /** True once Chrome granted Web MIDI access. */
@@ -176,6 +183,8 @@ export interface StudioRuntimeSnapshot {
     /** Plain-English read of IN/OUT for USB-only clock debug. */
     hint: string;
   };
+  /** BPM from Circuit MIDI clock (24 PPQN), when clock is heard. */
+  estimatedBpm: number | null;
 }
 
 type Listener = () => void;
@@ -306,6 +315,9 @@ export class StudioRuntime {
   private lastClockOutAt: number | null = null;
   private clockUiNotifyAt = 0;
   private clockLogSample = 0;
+  /** Timestamps of recent F8 clocks from Circuit (for BPM). */
+  private clockTickTimes: number[] = [];
+  private estimatedBpm: number | null = null;
   private activeBenchId: string | null = null;
   private listeners = new Set<Listener>();
   private unsubs: Array<() => void> = [];
@@ -441,6 +453,7 @@ export class StudioRuntime {
         forwarding: this.anyClockForwarding(),
         hint: this.clockHint(),
       },
+      estimatedBpm: this.estimatedBpm,
     };
   }
 
@@ -1507,6 +1520,24 @@ export class StudioRuntime {
       this.bumpKind(this.clockInByKind, message.kind);
       this.lastClockInKind = message.kind;
       this.lastClockInAt = now;
+      if (message.kind === 'clock') {
+        const t = typeof performance !== 'undefined' ? performance.now() : now;
+        this.clockTickTimes = [...this.clockTickTimes.slice(-47), t];
+        if (this.clockTickTimes.length >= 24) {
+          const first = this.clockTickTimes[0]!;
+          const last = this.clockTickTimes[this.clockTickTimes.length - 1]!;
+          const ticks = this.clockTickTimes.length - 1;
+          const msPerTick = (last - first) / ticks;
+          // 24 MIDI clocks per quarter note
+          const bpm = 60_000 / (msPerTick * 24);
+          if (Number.isFinite(bpm) && bpm > 20 && bpm < 400) {
+            this.estimatedBpm = Math.round(bpm * 10) / 10;
+          }
+        }
+      }
+      if (message.kind === 'stop') {
+        this.clockTickTimes = [];
+      }
       if (this.activeBenchId === 'usb-app-clock' && transport) {
         const hex =
           message.kind === 'start' ? 'FA' : message.kind === 'stop' ? 'FC' : 'FB';

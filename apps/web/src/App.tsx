@@ -7,6 +7,7 @@ import { RigWorkspace } from './workspaces/RigWorkspace';
 import { ControllerWorkspace } from './workspaces/ControllerWorkspace';
 import { SamplesWorkspace } from './workspaces/SamplesWorkspace';
 import { SectionsWorkspace } from './workspaces/SectionsWorkspace';
+import { SessionsWorkspace } from './workspaces/SessionsWorkspace';
 import { TestWorkspace } from './workspaces/TestWorkspace';
 import { SetupWorkspace } from './workspaces/SetupWorkspace';
 
@@ -34,6 +35,7 @@ export function App() {
           {workspace === 'controller' && <ControllerWorkspace />}
           {workspace === 'samples' && <SamplesWorkspace />}
           {workspace === 'sections' && <SectionsWorkspace />}
+          {workspace === 'sessions' && <SessionsWorkspace />}
           {workspace === 'test' && <TestWorkspace />}
           {workspace === 'setup' && <SetupWorkspace />}
         </main>

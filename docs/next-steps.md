@@ -7,6 +7,6 @@ Priorities refined by the hardware feasibility pass (`docs/hardware-integration/
 3. **MPC MIDI Learn mute pack** — CC 20 on control **ch15**; hardware-test before claiming.
 4. **FM1** — this studio runs **H-1**; treat as generic MIDI until Bench Pass (every H-1 capability unknown). Optional later: Open V14+ reactive panel only if Open is flashed (do not assume Open CCs on H-1).
 5. **Live port rebind** — map sim Scenes onto real Web MIDI port IDs.
-6. **ZED Web Audio meter** — capture only.
+6. **Session Recorder** — Sessions tab captures any USB audio input (ZED / Scarlett / SP / …). Hardware Pass = Bench **m.** (see [session-recorder.md](./session-recorder.md)).
 7. **Optional librarians** — Circuit SD pack builder (original code); open404/Sparky read-only sidecar.
 8. **NativeBridgeTransport / SQLite / Playwright** — as before; Plugin SDK only for on-device audio plugins (no Dawlessdaw IPC).

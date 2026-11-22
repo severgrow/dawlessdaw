@@ -165,8 +165,16 @@ Chrome Web MIDI honesty: F8/FA arrive on the **main thread** with jitter; fine f
 3. MPC **INPUT PORTS → MPC → GLOBAL ON**; **Remote GLOBAL** can stay ON for notes but Sync Receive still MIDI Clock.
 4. Circuit Play → MPC should start/follow tempo on the DIN path.
 
-## 5. After the bench
+## 5. Session Recorder (optional audio)
+
+1. Open the **Sessions** tab → allow audio capture → pick any listed USB input (ZED, Scarlett, SP-404MKII, etc.).
+2. Record a short take, trim, export WAV + MP3, listen back.
+3. Bench **m.** is the honest Pass/Fail for real-interface capture — do not treat the feature as ZED/Scarlett-verified until you mark it.
+
+Details + MP3 licence: [session-recorder.md](./session-recorder.md).
+
+## 6. After the bench
 
 - Export the Bench JSON and keep it with your session notes.
 - Only treat a feature as verified when its row is **Pass**.
-- ZED stays audio-only — no MIDI checklist for it.
+- ZED stays audio-only for MIDI — Session Recorder is the audio path (unverified until Bench **m.** Pass).

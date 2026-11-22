@@ -1,6 +1,6 @@
 export type BenchVerdict = 'pass' | 'fail' | 'unsure' | 'pending';
 
-export type BenchGroup = 'circuit' | 'mpc' | 'sp' | 'fm1' | 'general';
+export type BenchGroup = 'circuit' | 'mpc' | 'sp' | 'fm1' | 'audio' | 'general';
 
 /** Display order and names for bench groups. */
 export const BENCH_GROUPS: readonly { id: BenchGroup; label: string }[] = [
@@ -8,6 +8,7 @@ export const BENCH_GROUPS: readonly { id: BenchGroup; label: string }[] = [
   { id: 'mpc', label: 'MPC One (via Scarlett)' },
   { id: 'sp', label: 'SP-404MKII' },
   { id: 'fm1', label: 'FM1 (Skiff)' },
+  { id: 'audio', label: 'Session Recorder (audio)' },
   { id: 'general', label: 'Whole rig' },
 ];
 
@@ -228,6 +229,15 @@ export const BENCH_TESTS: BenchTestDef[] = [
       'Turn on one of the Tempo switches in the Rig tab. Circuit Setup (Shift+Save): Clock Tx pad 32 bright. Press Play on the Circuit. Setup → Troubleshooting → Clock monitor should show IN and OUT counts rising. This only proves the app forwards clock; g3 and h3 check that the MPC / FM1 actually follow.',
     listenHint: 'IN/OUT hex: FA start, F8 clock (sampled), FC stop',
     capabilityKey: 'usb-app-clock',
+  },
+  {
+    id: 'session-recorder-interface',
+    group: 'audio',
+    title: 'm. Record 30 s from ZED / Scarlett / any interface, trim, export, listen back',
+    instruction:
+      'Sessions tab → pick your USB audio input (ZED-10FX, Scarlett, SP-404MKII, or any interface the Mac exposes). Record about 30 seconds of real audio, trim with the handles, export WAV and MP3, then listen back in another app. Mark Pass only if the take sounds right. This does not claim ZED/Scarlett verification by itself — you attest.',
+    listenHint: 'local Session Recorder capture (no MIDI required)',
+    capabilityKey: 'session-recorder-capture',
   },
 ];
 
