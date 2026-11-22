@@ -1905,6 +1905,17 @@ button.ap-clip.on {
   stroke-width: 1.5;
 }
 
+/* ZED-10FX side cheeks — deep maroon like the real mixer (brand --on) */
+.art-side {
+  fill: var(--on);
+  stroke: none;
+}
+
+.art-label-bar {
+  fill: #e9e7e0;
+  stroke: none;
+}
+
 .art-screen {
   fill: #070506;
   stroke: var(--line-hard);
@@ -1931,6 +1942,17 @@ button.ap-clip.on {
   fill: var(--bg-4);
   stroke: #333;
   stroke-width: 0.75;
+}
+
+/* Circuit Rhythm pad bands (cyan / amber → brand mint / warm alert tint) */
+.art-pad-hi {
+  fill: color-mix(in srgb, var(--on) 42%, var(--bg-4));
+  stroke: color-mix(in srgb, var(--on) 55%, #333);
+}
+
+.art-pad-lo {
+  fill: color-mix(in srgb, var(--alert-hi) 38%, var(--bg-4));
+  stroke: color-mix(in srgb, var(--alert-hi) 50%, #333);
 }
 
 .art-white-key {
@@ -1981,6 +2003,13 @@ button.ap-clip.on {
 .art-knob-grey circle {
   fill: #5d5b57;
 }
+/* ZED channel colour coding from the real mixer */
+.art-knob-blue circle {
+  fill: #6a8eb8;
+}
+.art-knob-yellow circle {
+  fill: #c9b24a;
+}
 
 .unlit {
   opacity: 0.38;
@@ -1990,6 +2019,12 @@ button.ap-clip.on {
 /* Pads light mint briefly when notes arrive */
 .art-hit .art-pad:not(.art-white-key) {
   animation: pad-hit 520ms ease-out both;
+}
+.art-hit .art-pad-hi {
+  animation: pad-hit-hi 520ms ease-out both;
+}
+.art-hit .art-pad-lo {
+  animation: pad-hit-lo 520ms ease-out both;
 }
 .art-hit .art-white-key {
   animation: key-hit 520ms ease-out both;
@@ -2004,6 +2039,30 @@ button.ap-clip.on {
   100% {
     fill: var(--bg-4);
     stroke: #333;
+  }
+}
+
+@keyframes pad-hit-hi {
+  0%,
+  20% {
+    fill: var(--on);
+    stroke: var(--on);
+  }
+  100% {
+    fill: color-mix(in srgb, var(--on) 42%, var(--bg-4));
+    stroke: color-mix(in srgb, var(--on) 55%, #333);
+  }
+}
+
+@keyframes pad-hit-lo {
+  0%,
+  20% {
+    fill: var(--on);
+    stroke: var(--on);
+  }
+  100% {
+    fill: color-mix(in srgb, var(--alert-hi) 38%, var(--bg-4));
+    stroke: color-mix(in srgb, var(--alert-hi) 50%, #333);
   }
 }
 
