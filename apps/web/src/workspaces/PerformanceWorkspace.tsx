@@ -2,7 +2,7 @@ import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 export function PerformanceWorkspace() {
   const snap = useStudioStore();
-  const { playFixture, injectNote, setFocusMode } = useStudioActions();
+  const { setFocusMode } = useStudioActions();
 
   return (
     <div className="section-enter">
@@ -18,11 +18,6 @@ export function PerformanceWorkspace() {
         <button type="button" onClick={() => setFocusMode('smart')}>
           Smart
         </button>
-        {snap.simulation ? (
-          <button type="button" onClick={() => playFixture()}>
-            Fire fixture
-          </button>
-        ) : null}
       </div>
       <div className="grid-2">
         {snap.devices
@@ -33,11 +28,6 @@ export function PerformanceWorkspace() {
               <p className="muted mono">
                 {snap.focus.activeDeviceId === d.id ? 'FOCUS' : 'idle'}
               </p>
-              {snap.simulation && d.inputPortIds[0] ? (
-                <button type="button" onClick={() => injectNote(d.inputPortIds[0]!)}>
-                  Tap note
-                </button>
-              ) : null}
             </div>
           ))}
       </div>

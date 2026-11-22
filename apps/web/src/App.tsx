@@ -16,7 +16,7 @@ import { BridgeWorkspace } from './workspaces/BridgeWorkspace';
 export function App() {
   useBindStudio();
   const workspace = useStudioStore((s) => s.workspace);
-  const simulation = useStudioStore((s) => s.simulation);
+  const midiReady = useStudioStore((s) => s.midiReady);
   const { start } = useStudioActions();
 
   useEffect(() => {
@@ -43,8 +43,8 @@ export function App() {
       </div>
       <footer className="footer-bar">
         <span>dawlessdaw · local-first hardware studio · no sysex · no firmware writes</span>
-        <span className={`mono ${simulation ? 'sim' : 'live'}`}>
-          {simulation ? '● simulation — not live hardware' : '● live web midi'}
+        <span className={`mono ${midiReady ? 'live' : 'err'}`}>
+          {midiReady ? '● live web midi' : '● no midi access'}
         </span>
       </footer>
     </div>

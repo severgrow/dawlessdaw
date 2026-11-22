@@ -3,16 +3,14 @@ import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 export function StudioWorkspace() {
   const snap = useStudioStore();
-  const { setFocusMode, pinDevice, playFixture, playProjectChangeFixture, injectNote } =
-    useStudioActions();
-  const focusDevice = snap.devices.find((d) => d.id === snap.focus.activeDeviceId);
+  const { setFocusMode, pinDevice } = useStudioActions();
 
   return (
     <div className="section-enter">
       <h1>Studio</h1>
       <p className="lead">
-        Hardware-first patch surface. Simulation uses mock ports; live mode requests Web MIDI in
-        Chrome.
+        Hardware-first patch surface. Everything here is your real gear over Web MIDI in Chrome —
+        a device that isn't plugged in shows as missing.
       </p>
       <SceneSessionSelectors />
 
@@ -71,38 +69,13 @@ export function StudioWorkspace() {
         </div>
 
         <div className="panel">
-          <h2>Simulation</h2>
-          {!snap.simulation ? (
-            <p className="lead">Live mode — fixtures disabled.</p>
+          <h2>Last Circuit gesture</h2>
+          {snap.lastCircuitGesture ? (
+            <p className="mono">
+              {snap.lastCircuitGesture.gesture} — {snap.lastCircuitGesture.summary}
+            </p>
           ) : (
-            <>
-              <div className="row">
-                <button type="button" onClick={() => playFixture()}>
-                  Replay groove fixture
-                </button>
-                <button type="button" onClick={() => playProjectChangeFixture()}>
-                  Simulate Project PGM
-                </button>
-                {focusDevice?.inputPortIds[0] ? (
-                  <button
-                    type="button"
-                    onClick={() => injectNote(focusDevice.inputPortIds[0]!, 60)}
-                  >
-                    Inject note on focus
-                  </button>
-                ) : null}
-              </div>
-              <p className="muted" style={{ marginTop: '0.75rem' }}>
-                Groove fixture = clock + notes. Project PGM fixture maps Circuit Project→Dawlessdaw
-                Scene in sim only — not a hardware proof.
-              </p>
-              {snap.lastCircuitGesture ? (
-                <p className="mono muted">
-                  Circuit gesture: {snap.lastCircuitGesture.gesture} —{' '}
-                  {snap.lastCircuitGesture.summary}
-                </p>
-              ) : null}
-            </>
+            <p className="muted">Nothing yet. Play or change a Project on the Circuit.</p>
           )}
         </div>
       </div>

@@ -6,13 +6,9 @@ import {
 } from '@dawlessdaw/core';
 import { StudioEventBus } from '@dawlessdaw/events';
 import {
-  FIXTURE_CIRCUIT_GROOVE,
-  FIXTURE_CIRCUIT_PROJECT_CHANGE,
-  MockMidiTransport,
   NativeBridgeTransport,
   WebMidiTransport,
   type HardwareTransport,
-  type MidiFixture,
 } from '@dawlessdaw/midi';
 import { MidiRoutingEngine, type MidiRoute } from '@dawlessdaw/routing';
 import { FocusEngine } from '@dawlessdaw/focus';
@@ -74,7 +70,10 @@ export type WorkspaceId =
   | 'bridge';
 
 export interface StudioRuntimeSnapshot {
-  simulation: boolean;
+  /** True once Chrome granted Web MIDI access. */
+  midiReady: boolean;
+  /** Why Web MIDI could not start (null when ready or not yet tried). */
+  midiError: string | null;
   transportKind: HardwareTransport['kind'];
   devices: ReturnType<DeviceRegistry['list']>;
   ports: ReturnType<HardwareTransport['listPorts']>;
@@ -158,12 +157,12 @@ export class StudioRuntime {
   readonly sessionRepo = new MemoryRepository<DawlessdawSession>();
 
   private transport: HardwareTransport;
-  private mock: MockMidiTransport;
   private routing: MidiRoutingEngine;
-  private simulation = true;
-  private session: DawlessdawSession = createEmptySession('My Studio', true);
+  private midiReady = false;
+  private midiError: string | null = null;
+  private session: DawlessdawSession = createEmptySession('My Studio', false);
   private workspace: WorkspaceId = 'studio';
-  private statusLine = 'Simulation mode — mock hardware';
+  private statusLine = 'Starting Web MIDI…';
   private recentUiEvents: StudioRuntimeSnapshot['recentUiEvents'] = [];
   private lastCircuitGesture: CircuitInterpretation | null = null;
   private circuitInterpreter = new CircuitRhythmInterpreter();
@@ -205,8 +204,7 @@ export class StudioRuntime {
   private started = false;
 
   constructor() {
-    this.mock = new MockMidiTransport();
-    this.transport = this.mock;
+    this.transport = new WebMidiTransport();
     this.routing = new MidiRoutingEngine(this.transport, this.bus);
     const saved = loadSetup();
     if (saved?.assignments?.length) {
@@ -238,7 +236,8 @@ export class StudioRuntime {
 
   getSnapshot(): StudioRuntimeSnapshot {
     return {
-      simulation: this.simulation,
+      midiReady: this.midiReady,
+      midiError: this.midiError,
       transportKind: this.transport.kind,
       devices: this.registry.list(),
       ports: this.transport.listPorts(),
@@ -295,15 +294,24 @@ export class StudioRuntime {
     if (this.started) return;
     this.started = true;
 
-    await this.transport.start();
-    this.routing.start();
-
-    if (this.simulation) {
-      this.bootstrapSimulation();
-    } else {
-      this.syncLivePorts(this.transport.listPorts());
-      this.applyMyStudioRoutes();
+    try {
+      await this.transport.start();
+      this.midiReady = true;
+      this.midiError = null;
+    } catch (err) {
+      this.midiReady = false;
+      this.midiError =
+        err instanceof Error && /not available/i.test(err.message)
+          ? 'This browser has no Web MIDI. Open the app in Chrome.'
+          : 'Chrome did not allow MIDI access. Click the icon at the left of the address bar, allow MIDI devices, then reload.';
+      this.started = false;
+      this.setStatus(`No MIDI — ${this.midiError}`);
+      this.notify();
+      return;
     }
+    this.routing.start();
+    this.syncLivePorts(this.transport.listPorts());
+    this.applyMyStudioRoutes();
 
     this.unsubs.push(
       this.transport.onMessage((message) => {
@@ -316,12 +324,10 @@ export class StudioRuntime {
 
     this.unsubs.push(
       this.transport.onPortsChanged((ports) => {
-        if (!this.simulation) {
-          this.syncLivePorts(ports);
-          this.applyMyStudioRoutes();
-          this.pushBenchDetection('reconnect', `ports changed (${ports.length})`);
-          this.notify();
-        }
+        this.syncLivePorts(ports);
+        this.applyMyStudioRoutes();
+        this.pushBenchDetection('reconnect', `ports changed (${ports.length})`);
+        this.notify();
       }),
     );
 
@@ -350,11 +356,7 @@ export class StudioRuntime {
       }),
     );
 
-    this.setStatus(
-      this.simulation
-        ? 'Simulation — mock hardware (My Studio plan ready)'
-        : 'Live MIDI — clock stays on your thru box unless enabled in Settings',
-    );
+    this.setStatus('Live MIDI — clock stays on your thru box unless enabled in Settings');
     this.notify();
   }
 
@@ -367,44 +369,18 @@ export class StudioRuntime {
     this.started = false;
   }
 
-  async setSimulation(on: boolean): Promise<void> {
-    if (on === this.simulation) return;
-    await this.stop();
-    this.simulation = on;
-    this.session = { ...this.session, simulation: on };
-
-    if (on) {
-      this.mock = new MockMidiTransport();
-      this.transport = this.mock;
-    } else {
-      const web = new WebMidiTransport();
-      if (!web.isAvailable()) {
-        this.simulation = true;
-        this.transport = this.mock;
-        this.setStatus('Web MIDI unavailable — staying in simulation');
-      } else {
-        this.transport = web;
-      }
-    }
-
-    this.routing = new MidiRoutingEngine(this.transport, this.bus);
-    this.started = false;
-    await this.start();
-  }
-
   /**
    * Re-read Web MIDI ports. Cannot invent devices missing from Audio MIDI Setup.
    */
   async rescanMidiPorts(): Promise<void> {
     if (!this.started) await this.start();
+    if (!this.midiReady) return;
     const ports = await this.transport.rescanPorts();
     this.syncLivePorts(ports);
     this.applyMyStudioRoutes();
     const connected = ports.filter((p) => p.state === 'connected').length;
     this.setStatus(
-      this.simulation
-        ? `Rescanned mock ports (${connected} connected)`
-        : connected === 0
+      connected === 0
           ? 'Rescan: no Web MIDI ports — fix Audio MIDI Setup / USB first'
           : `Rescanned Web MIDI (${connected} connected). If MPC still missing, OS does not see it.`,
     );
@@ -554,24 +530,6 @@ export class StudioRuntime {
     });
   }
 
-  playFixture(fixture: MidiFixture = FIXTURE_CIRCUIT_GROOVE): void {
-    if (!(this.transport instanceof MockMidiTransport)) {
-      this.setStatus('Fixtures require simulation mode');
-      return;
-    }
-    this.setStatus(`Playing fixture: ${fixture.name}`);
-    this.transport.playFixture(fixture);
-  }
-
-  playProjectChangeFixture(): void {
-    this.playFixture(FIXTURE_CIRCUIT_PROJECT_CHANGE);
-  }
-
-  injectNote(portId: string, note = 60, velocity = 100, channel = 1): void {
-    if (!(this.transport instanceof MockMidiTransport)) return;
-    this.transport.inject(portId, [0x90 | ((channel - 1) & 0x0f), note, velocity]);
-  }
-
   saveScene(name: string): StudioScene {
     const focus = this.focus.getState();
     const scene: StudioScene = {
@@ -606,7 +564,7 @@ export class StudioRuntime {
     }
     // Rebind scene routes onto current assignments when possible
     this.routing.setRoutes(scene.routes);
-    if (!this.simulation) this.applyMyStudioRoutes();
+    this.applyMyStudioRoutes();
     this.roles.setBindings(scene.roles);
     this.focus.setMode(scene.focusMode);
     if (scene.pinnedDeviceId) this.focus.pin(scene.pinnedDeviceId);
@@ -635,7 +593,7 @@ export class StudioRuntime {
       arranger: snap.arranger,
       focusMode: snap.focus.mode,
       pinnedDeviceId: snap.focus.pinnedDeviceId,
-      simulation: snap.simulation,
+      simulation: false,
       updatedAt: Date.now(),
     };
     this.session = session;
@@ -1107,38 +1065,6 @@ export class StudioRuntime {
     );
   }
 
-  private bootstrapSimulation(): void {
-    this.registry.seedSimulation();
-    this.assignments = matchPortsToRoles(this.transport.listPorts(), []);
-    this.remapFocusPorts();
-    this.applyMyStudioRoutes();
-    try {
-      const a = this.saveScene('Default Patch');
-      const b = this.saveScene('Project Bridge B');
-      this.sectionBridge = {
-        enabled: true,
-        rows: [
-          {
-            projectIndex: 1,
-            spProgramChange: 0,
-            mpcProgramChange: 0,
-            sceneId: a.id,
-            label: 'Section A',
-          },
-          {
-            projectIndex: 2,
-            spProgramChange: 1,
-            mpcProgramChange: 1,
-            sceneId: b.id,
-            label: 'Section B',
-          },
-        ],
-      };
-    } catch {
-      // ignore
-    }
-  }
-
   private remapFocusPorts(): void {
     this.focus.clearPortMaps();
     for (const d of this.registry.list()) {
@@ -1163,7 +1089,6 @@ export class StudioRuntime {
       name: 'List devices',
       description: 'Return current studio devices and capability statuses',
       execute: (_args, ctx) => ({
-        simulation: ctx.isSimulation(),
         focus: ctx.getFocusDeviceId(),
         devices: ctx.listDeviceIds(),
       }),
