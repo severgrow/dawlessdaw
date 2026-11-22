@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import {
   DEVICE_CATEGORIES,
+  MPC_CHANNEL_ISOLATION_HINT,
   MY_STUDIO_ROLES,
   PROFILE_HONESTY_LABEL,
   mpcClockPortAdvice,
@@ -468,9 +469,31 @@ export function SetupWorkspace() {
         </div>
         <p className="muted small">
           {snap.mpcNoteMode === 'usb'
-            ? `Notes via MPC Out = ${mpc?.outputPortName ?? 'not assigned'}${mpc?.outputManual && !mpc.outputPortId ? ' (unplugged)' : ''}.`
+            ? `Notes via MPC Out = ${mpc?.outputPortName ?? 'not assigned'}${mpc?.outputManual && !mpc.outputPortId ? ' (unplugged)' : ''}. Circuit T1–T4 → ch9–12 on that one port (per channel — the app does not fan out).`
             : 'App sends MPC nothing — thru-box mode (MPC T1–4 on ch 1–4).'}
         </p>
+        {snap.mpcNoteMode === 'usb' ? (
+          <MoreInfo label="Tracks sound mixed / wrong program?">
+            <p className="muted small">{MPC_CHANNEL_ISOLATION_HINT}</p>
+            <ol className="steps">
+              <li>
+                <b>Each MPC track 1–4</b> — MIDI input port = MIDI In (or the Scarlett path), channel{' '}
+                <b>9 / 10 / 11 / 12</b> — not All.
+              </li>
+              <li>
+                <b>Monitoring = In</b> on those tracks — not Auto (Auto only plays the selected track, so
+                Circuit T1 drums can trigger whatever program is selected on track 3).
+              </li>
+              <li>
+                <b>USB vs DIN</b> — notes work on either; sequencer clock needs Scarlett→DIN (see below).
+              </li>
+              <li>
+                Changing a program on the MPC UI only affects that track. If every track changes, they are
+                still on All (or hearing Section Bridge PC on ch15 as All).
+              </li>
+            </ol>
+          </MoreInfo>
+        ) : null}
       </div>
 
       <div className="panel">

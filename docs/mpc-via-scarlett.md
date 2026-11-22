@@ -46,8 +46,9 @@ Menu names may differ slightly between MPC firmware versions.
    - In the list of MIDI inputs, turn **on** the row for the MPC's **MIDI In** (the DIN/3.5 mm port).
    - **Sync › Receive** = **MIDI Clock**. If there's an input choice, pick the **MIDI In** port.
    - **Send MIDI Clock** = **off**, and **MTC** send off. The MPC must not send clock back.
-2. For each of **tracks 1–4**: set the track's **MIDI input** to the **MIDI In** port and its channel to **9, 10, 11, 12** (track 1 = ch9 … track 4 = ch12). Not "All": a track on All plays every channel.
-3. Set each of those tracks' **monitoring to always on (In)** rather than **Auto**. On Auto the MPC only plays incoming notes on the *selected* track, so you'd hear just one Circuit track at a time. With In, every track plays its own channel at once (e.g. drums on track 1 and a synth on track 2).
+2. For each of **tracks 1–4**: set the track's **MIDI input** to the **MIDI In** port and its channel to **9, 10, 11, 12** (track 1 = ch9 … track 4 = ch12). Not "All": a track on All plays every channel — so Circuit T3 notes also fire the drums track, and a program change heard as All can rewrite every track's sound.
+3. Set each of those tracks' **monitoring to always on (In)** rather than **Auto**. On Auto the MPC only plays incoming notes on the *selected* track, so Circuit T1 drums can suddenly play whatever program you just selected on track 3. With In, every track plays its own channel at once (e.g. drums on track 1 and a synth on track 2).
+4. The Mac sends **one** MIDI Out stream (USB or Scarlett DIN) carrying all channels; isolation is the **channel number**, not separate virtual cables. The app never forwards Circuit Program Changes onto MPC track channels — Section Bridge sequence PC is **ch15** only.
 
 ## On the Circuit Rhythm
 

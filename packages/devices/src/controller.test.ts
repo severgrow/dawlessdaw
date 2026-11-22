@@ -86,6 +86,7 @@ describe('Circuit Controller', () => {
       ['mpc', 0xba, 23, 10],
     ]);
     expect(destHowTo(p.tracks[2]!.dest!, p)).toContain('channel 11');
+    expect(destHowTo(p.tracks[2]!.dest!, p)).toMatch(/not All/i);
   });
 
   it('knob range squeezes 0–127 into min..max', () => {
