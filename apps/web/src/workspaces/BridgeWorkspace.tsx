@@ -12,7 +12,9 @@ export function BridgeWorkspace() {
       <h1>Section Bridge</h1>
       <p className="lead">
         When Circuit sends Program Change on channel 16 (Project change), Dawlessdaw can fire SP
-        pattern PC, MPC sequence PC, and recall a Studio Scene. Instant = 0–63, queued = 64–127.
+        pattern PC on <strong>ch13</strong>, MPC sequence PC on control <strong>ch15</strong>, and
+        recall a Studio Scene. Never on 1–8 or 16 (thru box already mirrors those). Instant = 0–63,
+        queued = 64–127.
       </p>
 
       <div className="row" style={{ marginBottom: '1rem' }}>
@@ -38,7 +40,7 @@ export function BridgeWorkspace() {
           className="list-row"
           style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-mute)' }}
         >
-          <div>Circuit Project → SP pattern PC → MPC sequence PC → Studio Scene</div>
+          <div>Circuit Project ch16 → SP PC ch13 → MPC PC ch15 → Studio Scene</div>
         </div>
         {snap.sectionBridge.rows.map((row, i) => (
           <div key={i} className="list-row" style={{ gridTemplateColumns: '1fr' }}>

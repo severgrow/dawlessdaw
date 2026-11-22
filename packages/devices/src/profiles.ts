@@ -116,28 +116,30 @@ export const DEVICE_PROFILES: Record<string, DeviceProfile> = {
     hasMidi: true,
     hasAudioCapture: false,
     // User studio runs community H-1 (jakehandy/h1), not FM1 Open / stock.
+    // Until Bench Pass: treat as generic MIDI only — every H-1 capability unknown/untested.
     firmwareProfiles: ['h-1', 'stock', 'open', 'generic'],
     defaultFirmwareProfile: 'h-1',
     capabilities: [
       {
         id: 'generic-midi',
-        label: 'Generic MIDI notes (any channel)',
-        status: 'untested',
-        notes: 'H-1 docs: notes play current instrument at velocity; live bench required',
+        label: 'Generic MIDI (H-1 — unknown until bench)',
+        status: 'unknown',
+        notes:
+          'This studio’s FM1 runs H-1. Treat as generic MIDI until Bench Pass. Do not assume Open or stock CC maps.',
       },
       {
         id: 'h1-knob-cc',
-        label: 'H-1 knob CC 20–23',
-        status: 'untested',
+        label: 'H-1 knob CCs (community docs claim 20–23)',
+        status: 'unknown',
         notes:
-          'Documented by jakehandy/h1 only — not inventing a fuller CC map; CC 123 = all notes off',
+          'jakehandy/h1 docs only — untested here; not encoded as a working map; CC 123 all-notes-off also untested',
       },
       {
         id: 'firmware-map',
         label: 'Deep firmware CC / SysEx map',
         status: 'unavailable',
         notes:
-          'H-1 ≠ Open ≠ stock. Open V14 maps must not be assumed on H-1. No invented CC tables.',
+          'H-1 ≠ Open ≠ stock. Never apply Open V14 or stock MIDI CONTROL tables to H-1.',
       },
     ],
   },

@@ -47,13 +47,32 @@ export const DEFAULT_SECTION_BRIDGE: SectionBridgeConfig = {
   ],
 };
 
+/**
+ * SP-404 pattern / notes USB channel after My Studio remap (Circuit ch6 → 13).
+ * Section Bridge Program Change for SP must use this channel — never 1–8 or 16.
+ */
+export const SP_PATTERN_PC_CHANNEL = 13;
+
+/**
+ * MPC control channel for MIDI Learn mute + Section Bridge sequence PC.
+ * Never use 1–8 (thru-box musical channels) or 16 (Circuit Project).
+ */
+export const MPC_CONTROL_CHANNEL = 15;
+
 /** CC suggested for MPC MIDI Learn → Mixer Mute (user learns this on the MPC). */
 export const MPC_MUTE_LEARN_CC = 20;
-export const MPC_MUTE_LEARN_CHANNEL = 16;
+export const MPC_MUTE_LEARN_CHANNEL = MPC_CONTROL_CHANNEL;
+
+function programChangeStatus(channel: number): number {
+  return 0xc0 | ((channel - 1) & 0x0f);
+}
 
 /**
  * Resolve a Circuit ch16 Program Change into Section Bridge actions.
  * Instant: PGM 0–63 · Queued: PGM 64–127 (Novation PRG / sync KB).
+ *
+ * Outbound PCs: SP on ch13, MPC on control ch15 — never on 1–8 or 16
+ * (thru box already mirrors Circuit's native channels into MPC/SP DIN).
  */
 export function resolveSectionBridge(
   program: number,
@@ -67,16 +86,15 @@ export function resolveSectionBridge(
 
   const outbound: SectionBridgeAction['outbound'] = [];
   if (row.spProgramChange !== null && row.spProgramChange >= 0) {
-    // Program Change on channel 1 (0xC0) — SP chart uses PC for patterns; channel may need HW check
     outbound.push({
       portRole: 'sp404',
-      data: [0xc0, row.spProgramChange & 0x7f],
+      data: [programChangeStatus(SP_PATTERN_PC_CHANNEL), row.spProgramChange & 0x7f],
     });
   }
   if (row.mpcProgramChange !== null && row.mpcProgramChange >= 0) {
     outbound.push({
       portRole: 'mpc',
-      data: [0xc0, row.mpcProgramChange & 0x7f],
+      data: [programChangeStatus(MPC_CONTROL_CHANNEL), row.mpcProgramChange & 0x7f],
     });
   }
 

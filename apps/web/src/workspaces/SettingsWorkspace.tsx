@@ -43,9 +43,25 @@ export function SettingsWorkspace() {
       </div>
 
       <div className="panel">
+        <h2>My Studio channel plan</h2>
+        <p className="lead">
+          Thru box sends all Circuit MIDI (notes + ch16 PGM + clock) into MPC and SP. USB routes
+          remap so notes are not doubled:
+        </p>
+        <ul className="cap-list mono" style={{ fontSize: 12 }}>
+          <li>Circuit ch1–4 → MPC ch9–12</li>
+          <li>Circuit ch5 → FM1 ch5 (USB only; H-1 = generic MIDI until bench)</li>
+          <li>Circuit ch6 → SP-404 ch13</li>
+          <li>Mute Learn: CC 20 on MPC control ch15 (not 16)</li>
+          <li>Section Bridge: SP PC ch13 · MPC PC ch15 · never 1–8 or 16</li>
+        </ul>
+      </div>
+
+      <div className="panel">
         <h2>MIDI clock through app</h2>
         <p className="lead">
-          Your setup: Circuit MIDI Out → thru box → MPC + SP. Leave this OFF.
+          Your setup: Circuit MIDI Out → thru box → MPC + SP (all MIDI, not just clock). Leave app
+          clock forwarding OFF.
         </p>
         <button
           type="button"

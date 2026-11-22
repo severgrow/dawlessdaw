@@ -31,7 +31,7 @@ export const BENCH_TESTS: BenchTestDef[] = [
     id: 'circuit-notes-1-8',
     title: 'a. Circuit sequencer notes on channels 1–8',
     instruction:
-      'On the Circuit, enable Note Tx, press Play on a pattern that uses several tracks. Watch detections for note-ons on channels 1–8.',
+      'On the Circuit, enable Note Tx, press Play on a pattern that uses several tracks. Watch detections for note-ons on channels 1–8 (USB into the app).',
     listenHint: 'note-on channels 1–8 from Circuit input',
     capabilityKey: 'circuit-note-tx',
   },
@@ -61,33 +61,33 @@ export const BENCH_TESTS: BenchTestDef[] = [
   },
   {
     id: 'sp-pattern-pc',
-    title: 'e. SP-404 pattern via Program Change',
+    title: 'e. SP-404 pattern via Program Change (ch13)',
     instruction:
-      'Tap Send test PC in the app. Confirm the SP-404MKII changes pattern. Mark Pass only if you see it on the unit.',
-    listenHint: 'outbound PC to SP (you verify on hardware)',
+      'Tap Send test PC in the app (Program Change on channel 13). Confirm the SP-404MKII changes pattern. Mark Pass only if you see it on the unit.',
+    listenHint: 'outbound PC ch13 to SP (you verify on hardware)',
     capabilityKey: 'sp-pattern-pc',
   },
   {
     id: 'mpc-sequence-pc',
-    title: 'f. MPC sequence via Program Change',
+    title: 'f. MPC sequence via Program Change (control ch15)',
     instruction:
-      'Tap Send test PC in the app. Confirm the MPC changes sequence/program if your project is set up for it. Mark honestly.',
-    listenHint: 'outbound PC to MPC (hardware verify)',
+      'Tap Send test PC in the app (Program Change on MPC control channel 15 — never 1–8 or 16). Confirm the MPC changes sequence/program if your project is set up for it. Mark honestly.',
+    listenHint: 'outbound PC ch15 to MPC (hardware verify)',
     capabilityKey: 'mpc-sequence-pc',
   },
   {
     id: 'mpc-mute-cc',
     title: 'g. MPC track mute via CC (MIDI Learn)',
     instruction:
-      'On the MPC: Menu → MIDI/Sync → enable Control on the Dawlessdaw/Mac port. MIDI Learn → Mixer → Mute → learn CC 20 on channel 16. Then tap Send mute CC here.',
-    listenHint: 'outbound CC 20 ch16',
+      'On the MPC: Menu → MIDI/Sync → enable Control on the Dawlessdaw/Mac port. MIDI Learn → Mixer → Mute → learn CC 20 on channel 15 (not 16). Then tap Send mute CC here.',
+    listenHint: 'outbound CC 20 ch15',
     capabilityKey: 'mpc-mute-learn',
   },
   {
     id: 'timing-circuit-to-mpc',
     title: 'h. Timing Circuit → app → MPC',
     instruction:
-      'Play a Circuit track routed to the MPC. The app measures note-in to note-out delay on the Mac. Read the verdict — be honest if it feels loose.',
+      'Play a Circuit track routed to the MPC (USB remaps ch1–4 → ch9–12). The app measures note-in to note-out delay on the Mac. Read the verdict — be honest if it feels loose.',
     listenHint: 'latency/jitter stats',
     capabilityKey: 'app-midi-latency',
   },
@@ -98,6 +98,14 @@ export const BENCH_TESTS: BenchTestDef[] = [
       'Unplug one USB MIDI device, wait 3 s, plug it back. Confirm it shows connected again and routes re-attach.',
     listenHint: 'port connect events',
     capabilityKey: 'port-reconnect',
+  },
+  {
+    id: 'thru-box-clock-no-notes',
+    title: 'j. Thru box: clock without app notes',
+    instruction:
+      'Close the app, play the Circuit: MPC and SP should follow tempo but play no notes. (Proves DIN thru carries clock; musical notes only arrive via USB remapped channels 9–12 / 13 when the app is open.)',
+    listenHint: 'hardware-only check — no app detections',
+    capabilityKey: 'thru-clock-isolation',
   },
 ];
 

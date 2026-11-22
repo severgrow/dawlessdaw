@@ -18,7 +18,7 @@ Capability statuses used throughout the app: **verified** | **untested** | **exp
 | Roland SP-404MKII (stock) | untested | unavailable | Port identity + basic MIDI notes/CC; no pad/pattern remote |
 | Roland SP-404MKII (DOOM OS) | experimental | unknown | Profile flag only; DOOM-specific features not verified |
 | Novation Circuit Rhythm | untested | experimental | Official map encoded (tracks/CC/Project PGM); Scene MIDI **unavailable** in PRG; live TX hardware-testing-required |
-| M-VAVE FM1 (**H-1** on this studio) | untested | unavailable (deep map) | Community H-1 ([jakehandy/h1](https://github.com/jakehandy/h1)): docs claim notes + CC 20–23; **not** FM1 Open. Do not assume Open/stock CC maps. Optional later Open path only if user flashes Open. |
+| M-VAVE FM1 (**H-1** on this studio) | unknown | unavailable (deep map) | Community H-1 ([jakehandy/h1](https://github.com/jakehandy/h1)): treat as generic MIDI until Bench Pass. Docs claim notes + CC 20–23 but **unknown/untested** here. **Not** FM1 Open. Do not assume Open/stock CC maps. |
 | Allen & Heath ZED-10FX | unavailable (MIDI) | unavailable | USB stereo audio only — **no** fake MIDI or digital mixer control |
 
 ## Features deliberately absent

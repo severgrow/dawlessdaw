@@ -12,8 +12,14 @@ export interface StudioRoleDef {
 }
 
 /**
- * Patryk's studio — USB MIDI to Mac; hardware MIDI clock outside the app.
- * Circuit T1–4 → MPC (ch 1–4), T5 → FM1 (ch 5), T6 → SP (ch 6), T7–8 internal.
+ * Patryk's studio — USB MIDI to Mac; hardware MIDI thru outside the app.
+ *
+ * Thru box forwards ALL Circuit MIDI (notes 1–8 + ch16 PGM + clock) to MPC + SP.
+ * App remaps so USB notes land on non-conflicting channels:
+ *   Circuit ch1–4 → MPC ch9–12
+ *   Circuit ch5   → FM1 ch5 (USB only; unchanged)
+ *   Circuit ch6   → SP-404 ch13
+ *   T7–8 internal; Project ch16 observed by Section Bridge (never forwarded as notes)
  */
 export const MY_STUDIO_ROLES: StudioRoleDef[] = [
   {
@@ -53,6 +59,16 @@ export const MY_STUDIO_ROLES: StudioRoleDef[] = [
   },
 ];
 
+/** Circuit source channel → destination channel for My Studio USB routing. */
+export const MY_STUDIO_CHANNEL_REMAP: Readonly<Record<number, number>> = {
+  1: 9,
+  2: 10,
+  3: 11,
+  4: 12,
+  5: 5,
+  6: 13,
+};
+
 export interface PortAssignment {
   roleId: StudioRoleId;
   inputPortId: string | null;
@@ -84,61 +100,61 @@ export function buildMyStudioRoutes(ports: {
   const routes: MidiRoute[] = [
     {
       id: 'mystudio-t1-mpc',
-      name: 'Circuit T1 → MPC',
+      name: 'Circuit T1 → MPC ch9',
       enabled: true,
       sourcePortId: ports.circuitIn,
       destinations: [{ portId: ports.mpcOut }],
-      channel: { allow: [1] },
+      channel: { allow: [1], remap: { 1: 9 } },
       forwardClock: false,
       blockKinds: ['program-change'],
     },
     {
       id: 'mystudio-t2-mpc',
-      name: 'Circuit T2 → MPC',
+      name: 'Circuit T2 → MPC ch10',
       enabled: true,
       sourcePortId: ports.circuitIn,
       destinations: [{ portId: ports.mpcOut }],
-      channel: { allow: [2] },
+      channel: { allow: [2], remap: { 2: 10 } },
       forwardClock: false,
       blockKinds: ['program-change'],
     },
     {
       id: 'mystudio-t3-mpc',
-      name: 'Circuit T3 → MPC',
+      name: 'Circuit T3 → MPC ch11',
       enabled: true,
       sourcePortId: ports.circuitIn,
       destinations: [{ portId: ports.mpcOut }],
-      channel: { allow: [3] },
+      channel: { allow: [3], remap: { 3: 11 } },
       forwardClock: false,
       blockKinds: ['program-change'],
     },
     {
       id: 'mystudio-t4-mpc',
-      name: 'Circuit T4 → MPC',
+      name: 'Circuit T4 → MPC ch12',
       enabled: true,
       sourcePortId: ports.circuitIn,
       destinations: [{ portId: ports.mpcOut }],
-      channel: { allow: [4] },
+      channel: { allow: [4], remap: { 4: 12 } },
       forwardClock: false,
       blockKinds: ['program-change'],
     },
     {
       id: 'mystudio-t5-fm1',
-      name: 'Circuit T5 → FM1',
+      name: 'Circuit T5 → FM1 ch5',
       enabled: true,
       sourcePortId: ports.circuitIn,
       destinations: [{ portId: ports.fm1Out }],
-      channel: { allow: [5] },
+      channel: { allow: [5], remap: { 5: 5 } },
       forwardClock: false,
       blockKinds: ['program-change'],
     },
     {
       id: 'mystudio-t6-sp',
-      name: 'Circuit T6 → SP-404',
+      name: 'Circuit T6 → SP-404 ch13',
       enabled: true,
       sourcePortId: ports.circuitIn,
       destinations: [{ portId: ports.spOut }],
-      channel: { allow: [6] },
+      channel: { allow: [6], remap: { 6: 13 } },
       forwardClock: false,
       blockKinds: ['program-change'],
     },

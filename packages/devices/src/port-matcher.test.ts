@@ -6,7 +6,13 @@ import {
   myStudioTemplateRoutes,
   rebindRoutesToAssignments,
 } from './studio-layout';
-import { resolveSectionBridge, DEFAULT_SECTION_BRIDGE } from './section-bridge';
+import {
+  resolveSectionBridge,
+  DEFAULT_SECTION_BRIDGE,
+  SP_PATTERN_PC_CHANNEL,
+  MPC_CONTROL_CHANNEL,
+  MPC_MUTE_LEARN_CHANNEL,
+} from './section-bridge';
 
 const ports: MidiPortInfo[] = [
   { id: 'c-in', name: 'Circuit Rhythm MIDI', type: 'input', state: 'connected' },
@@ -46,7 +52,7 @@ describe('port matching', () => {
 });
 
 describe('My Studio routing restore', () => {
-  it('builds track plan without clock by default', () => {
+  it('builds track plan with USB channel remaps (avoids thru-box doubles)', () => {
     const routes = buildMyStudioRoutes({
       circuitIn: 'c-in',
       mpcOut: 'm-out',
@@ -55,8 +61,22 @@ describe('My Studio routing restore', () => {
     });
     expect(routes).toHaveLength(6);
     expect(routes.every((r) => r.forwardClock !== true)).toBe(true);
-    expect(routes.find((r) => r.id === 'mystudio-t5-fm1')?.channel?.allow).toEqual([5]);
-    expect(routes.find((r) => r.id === 'mystudio-t6-sp')?.channel?.allow).toEqual([6]);
+    expect(routes.find((r) => r.id === 'mystudio-t1-mpc')?.channel).toEqual({
+      allow: [1],
+      remap: { 1: 9 },
+    });
+    expect(routes.find((r) => r.id === 'mystudio-t4-mpc')?.channel).toEqual({
+      allow: [4],
+      remap: { 4: 12 },
+    });
+    expect(routes.find((r) => r.id === 'mystudio-t5-fm1')?.channel).toEqual({
+      allow: [5],
+      remap: { 5: 5 },
+    });
+    expect(routes.find((r) => r.id === 'mystudio-t6-sp')?.channel).toEqual({
+      allow: [6],
+      remap: { 6: 13 },
+    });
     expect(routes.some((r) => r.id.includes('t7'))).toBe(false);
   });
 
@@ -74,11 +94,23 @@ describe('My Studio routing restore', () => {
 });
 
 describe('Section Bridge', () => {
-  it('maps instant and queued project PGM', () => {
+  it('maps instant and queued project PGM on remapped control channels', () => {
+    expect(MPC_MUTE_LEARN_CHANNEL).toBe(15);
+    expect(MPC_CONTROL_CHANNEL).toBe(15);
+    expect(SP_PATTERN_PC_CHANNEL).toBe(13);
+
     const instant = resolveSectionBridge(0, DEFAULT_SECTION_BRIDGE)!;
     expect(instant.projectIndex).toBe(1);
     expect(instant.kind).toBe('instant');
-    expect(instant.outbound.some((o) => o.portRole === 'sp404')).toBe(true);
+    const sp = instant.outbound.find((o) => o.portRole === 'sp404')!;
+    const mpc = instant.outbound.find((o) => o.portRole === 'mpc')!;
+    expect(sp.data[0]).toBe(0xc0 | (SP_PATTERN_PC_CHANNEL - 1)); // ch13
+    expect(mpc.data[0]).toBe(0xc0 | (MPC_CONTROL_CHANNEL - 1)); // ch15
+    // Never emit PC on musical 1–8 or Circuit project 16
+    for (const o of instant.outbound) {
+      const ch = (o.data[0]! & 0x0f) + 1;
+      expect(ch === 16 || (ch >= 1 && ch <= 8)).toBe(false);
+    }
 
     const queued = resolveSectionBridge(65, {
       enabled: true,

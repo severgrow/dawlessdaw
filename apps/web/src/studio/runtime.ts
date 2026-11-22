@@ -16,8 +16,10 @@ import {
   CircuitRhythmInterpreter,
   DEFAULT_SECTION_BRIDGE,
   DeviceRegistry,
+  MPC_CONTROL_CHANNEL,
   MPC_MUTE_LEARN_CC,
   MPC_MUTE_LEARN_CHANNEL,
+  SP_PATTERN_PC_CHANNEL,
   MY_STUDIO_ROLES,
   STORAGE_KEY_STUDIO_SETUP,
   assignPort,
@@ -575,9 +577,15 @@ export class StudioRuntime {
       this.setStatus('SP output port not assigned');
       return;
     }
-    this.transport.send(spOut, new Uint8Array([0xc0, program & 0x7f]));
-    this.pushBenchDetection('sp-pattern-pc', `sent PC ${program} → SP`);
-    this.setStatus(`Sent Program Change ${program} to SP-404 (verify on hardware)`);
+    const status = 0xc0 | ((SP_PATTERN_PC_CHANNEL - 1) & 0x0f);
+    this.transport.send(spOut, new Uint8Array([status, program & 0x7f]));
+    this.pushBenchDetection(
+      'sp-pattern-pc',
+      `sent PC ${program} ch${SP_PATTERN_PC_CHANNEL} → SP`,
+    );
+    this.setStatus(
+      `Sent Program Change ${program} on ch${SP_PATTERN_PC_CHANNEL} to SP-404 (verify on hardware)`,
+    );
   }
 
   sendBenchMpcProgramChange(program = 0): void {
@@ -586,9 +594,15 @@ export class StudioRuntime {
       this.setStatus('MPC output port not assigned');
       return;
     }
-    this.transport.send(mpcOut, new Uint8Array([0xc0, program & 0x7f]));
-    this.pushBenchDetection('mpc-sequence-pc', `sent PC ${program} → MPC`);
-    this.setStatus(`Sent Program Change ${program} to MPC (verify on hardware)`);
+    const status = 0xc0 | ((MPC_CONTROL_CHANNEL - 1) & 0x0f);
+    this.transport.send(mpcOut, new Uint8Array([status, program & 0x7f]));
+    this.pushBenchDetection(
+      'mpc-sequence-pc',
+      `sent PC ${program} ch${MPC_CONTROL_CHANNEL} → MPC`,
+    );
+    this.setStatus(
+      `Sent Program Change ${program} on control ch${MPC_CONTROL_CHANNEL} to MPC (verify on hardware)`,
+    );
   }
 
   sendBenchMpcMuteCc(): void {

@@ -22,15 +22,20 @@ npm run build
 
 ## Your studio plan (My Studio)
 
-| Circuit track | MIDI ch | Destination |
-|---------------|---------|-------------|
-| 1–4 | 1–4 | MPC One |
-| 5 | 5 | M-VAVE FM1 **H-1** (notes; no clock; not Open) |
-| 6 | 6 | SP-404MKII |
-| 7–8 | 7–8 | Internal Circuit only |
-| Project | 16 | Section Bridge (optional SP/MPC PC + Scene) |
+Thru box forwards **all** Circuit MIDI (notes 1–8 + ch16 PGM + clock) into MPC + SP DIN.
+USB routes **remap** so the app does not double those notes:
 
-MIDI clock: **hardware** Circuit Out → thru box → MPC + SP. App clock forwarding is OFF by default.
+| Circuit track | Circuit ch | USB dest channel | Destination |
+|---------------|------------|------------------|-------------|
+| 1–4 | 1–4 | **9–12** (remap) | MPC One |
+| 5 | 5 | 5 (unchanged) | M-VAVE FM1 **H-1** (USB only; generic MIDI until bench) |
+| 6 | 6 | **13** (remap) | SP-404MKII |
+| 7–8 | 7–8 | — | Internal Circuit only |
+| Project | 16 | Bridge → SP **ch13** PC · MPC **ch15** PC | Section Bridge (+ optional Scene) |
+
+- MIDI clock: **hardware** Circuit Out → thru → MPC + SP. App clock forwarding OFF by default.
+- MPC mute MIDI Learn: **CC 20 on channel 15** (control channel — not 16).
+- Bench check: close the app, play Circuit → MPC/SP follow tempo but play **no** notes.
 
 ZED-10FX: USB **audio only** — no MIDI.
 
@@ -40,4 +45,4 @@ See `/docs` in this repo — start with **[docs/live-run-guide.md](docs/live-run
 
 ## Honesty
 
-Simulated tests do not prove hardware behaviour. Use **Bench Test** with real gear and export the JSON for follow-up.
+Simulated tests do not prove hardware behaviour. Use **Bench Test** with real gear and export the JSON for follow-up. FM1 H-1 capabilities stay **unknown** until Bench Pass — do not assume Open or stock CC maps.

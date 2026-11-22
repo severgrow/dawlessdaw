@@ -27,14 +27,24 @@ Pick one leader:
 
 Never enable Clock Tx on multiple devices.
 
-## MIDI Thru / DIN
+## MIDI Thru / DIN (this studio)
 
-Optional if you want hardware failover without Mac:
+This studio’s thru box forwards **all** Circuit MIDI (notes on tracks 1–8, ch16 Program Change, and clock) into MPC + SP DIN — not clock alone.
 
-- Circuit MIDI Out → MPC MIDI In (direct sequencing) **or**
-- Keep all USB-to-Mac and let Dawlessdaw route (flexible, Mac must be on).
+Dawlessdaw therefore **remaps** USB note routes so they do not double with the thru path:
 
-USB vs DIN: same message classes when Tx enabled; **Hardware testing required** for any timing/filter differences.
+| Circuit | USB remap | Target |
+|---------|-----------|--------|
+| ch 1–4 | → **9–12** | MPC |
+| ch 5 | → 5 | FM1 (USB only) |
+| ch 6 | → **13** | SP-404 |
+| ch 16 Project | observed only | Section Bridge → SP PC **ch13**, MPC PC **ch15** (never 1–8 or 16) |
+
+Mute Learn target: **CC 20 on MPC control channel 15**.
+
+Sanity check: close the app, play Circuit → MPC/SP follow tempo but play **no** notes.
+
+USB vs DIN timing/filter differences: **Hardware testing required**.
 
 ## Extra hardware only if needed
 

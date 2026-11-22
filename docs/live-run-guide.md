@@ -7,15 +7,15 @@ Plain-English steps for Patryk’s studio. Nothing here marks hardware as verifi
 | Gear | Role |
 |------|------|
 | Novation Circuit Rhythm | Arranger / clock master (thru box) |
-| Akai MPC One | Tracks 1–4 (MIDI ch 1–4) |
-| M-VAVE FM1 on **H-1** firmware | Track 5 (MIDI ch 5) — notes (+ knobs CC 20–23 per H-1 docs) |
-| Roland SP-404MKII | Track 6 (MIDI ch 6) |
+| Akai MPC One | Tracks 1–4 via USB remap **ch9–12** (not 1–4) |
+| M-VAVE FM1 on **H-1** firmware | Track 5 (MIDI ch 5) — generic MIDI until Bench Pass |
+| Roland SP-404MKII | Track 6 via USB remap **ch13** |
 | Circuit tracks 7–8 | Stay on Circuit only |
 | Allen & Heath ZED-10FX | **Audio only** — ignore for MIDI |
 
-**Clock:** Circuit MIDI Out → thru box → MPC MIDI In + SP MIDI In. App clock stays **OFF**. FM1 does not need clock for this plan.
+**Thru box:** Circuit MIDI Out → thru → MPC MIDI In + SP MIDI In. The thru carries **all** Circuit MIDI (notes 1–8 + ch16 PGM + clock), not just clock. App clock stays **OFF**. USB remaps avoid doubled notes on MPC/SP.
 
-**FM1 H-1 note:** This is community firmware ([jakehandy/h1](https://github.com/jakehandy/h1)), **not** FM1 Open and **not** stock. Dawlessdaw must not assume Open CC maps. Do not flash or send SysEx from the app.
+**FM1 H-1 note:** Community firmware ([jakehandy/h1](https://github.com/jakehandy/h1)), **not** FM1 Open and **not** stock. Dawlessdaw treats H-1 as **generic MIDI** with every capability **unknown/untested** until Bench Pass. Do not assume Open/stock CC maps. Do not flash or send SysEx from the app.
 
 ---
 
@@ -55,7 +55,7 @@ Open **http://localhost:5173** in **Chrome**.
 2. Click **Switch to Live** → allow MIDI.
 3. Open **Settings** — check Circuit / MPC / SP / FM1 ports. Fix any wrong name match.
 4. Confirm FM1 firmware shows **H-1** (or set it). Leave app clock forwarding **off**.
-5. Click **Re-apply My Studio routes**.
+5. Click **Re-apply My Studio routes** (ch1–4→MPC 9–12, ch5→FM1 5, ch6→SP 13).
 
 ## 4. Bench Test (mark honestly)
 
@@ -63,14 +63,15 @@ Open **Bench Test**. For each item, play the hardware and mark Pass / Fail / Uns
 
 Suggested order:
 
-1. Circuit notes appear in the app (Live RX).
-2. Circuit track 1–4 notes reach the MPC (ch 1–4).
-3. Circuit track 5 notes reach the FM1 (ch 5) — you should hear H-1.
-4. Optional: twist FM1 knobs and see if CC 20–23 show in the bench (H-1 docs claim this; still untested until Pass).
-5. Circuit track 6 notes / pattern changes on the SP.
+1. Circuit notes appear in the app (Live RX on ch 1–8).
+2. Circuit track 1–4 notes reach the MPC on **ch9–12** (USB remap).
+3. Circuit track 5 notes reach the FM1 (ch 5) — generic H-1 until you mark Pass.
+4. Optional: twist FM1 knobs — community docs claim CC 20–23; mark Unsure/Fail until proven (do not assume Open maps).
+5. Circuit track 6 notes reach the SP on **ch13**.
 6. Tracks 7–8 stay on Circuit only.
-7. Clock: MPC + SP follow Circuit via the thru box (not the app).
-8. Section Bridge: Circuit Project change (ch16 PGM) only after the above looks good.
+7. **Close the app, play the Circuit: MPC and SP should follow tempo but play no notes.** (Thru-box clock without USB remapped notes.)
+8. Mute Learn: CC 20 on **channel 15** (not 16).
+9. Section Bridge: Circuit Project change (ch16 PGM) → SP PC **ch13** / MPC PC **ch15** only after the above looks good.
 
 **Do not** enable app clock unless you deliberately want a second clock path.
 

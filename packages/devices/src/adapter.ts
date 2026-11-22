@@ -143,21 +143,21 @@ export class MVaveFm1Adapter extends BaseAdapter {
         ? [
             {
               id: 'generic-midi',
-              label: 'Generic MIDI notes (any channel)',
-              status: 'untested',
-              notes: 'H-1 docs: notes + velocity; live bench required',
+              label: 'Generic MIDI (H-1 — unknown until bench)',
+              status: 'unknown',
+              notes: 'Treat as generic MIDI until Bench Pass; no assumed CC map',
             },
             {
               id: 'h1-knob-cc',
-              label: 'H-1 knob CC 20–23',
-              status: 'untested',
-              notes: 'Documented by jakehandy/h1; CC 123 all-notes-off; no fuller map claimed',
+              label: 'H-1 knob CCs (community docs claim 20–23)',
+              status: 'unknown',
+              notes: 'jakehandy/h1 docs only — untested; do not assume Open/stock maps',
             },
             {
               id: 'firmware-map',
               label: 'Deep firmware CC / SysEx map',
               status: 'unavailable',
-              notes: 'Do not apply Open/stock CC tables to H-1',
+              notes: 'Never apply Open/stock CC tables to H-1',
             },
           ]
         : profile === 'open'
