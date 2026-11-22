@@ -1,6 +1,6 @@
 /**
  * Flat, friendly drawings of the studio's hardware (not product photos — just
- * enough shape to recognise each box at a glance). Pads flash mint when the app
+ * enough shape to recognise each box at a glance). Pads light up (ON colour) when the app
  * sends that device notes; the whole drawing dims when it isn't connected.
  */
 
@@ -64,7 +64,7 @@ function Pads({
   return <g>{out}</g>;
 }
 
-function Knob({ x, y, r, tone = 'grey' }: { x: number; y: number; r: number; tone?: 'mint' | 'wine' | 'white' | 'grey' }) {
+function Knob({ x, y, r, tone = 'grey' }: { x: number; y: number; r: number; tone?: 'on' | 'alert' | 'white' | 'grey' }) {
   return (
     <g className={`art-knob art-knob-${tone}`}>
       <circle cx={x} cy={y} r={r} />
@@ -86,7 +86,7 @@ function Drawing({ kind }: { kind: DeviceKind }) {
         <>
           <Body w={w} h={h} />
           {Array.from({ length: 8 }, (_, i) => (
-            <Knob key={i} x={34 + i * 18} y={20} r={6} tone={i < 4 ? 'mint' : 'white'} />
+            <Knob key={i} x={34 + i * 18} y={20} r={6} tone={i < 4 ? 'on' : 'white'} />
           ))}
           <Pads x={25} y={36} cols={8} rows={4} size={14} gap={4} />
           <rect className="art-key" x={10} y={36} width={8} height={68} rx={3} />
@@ -102,7 +102,7 @@ function Drawing({ kind }: { kind: DeviceKind }) {
           <Knob x={24} y={72} r={8} tone="white" />
           <Knob x={52} y={72} r={8} tone="grey" />
           <rect className="art-key" x={14} y={92} width={22} height={8} rx={3} />
-          <rect className="art-key wine" x={42} y={92} width={22} height={8} rx={3} />
+          <rect className="art-key alert" x={42} y={92} width={22} height={8} rx={3} />
           <rect className="art-key" x={14} y={106} width={50} height={10} rx={3} />
           <Pads x={78} y={12} cols={4} rows={4} size={13} gap={3.5} />
           <rect className="art-key" x={78} y={84} width={60} height={8} rx={3} />
@@ -114,9 +114,9 @@ function Drawing({ kind }: { kind: DeviceKind }) {
       return (
         <>
           <Body w={w} h={h} />
-          <Knob x={24} y={20} r={7} tone="wine" />
-          <Knob x={48} y={20} r={7} tone="wine" />
-          <Knob x={72} y={20} r={7} tone="wine" />
+          <Knob x={24} y={20} r={7} tone="alert" />
+          <Knob x={48} y={20} r={7} tone="alert" />
+          <Knob x={72} y={20} r={7} tone="alert" />
           <Knob x={96} y={20} r={7} tone="white" />
           <rect className="art-screen" x={14} y={34} width={58} height={16} rx={3} />
           <rect className="art-key" x={78} y={36} width={28} height={12} rx={3} />
@@ -128,8 +128,8 @@ function Drawing({ kind }: { kind: DeviceKind }) {
       return (
         <>
           <Body w={w} h={h} r={8} />
-          <Knob x={20} y={18} r={6} tone="mint" />
-          <Knob x={38} y={18} r={6} tone="mint" />
+          <Knob x={20} y={18} r={6} tone="on" />
+          <Knob x={38} y={18} r={6} tone="on" />
           <Knob x={56} y={18} r={6} tone="white" />
           <Knob x={74} y={18} r={6} tone="white" />
           <rect className="art-screen" x={92} y={10} width={64} height={16} rx={3} />
@@ -148,7 +148,7 @@ function Drawing({ kind }: { kind: DeviceKind }) {
           <Body w={w} h={h} r={8} />
           {Array.from({ length: 6 }, (_, i) => (
             <g key={i}>
-              <Knob x={20 + i * 20} y={18} r={5} tone={i === 5 ? 'wine' : 'grey'} />
+              <Knob x={20 + i * 20} y={18} r={5} tone={i === 5 ? 'alert' : 'grey'} />
               <Knob x={20 + i * 20} y={36} r={5} tone="grey" />
               <rect className="art-key" x={18 + i * 20} y={52} width={4} height={54} rx={2} />
               <rect className="art-fader" x={13 + i * 20} y={70 - (i % 3) * 8} width={14} height={8} rx={2} />
@@ -173,7 +173,7 @@ function Drawing({ kind }: { kind: DeviceKind }) {
           <Body w={w} h={h} r={8} />
           <circle className="art-jack" cx={22} cy={25} r={9} />
           <circle className="art-jack" cx={46} cy={25} r={9} />
-          <Knob x={72} y={25} r={8} tone="wine" />
+          <Knob x={72} y={25} r={8} tone="alert" />
           <Knob x={94} y={25} r={6} tone="grey" />
         </>
       );

@@ -3,7 +3,7 @@ import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 /**
  * The studio as one picture: boxes where they sit, cables for how MIDI and audio
- * travel. Mint cables flash when notes go through; burgundy dashed = audio.
+ * travel. MIDI cables (ON colour) flash when notes go through; dashed ALERT colour = audio.
  * Coordinates are in a 1000 × 400 box that scales with the page.
  */
 

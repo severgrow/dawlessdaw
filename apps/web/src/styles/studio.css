@@ -1,7 +1,10 @@
 /*
  * Dawlessdaw visual system
- * Two colours on black: MINT = on / live / OK / MIDI, BURGUNDY = stop / fail /
- * warn / clip / audio. Everything else is greyscale. Rounded, playful hardware
+ * Two pastel colours on black:
+ *   ON    (pastel burgundy) = on / live / OK / MIDI / selected
+ *   ALERT (pastel mint)     = stop / fail / warn / clip / audio
+ * Everything else is greyscale. A fine film grain sits over everything
+ * (same SVG noise as severgrow-01's Soil texture). Rounded, playful hardware
  * shapes (OP-1-ish) on tidy Ableton-style grids.
  */
 :root {
@@ -17,28 +20,30 @@
   --text-dim: #a09d96;
   --text-mute: #64615c;
 
-  --mint: #8cf5cf;
-  --mint-2: #5fd9ae;
-  --mint-dim: #1d4a3b;
-  --mint-glow: rgba(140, 245, 207, 0.38);
-  --mint-wash: rgba(140, 245, 207, 0.1);
+  /* ON — pastel burgundy */
+  --on: #d996a9;
+  --on-2: #c27d92;
+  --on-dim: #4d2733;
+  --on-glow: rgba(217, 150, 169, 0.36);
+  --on-wash: rgba(217, 150, 169, 0.1);
 
-  --burgundy: #8e1f3d; /* fills */
-  --burgundy-hi: #c24a6c; /* text and lines on black */
-  --burgundy-dim: #3a1220;
-  --burgundy-glow: rgba(194, 74, 108, 0.42);
-  --burgundy-wash: rgba(194, 74, 108, 0.12);
+  /* ALERT — pastel mint */
+  --alert: #9fdcc2; /* fills */
+  --alert-hi: #b5ead3; /* text and lines on black */
+  --alert-dim: #24443a;
+  --alert-glow: rgba(181, 234, 211, 0.36);
+  --alert-wash: rgba(181, 234, 211, 0.1);
 
   /* Roles */
-  --accent: var(--mint);
-  --accent-dim: var(--mint-dim);
-  --accent-glow: var(--mint-glow);
+  --accent: var(--on);
+  --accent-dim: var(--on-dim);
+  --accent-glow: var(--on-glow);
   --accent-ink: #0a0a0a;
-  --ok: var(--mint);
-  --ok-glow: var(--mint-glow);
-  --warn: var(--burgundy-hi);
-  --err: var(--burgundy-hi);
-  --cyan: var(--mint);
+  --ok: var(--on);
+  --ok-glow: var(--on-glow);
+  --warn: var(--alert-hi);
+  --err: var(--alert-hi);
+  --cyan: var(--on);
 
   /* kept for older inline styles */
   --amber: var(--accent);
@@ -83,18 +88,16 @@ body {
   color: var(--accent-ink);
 }
 
-/* Faint CRT scanlines, only visible on large flat areas */
+/* Film grain over everything — the same SVG noise as severgrow-01's "Soil" texture
+   (fractal noise, neutral grey, 16%). Static: no cost per frame, never blocks clicks. */
 body::after {
   content: '';
   pointer-events: none;
   position: fixed;
   inset: 0;
-  z-index: 100;
-  background: repeating-linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.012) 0 1px,
-    transparent 1px 3px
-  );
+  z-index: 1000;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .75  0 0 0 0 .75  0 0 0 0 .75  0 0 0 1.1 -.42'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  opacity: 0.16;
 }
 
 ::-webkit-scrollbar {
@@ -184,14 +187,14 @@ button.ghost {
 }
 
 button.danger {
-  border-color: var(--burgundy);
-  color: #f6dde4;
-  background: var(--burgundy);
+  border-color: var(--alert);
+  color: var(--accent-ink);
+  background: var(--alert);
 }
 button.danger:hover:not(:disabled) {
-  background: var(--burgundy-hi);
-  color: #fff;
-  border-color: var(--burgundy-hi);
+  background: var(--alert-hi);
+  color: var(--accent-ink);
+  border-color: var(--alert-hi);
 }
 
 /* Bench verdict pads */
@@ -202,10 +205,10 @@ button.verdict-pass.active {
 }
 button.verdict-fail.active,
 button.verdict-fail.active:hover:not(:disabled) {
-  background: var(--burgundy);
-  border-color: var(--burgundy-hi);
-  color: #fff;
-  box-shadow: 0 0 14px -2px var(--burgundy-glow);
+  background: var(--alert);
+  border-color: var(--alert-hi);
+  color: var(--accent-ink);
+  box-shadow: 0 0 14px -2px var(--alert-glow);
 }
 /* Unsure = neutral: a white outline, no colour */
 button.verdict-unsure.active,
@@ -340,7 +343,7 @@ label {
   height: 6px;
   border-radius: 50%;
   background: var(--warn);
-  box-shadow: 0 0 6px var(--burgundy-glow);
+  box-shadow: 0 0 6px var(--alert-glow);
   animation: led-breathe 2s ease-in-out infinite;
 }
 
@@ -356,7 +359,7 @@ label {
 
 .error-badge .dot {
   background: var(--err);
-  box-shadow: 0 0 8px var(--burgundy-glow);
+  box-shadow: 0 0 8px var(--alert-glow);
 }
 
 .live-badge .dot {
@@ -937,10 +940,10 @@ textarea.session-io {
 }
 
 .bench-card[data-verdict='pass'] {
-  border-color: var(--mint-dim);
+  border-color: var(--on-dim);
 }
 .bench-card[data-verdict='fail'] {
-  border-color: var(--burgundy);
+  border-color: var(--alert);
 }
 .bench-card[data-verdict='unsure'] {
   border-color: var(--text-mute);
@@ -1317,7 +1320,7 @@ button.send-remove:hover:not(:disabled) {
 }
 
 .st-hit {
-  background: linear-gradient(90deg, var(--mint-wash), transparent);
+  background: linear-gradient(90deg, var(--on-wash), transparent);
 }
 
 .st-row .text-input {
@@ -1464,12 +1467,12 @@ button.bench-head:hover:not(:disabled) {
   color: var(--ok);
 }
 .verdict-tag.v-fail {
-  background: var(--burgundy);
-  border-color: var(--burgundy);
-  color: #fff;
+  background: var(--alert);
+  border-color: var(--alert);
+  color: var(--accent-ink);
 }
 .verdict-tag.v-pass {
-  background: var(--mint);
+  background: var(--on);
   color: var(--accent-ink);
 }
 .verdict-tag.v-unsure {
@@ -1765,7 +1768,7 @@ select.ap-select:hover:not(:disabled) {
 
 select.ap-select.ap-output {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--mint-wash);
+  box-shadow: 0 0 0 3px var(--on-wash);
 }
 
 button.ap-start {
@@ -1869,9 +1872,9 @@ button.ap-clip {
 }
 
 button.ap-clip.on {
-  background: var(--burgundy);
-  border-color: var(--burgundy-hi);
-  color: #fff;
+  background: var(--alert);
+  border-color: var(--alert-hi);
+  color: var(--accent-ink);
 }
 
 @media (max-width: 720px) {
@@ -1902,18 +1905,18 @@ button.ap-clip.on {
 }
 
 .art-screen {
-  fill: #050806;
+  fill: #070506;
   stroke: var(--line-hard);
   stroke-width: 1;
 }
 
 .lit .art-screen {
-  fill: #07130f;
-  stroke: var(--mint-dim);
+  fill: #150a0e;
+  stroke: var(--on-dim);
 }
 
 .art-label {
-  fill: var(--mint);
+  fill: var(--on);
   font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 700;
@@ -1942,8 +1945,8 @@ button.ap-clip.on {
   fill: var(--bg-4);
 }
 
-.art-key.wine {
-  fill: var(--burgundy);
+.art-key.alert {
+  fill: var(--alert);
 }
 
 .art-fader {
@@ -1965,11 +1968,11 @@ button.ap-clip.on {
   stroke-width: 1.6;
   stroke-linecap: round;
 }
-.art-knob-mint circle {
-  fill: var(--mint);
+.art-knob-on circle {
+  fill: var(--on);
 }
-.art-knob-wine circle {
-  fill: var(--burgundy-hi);
+.art-knob-alert circle {
+  fill: var(--alert-hi);
 }
 .art-knob-white circle {
   fill: #e9e7e0;
@@ -1994,8 +1997,8 @@ button.ap-clip.on {
 @keyframes pad-hit {
   0%,
   20% {
-    fill: var(--mint);
-    stroke: var(--mint);
+    fill: var(--on);
+    stroke: var(--on);
   }
   100% {
     fill: var(--bg-4);
@@ -2006,7 +2009,7 @@ button.ap-clip.on {
 @keyframes key-hit {
   0%,
   20% {
-    fill: var(--mint);
+    fill: var(--on);
   }
   100% {
     fill: #d8d6cf;
@@ -2044,14 +2047,14 @@ button.ap-clip.on {
 }
 
 .cable-midi.on .cable-base {
-  stroke: var(--mint-dim);
+  stroke: var(--on-dim);
 }
 .cable-clock .cable-base {
-  stroke: var(--mint-dim);
+  stroke: var(--on-dim);
   stroke-dasharray: 2 7;
 }
 .cable-audio .cable-base {
-  stroke: var(--burgundy);
+  stroke: var(--alert);
   stroke-dasharray: 9 7;
   stroke-width: 2.5;
   opacity: 0.8;
@@ -2061,9 +2064,9 @@ button.ap-clip.on {
 }
 
 .cable-hit {
-  stroke: var(--mint);
+  stroke: var(--on);
   stroke-width: 4;
-  filter: drop-shadow(0 0 5px var(--mint));
+  filter: drop-shadow(0 0 5px var(--on));
   animation: cable-hit 600ms ease-out both;
 }
 
@@ -2085,7 +2088,7 @@ button.ap-clip.on {
 }
 
 .cable-midi.on .cable-label {
-  fill: var(--mint-2);
+  fill: var(--on-2);
 }
 
 button.rig-device {
@@ -2158,13 +2161,13 @@ button.rig-device:hover:not(:disabled) {
   height: 0;
   margin-right: 0.35rem;
   vertical-align: middle;
-  border-top: 3px solid var(--mint);
+  border-top: 3px solid var(--on);
 }
 .rig-legend .lg-clock {
-  border-top: 3px dotted var(--mint-2);
+  border-top: 3px dotted var(--on-2);
 }
 .rig-legend .lg-audio {
-  border-top: 3px dashed var(--burgundy-hi);
+  border-top: 3px dashed var(--alert-hi);
 }
 .rig-legend .lg-off {
   border-top-color: var(--line-hard);
@@ -2273,11 +2276,11 @@ button.send-add {
   margin-right: 0.45rem;
 }
 .bm-a {
-  fill: var(--mint);
+  fill: var(--on);
 }
 .bm-b {
-  fill: var(--mint-dim);
+  fill: var(--on-dim);
 }
 .bm-c {
-  fill: var(--burgundy-hi);
+  fill: var(--alert-hi);
 }
