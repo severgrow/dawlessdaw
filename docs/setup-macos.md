@@ -32,7 +32,7 @@ Open **http://localhost:5173**.
 
 1. Start in Simulation to confirm the UI loads.
 2. Click **Switch to Live** and allow MIDI access.
-3. Open **Patchbay → Ports** — this is the raw Chrome list. Expect Circuit, SP-404, and often **Felucca** (FM1 CDC name). If **MPC One** is missing here, open **Audio MIDI Setup**, confirm the MPC is powered/USB’d, then unplug/replug or restart Chrome.
+3. Open **Patchbay → Ports** — this is the raw Chrome list. Expect Circuit, SP-404, and often **Felucca** (FM1 CDC name). If **MPC One** is missing here, open **Audio MIDI Setup** first — if MIDI Studio has no MPC, the app cannot help. Then unplug/replug, quit competing DAWs/MPC software, and use **Rescan MIDI ports**. Full checklist: [mpc-one-mac-midi-missing.md](./mpc-one-mac-midi-missing.md).
 4. Open **Settings** — confirm port assignments. Felucca should auto-assign to **FM1**; if not, pick Felucca manually for FM1 in/out. Review the channel plan.
 5. Click **Re-apply My Studio routes** (USB remaps: Circuit 5→FM1 5, 6→FM1 6; 1–4→MPC 9–12 optional). Route detail shows source→dest channels (identity remap shows as `ch 5` / `ch 6`). MPC can stay unplugged for an FM1 jam. **SP:** T6 is no longer USB-routed in this preset.
 6. Use **Bench Test** with the gear powered on — include the “close app / clock only” step.

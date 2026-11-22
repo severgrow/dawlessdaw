@@ -11,7 +11,7 @@ function ageLabel(at: number | null): string {
 
 export function PatchbayWorkspace() {
   const snap = useStudioStore();
-  const { enableRoute, setClockAuthority } = useStudioActions();
+  const { enableRoute, setClockAuthority, rescanMidiPorts } = useStudioActions();
   const clock = snap.clockActivity;
   const clockRoute = snap.routes.find((r) => r.id === 'mystudio-clock' || r.forwardClock);
 
@@ -66,6 +66,11 @@ export function PatchbayWorkspace() {
           Audio MIDI Setup / power — Dawlessdaw cannot invent ports the browser does not see. Odd
           names (e.g. Felucca for FM1) still appear here; assign them under Settings.
         </p>
+        <div className="row" style={{ marginBottom: '0.75rem' }}>
+          <button type="button" onClick={() => void rescanMidiPorts()}>
+            Rescan MIDI ports
+          </button>
+        </div>
         {snap.ports.length === 0 ? (
           <p className="muted mono">No ports from Web MIDI yet.</p>
         ) : (

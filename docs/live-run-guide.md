@@ -82,12 +82,13 @@ The strip shows **CONNECTED** only when that gear has a **port assignment** (aut
 
 1. Open **Settings → All Web MIDI ports (raw)**.
 2. **Copy/paste every port name** listed there (inputs and outputs), including odd ones like `CH345`, `USB-MIDI`, `Akai Professional …`, `IAC Driver…`.
-3. If you see a name that is clearly the FM1 (often **Felucca**), use the **In / Out** dropdowns under Port assignments to attach it, then **Re-apply My Studio routes**.
-4. If FM1 USB is plugged in but **no extra ports appear at all**, this is OS/Chrome/hardware — not app matching:
-   - Open **Audio MIDI Setup → Window → Show MIDI Studio**; confirm the devices appear and are online.
+3. If you see a name that is clearly the MPC or FM1, use the **In / Out** dropdowns under Port assignments to attach it, then **Re-apply My Studio routes**.
+4. If MPC / FM1 USB cables are plugged in but **no extra ports appear at all**, this is OS/Chrome/hardware — not app matching:
+   - Open **Audio MIDI Setup → Window → Show MIDI Studio**; confirm the devices appear and are online. **No MPC there ⇒ Dawlessdaw cannot show it.**
    - Unplug USB → wait 3 s → replug (direct MacBook port for the flaky device).
-   - Quit competing DAWs; quit Chrome fully (⌘Q) and reopen; **Switch to Live**; Settings or Patchbay → **Rescan MIDI ports**.
-   - Full ranked checklist: [mpc-one-mac-midi-missing.md](./mpc-one-mac-midi-missing.md) (same USB class of issues).
+   - Quit MPC software / Ableton / other MIDI apps; stay in MPC **Standalone** (not Controller / “Looking for computer”).
+   - Quit Chrome fully (⌘Q) and reopen; **Switch to Live**; Settings or Patchbay → **Rescan MIDI ports**.
+   - Full ranked checklist: [mpc-one-mac-midi-missing.md](./mpc-one-mac-midi-missing.md).
 
 Common Mac Chrome names:
 

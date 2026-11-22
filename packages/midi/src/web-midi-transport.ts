@@ -63,6 +63,32 @@ export class WebMidiTransport implements HardwareTransport {
     this.access = null;
   }
 
+  /**
+   * Re-request MIDIAccess (keeps message/port listeners) and rebind.
+   * Honest: if Audio MIDI Setup has no device, this still returns without it.
+   */
+  async rescanPorts(): Promise<MidiPortInfo[]> {
+    if (!this.isAvailable()) return [];
+    if (this.access) this.access.onstatechange = null;
+    for (const [id] of this.boundInputs) {
+      const input = this.access?.inputs.get(id);
+      if (input) input.onmidimessage = null;
+    }
+    this.boundInputs.clear();
+    this.openPromises.clear();
+    const access = (await navigator.requestMIDIAccess({ sysex: false })) as unknown as MidiAccessLike;
+    this.access = access;
+    access.onstatechange = () => {
+      void this.ensurePortsOpen();
+      this.rebindInputs();
+      this.emitPorts();
+    };
+    await this.ensurePortsOpen();
+    this.rebindInputs();
+    this.emitPorts();
+    return this.listPorts();
+  }
+
   listPorts(): MidiPortInfo[] {
     if (!this.access) return [];
     const ports: MidiPortInfo[] = [];

@@ -20,6 +20,7 @@ export function SettingsWorkspace() {
   const snap = useStudioStore();
   const {
     setSimulation,
+    rescanMidiPorts,
     setRouteClockThroughApp,
     assignStudioPort,
     applyMyStudioRoutes,
@@ -53,9 +54,13 @@ export function SettingsWorkspace() {
           <button type="button" onClick={() => void setSimulation(false)}>
             WebMidiTransport (Live)
           </button>
+          <button type="button" onClick={() => void rescanMidiPorts()}>
+            Rescan MIDI ports
+          </button>
         </div>
         <p className="muted" style={{ marginTop: '0.75rem' }}>
-          NativeBridgeTransport available={String(native.isAvailable())} (stub)
+          NativeBridgeTransport available={String(native.isAvailable())} (stub). Rescan re-requests
+          Web MIDI; if Audio MIDI Setup has no MPC, the app still cannot show it.
         </p>
       </div>
 

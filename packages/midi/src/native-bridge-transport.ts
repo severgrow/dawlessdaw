@@ -27,6 +27,10 @@ export class NativeBridgeTransport implements HardwareTransport {
     return [];
   }
 
+  async rescanPorts(): Promise<MidiPortInfo[]> {
+    return [];
+  }
+
   send(_portId: PortId, _data: Uint8Array, _timestamp?: number): void {
     throw new Error('NativeBridgeTransport is unavailable');
   }
