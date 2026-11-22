@@ -7,7 +7,8 @@ import {
 } from '../store/useStudioStore';
 
 const ITEMS: { id: WorkspaceId; label: string; hint: string }[] = [
-  { id: 'rig', label: 'Rig', hint: 'Where each Circuit track plays · tempo' },
+  { id: 'rig', label: 'Rig', hint: 'Map of the studio · listen · tempo' },
+  { id: 'controller', label: 'Controller', hint: 'Circuit tracks and knobs → SP, FM1, MPC' },
   { id: 'samples', label: 'Samples', hint: 'SP-404 pads: load, trim, save WAVs' },
   { id: 'sections', label: 'Sections', hint: 'Circuit project → SP pattern / MPC sequence' },
   { id: 'test', label: 'Test', hint: 'Bench tests with your gear' },
@@ -33,7 +34,7 @@ export function Nav() {
     }
   }, [workspace]);
 
-  // Number keys 1–5 switch tabs, like a pad row.
+  // Number keys 1–6 switch tabs, like a pad row.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
@@ -70,7 +71,7 @@ export function Nav() {
         </button>
       ))}
       <div className="nav-hint">
-        keys 1–5 switch tabs
+        keys 1–6 switch tabs
         <br />
         no sysex · no firmware writes
       </div>

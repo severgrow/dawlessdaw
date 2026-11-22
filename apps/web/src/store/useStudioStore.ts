@@ -11,13 +11,15 @@ import type {
   StudioRoleId,
   TrackDestId,
   TrackPresetId,
+  CtrlTrack,
+  KnobSlot,
 } from '@dawlessdaw/devices';
 
 const runtime = getStudioRuntime();
 
 /** Browser-local memory of the last open tab (a convenience; ignored if storage is blocked). */
 export const LAST_TAB_KEY = 'dawlessdaw.lastTab';
-const TABS: readonly WorkspaceId[] = ['rig', 'samples', 'sections', 'test', 'setup'];
+const TABS: readonly WorkspaceId[] = ['rig', 'controller', 'samples', 'sections', 'test', 'setup'];
 try {
   const last = localStorage.getItem(LAST_TAB_KEY) as WorkspaceId | null;
   if (last && TABS.includes(last)) runtime.setWorkspace(last);
@@ -69,6 +71,20 @@ export function useStudioActions() {
     setTrackSend: (track: number, dest: TrackDestId, channel: number | null) =>
       runtime.setTrackSend(track, dest, channel),
     applyTrackPreset: (id: TrackPresetId) => runtime.applyTrackPreset(id),
+    setControllerTrack: (t: number, patch: Partial<CtrlTrack>) => runtime.setControllerTrack(t, patch),
+    setControllerKnob: (t: number, k: number, patch: Partial<KnobSlot>) => runtime.setControllerKnob(t, k, patch),
+    setSkiffChannel: (skiffTrack: number, ch: number) => runtime.setSkiffChannel(skiffTrack, ch),
+    copyControllerTrack: (from: number, to: number[]) => runtime.copyControllerTrack(from, to),
+    undoController: () => runtime.undoController(),
+    loadControllerPreset: (id: string) => runtime.loadControllerPreset(id),
+    saveControllerPreset: () => runtime.saveControllerPreset(),
+    saveControllerPresetAs: (name: string) => runtime.saveControllerPresetAs(name),
+    renameControllerPreset: (id: string, name: string) => runtime.renameControllerPreset(id, name),
+    deleteControllerPreset: (id: string) => runtime.deleteControllerPreset(id),
+    learnFirstNote: (t: number) => runtime.learnFirstNote(t),
+    twistToPick: (t: number, k: number) => runtime.twistToPick(t, k),
+    cancelControllerLearn: () => runtime.cancelControllerLearn(),
+    testControllerKnob: (t: number, k: number) => runtime.testControllerKnob(t, k),
     setSpNoteOffset: (n: number) => runtime.setSpNoteOffset(n),
     learnSpPadOffset: () => runtime.learnSpPadOffset(),
     assignStudioPort: (
