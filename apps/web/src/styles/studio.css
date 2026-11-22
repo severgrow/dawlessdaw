@@ -3566,3 +3566,119 @@ button.send-add {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ——— Sessions → SP pad export ——— */
+.rec-sp-export {
+  margin-top: 1.1rem;
+  padding: 0.85rem 0.9rem 1rem;
+  border: 1px solid var(--line-hard);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(154, 42, 69, 0.08), transparent 42%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 11px,
+      rgba(255, 255, 255, 0.015) 11px,
+      rgba(255, 255, 255, 0.015) 12px
+    ),
+    var(--bg-1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.rec-sp-export-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.rec-sp-export-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text);
+}
+
+.rec-sp-hw {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+.rec-sp-pad-grid {
+  max-width: 100%;
+  margin-top: 0.45rem;
+}
+
+.rec-sp-export .sp-pad {
+  min-height: 0;
+  aspect-ratio: 1.35 / 1;
+  padding: 0.4rem 0.45rem;
+  background: #101010;
+  border-color: #2a2a2a;
+}
+
+.rec-sp-export .sp-pad.selected {
+  background: #171014;
+}
+
+.rec-sp-dest {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.75rem;
+  align-items: baseline;
+  margin: 0.75rem 0 0.35rem;
+  padding: 0.55rem 0.65rem;
+  background: #0c0c0c;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 0.78rem;
+}
+
+.rec-sp-dest-label {
+  color: var(--text-mute);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+}
+
+.rec-sp-dest-path {
+  color: var(--alert-hi);
+  word-break: break-all;
+}
+
+.rec-sp-dest-vol {
+  grid-column: 2;
+  color: var(--text-mute);
+  font-size: 0.7rem;
+}
+
+.rec-sp-hint {
+  margin: 0 0 0.65rem;
+  color: var(--on);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.rec-sp-write {
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 620px) {
+  .rec-sp-export-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .rec-sp-dest {
+    grid-template-columns: 1fr;
+  }
+  .rec-sp-dest-vol {
+    grid-column: 1;
+  }
+}
+
