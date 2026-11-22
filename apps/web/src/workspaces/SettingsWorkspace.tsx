@@ -37,8 +37,8 @@ export function SettingsWorkspace() {
     <div className="section-enter">
       <h1>Settings</h1>
       <p className="lead">
-        Live port matching for your studio. Clock stays on the hardware thru box unless you
-        deliberately enable app clock forwarding.
+        Live port matching for your studio. Clock stays on the hardware thru box by default;
+        enable app clock forwarding only for USB-only sync (no DIN thru).
       </p>
 
       <div className="panel">
@@ -77,8 +77,10 @@ export function SettingsWorkspace() {
       <div className="panel">
         <h2>MIDI clock through app</h2>
         <p className="lead">
-          Your setup: Circuit MIDI Out → thru box → MPC + SP (all MIDI, not just clock). Leave app
-          clock forwarding OFF.
+          Default <strong>OFF</strong> — clock stays on hardware (Circuit MIDI Out → thru → MPC +
+          SP). Turn <strong>ON</strong> only for USB-only sync (no DIN thru): forwards Circuit
+          clock / start / stop to MPC + SP USB outs. If you later add DIN thru, turn this OFF again
+          to avoid double clock.
         </p>
         <button
           type="button"

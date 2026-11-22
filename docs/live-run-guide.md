@@ -62,7 +62,7 @@ Open **http://localhost:5173** in **Chrome**.
 1. Confirm the UI loads in Simulation.
 2. Click **Switch to Live** → allow MIDI.
 3. Open **Settings** — check Circuit / MPC / SP / FM1 ports. Fix any wrong name match.
-4. Confirm FM1 firmware shows **H-1** (or set it). Leave app clock forwarding **off**.
+4. Confirm FM1 firmware shows **H-1** (or set it). Leave app clock forwarding **off** unless you are on **USB-only clock** (next section).
 5. Click **Re-apply My Studio routes** (ch1–4→MPC 9–12, ch5→FM1 5, ch6→SP 13).
 
 ### Mac troubleshooting — Device Strip says NOT CONNECTED
@@ -106,7 +106,22 @@ Suggested order:
 8. Mute Learn: CC 20 on **channel 15** (not 16).
 9. Section Bridge: Circuit Project change (ch16 PGM) → SP PC **ch13** / MPC PC **ch15** only after the above looks good.
 
-**Do not** enable app clock unless you deliberately want a second clock path.
+**Do not** enable app clock unless you deliberately want a second clock path (or USB-only — see below).
+
+### USB-only clock (no DIN thru)
+
+Use this when Circuit clock reaches MPC / SP only over USB through Dawlessdaw.
+
+1. **Dawlessdaw → Settings → MIDI clock through app** → click **App clock forwarding** until it shows **ON** (default is OFF). Re-apply routes if needed.
+2. **MPC Preferences → MIDI / SYNC:**
+   - **SYNC RECEIVE → RECEIVE**: **MIDI Clock**
+   - **ABLETON START/STOP SYNC**: **OFF**; Ableton Link off
+   - **SYNC SEND → SEND**: **Off** (MPC must not also master)
+   - **INPUT PORTS → Remote** (USB / Mac): **GLOBAL ON** (CONTROL + TRACK stay ON)
+   - **INPUT PORTS → MPC** (hardware DIN row): **GLOBAL OFF** while DIN is unused
+   - **OUTPUT PORTS → MPC + Remote → SYNC**: both **OFF**
+3. Live on, Circuit **Play** → MPC should run (tempo + start/stop). SP should follow if its USB sync receive is enabled.
+4. **Warn:** if you later add DIN thru (Circuit Out → thru → MPC/SP In), turn **App clock forwarding** back to **OFF** so you do not double-clock.
 
 ## 5. After the bench
 
