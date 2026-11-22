@@ -542,7 +542,7 @@ export class StudioRuntime {
     this.persistSetup();
     this.setStatus(
       firmware === 'skiff'
-        ? 'FM1 = Skiff: Circuit T5–T8 → FM1 ch5–8, macro knobs translated'
+        ? 'FM1 = Skiff: Circuit T5–T8 → FM1 ch5–8, macros + Mixer Level→CC7'
         : 'FM1 = h1: Circuit T5–T6 → FM1, notes only',
     );
     this.notify();

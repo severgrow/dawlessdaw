@@ -17,6 +17,8 @@ export interface StudioRoleDef {
  * FM1 jam path (default focus): Circuit T5–T8 → FM1 running Skiff over USB
  * (Chrome often names the port "Felucca"). Set Skiff T1–T4 to listen on ch5–8.
  * Circuit macro CCs 21–28 are translated to Skiff CCs (CIRCUIT_MACRO_TO_SKIFF_CC).
+ * Circuit Mixer Level/Pan (CC 29/30) → destination CC7 Volume / CC10 Pan on each
+ * routed track channel (see CIRCUIT_MIXER_TO_DEST_CC).
  * MPC / SP USB note routes remain in the template for when those devices are
  * connected; they simply no-op (missing port placeholders) when absent.
  *
@@ -271,6 +273,37 @@ export const CIRCUIT_MACRO_TO_SKIFF_CC: Readonly<Record<number, number>> = {
 };
 
 /**
+ * Circuit Rhythm Mixer view (PRG v5): Level = CC29, Pan = CC30 on each track's
+ * MIDI channel (default track N → ch N). With CC Tx ON in Circuit Setup, turning
+ * Mixer macros transmits these. Live TX from Mixer view is hardware-testing-required;
+ * the CC numbers themselves are confirmed from the Programmer's Reference.
+ *
+ * Destinations get standard MIDI Channel Volume (CC7) / Pan (CC10). Skiff maps
+ * those to LEVEL / PAN. MPC / SP response to CC7 is untested (may need MIDI Learn).
+ */
+export const CIRCUIT_MIXER_LEVEL_CC = 29;
+export const CIRCUIT_MIXER_PAN_CC = 30;
+export const MIDI_VOLUME_CC = 7;
+export const MIDI_PAN_CC = 10;
+
+export const CIRCUIT_MIXER_TO_DEST_CC: Readonly<Record<number, number>> = {
+  [CIRCUIT_MIXER_LEVEL_CC]: MIDI_VOLUME_CC,
+  [CIRCUIT_MIXER_PAN_CC]: MIDI_PAN_CC,
+};
+
+/** Map a Circuit Mixer CC to the destination CC, or null if not a mixer level/pan. */
+export function circuitMixerCcToDest(controller: number): number | null {
+  const mapped = CIRCUIT_MIXER_TO_DEST_CC[controller];
+  return mapped === undefined ? null : mapped;
+}
+
+/** Skiff CC map: macros 1–7 + Mixer Level/Pan. Macro 8 stays the sound knob. */
+export const CIRCUIT_TO_SKIFF_CC: Readonly<Record<number, number>> = {
+  ...CIRCUIT_MACRO_TO_SKIFF_CC,
+  ...CIRCUIT_MIXER_TO_DEST_CC,
+};
+
+/**
  * Skiff "sound knob": this Circuit macro steps the track's Skiff sound.
  * Skiff 1.3+ loads "the track's nth preset of its engine" on Program Change,
  * per track channel (Skiff README, MIDI implementation). The knob is split into
@@ -418,6 +451,8 @@ export function buildMyStudioRoutes(ports: {
       sourcePortId: ports.circuitIn,
       destinations: [{ portId: ports.mpcOut }],
       channel: { allow: [track], remap: { [track]: channel } },
+      // Mixer Level/Pan → CC7/CC10 on the remapped channel; other CCs still pass.
+      cc: { map: { ...CIRCUIT_MIXER_TO_DEST_CC } },
       forwardClock: false,
       blockKinds: ['program-change'],
     });
@@ -432,10 +467,10 @@ export function buildMyStudioRoutes(ports: {
         sourcePortId: ports.circuitIn,
         destinations: [{ portId: ports.fm1Out }],
         channel: { allow: [track], remap: { [track]: channel } },
-        // Only translated macro knobs reach Skiff; every other CC is dropped.
+        // Macros 1–7 + Mixer Level/Pan reach Skiff; every other CC is dropped.
         // Macro 8 steps through the track's Skiff sounds via Program Change.
         cc: {
-          map: { ...CIRCUIT_MACRO_TO_SKIFF_CC },
+          map: { ...CIRCUIT_TO_SKIFF_CC },
           dropUnmapped: true,
           toProgramChange: { controller: SKIFF_SOUND_KNOB_CC, steps: SKIFF_SOUND_KNOB_STEPS },
         },
@@ -467,9 +502,11 @@ export function buildMyStudioRoutes(ports: {
       // SP MIDI Mode A: bank A–J listen on ch1–10.
       channel: { allow: [track], remap: { [track]: channel } },
       note: { transpose: spNoteOffset },
+      // Only Mixer Level/Pan → CC7/CC10. Drop everything else: SP Mode A treats
+      // CC 20–27 as DJ/Looper controls. Whether the SP applies CC7 is untested.
+      cc: { map: { ...CIRCUIT_MIXER_TO_DEST_CC }, dropUnmapped: true },
       forwardClock: false,
-      // SP reads CC 20–27 as DJ/Looper controls and PC as pattern select — block both.
-      blockKinds: ['program-change', 'cc', 'pitch-bend'],
+      blockKinds: ['program-change', 'pitch-bend'],
     });
   }
 

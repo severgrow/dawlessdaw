@@ -70,6 +70,11 @@ export const TRACK_CCS: readonly CcParam[] = [
   { cc: 87, name: 'LengthFine', group: 'sampler' },
 ];
 
+/** Mixer Level — Circuit Mixer view macros with ▼ lit (PRG v5). Per track channel. */
+export const MIXER_LEVEL_CC = 29;
+/** Mixer Pan — Circuit Mixer view macros with ▲ lit (PRG v5). Per track channel. */
+export const MIXER_PAN_CC = 30;
+
 /** Macro knob CCs (= sampler automatable set). */
 export const MACRO_CCS = new Set([21, 22, 23, 24, 25, 26, 27, 28]);
 

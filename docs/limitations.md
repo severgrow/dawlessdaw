@@ -21,7 +21,7 @@ Akai documents that the MPC **USB-B port does not support receiving MIDI Clock f
 | Akai MPC One (MPC 3 standalone) | untested | unavailable | Generic MIDI port discovery; no MPC 3 sysex/remote control claimed |
 | Roland SP-404MKII (stock) | untested | unavailable | Port identity + basic MIDI notes/CC; no pad/pattern remote |
 | Roland SP-404MKII (DOOM OS) | experimental | unknown | Profile flag only; DOOM-specific features not verified |
-| Novation Circuit Rhythm | untested | experimental | Official map encoded (tracks/CC/Project PGM); Scene MIDI **unavailable** in PRG; live TX hardware-testing-required |
+| Novation Circuit Rhythm | untested | experimental | Official map encoded (tracks/CC/Project PGM); Mixer Level **CC29** / Pan **CC30** per track ch (PRG v5) → My Studio remaps to dest **CC7/CC10**; Scene MIDI **unavailable** in PRG; live Mixer TX + dest response hardware-testing-required |
 | M-VAVE FM1 (**H-1** on this studio) | unknown | unavailable (deep map) | Community H-1 ([jakehandy/h1](https://github.com/jakehandy/h1)): treat as generic MIDI until Bench Pass. Docs claim notes + CC 20–23 but **unknown/untested** here. **Not** FM1 Open. Do not assume Open/stock CC maps. |
 | Allen & Heath ZED-10FX | unavailable (MIDI) | unavailable | USB stereo audio only — **no** fake MIDI or digital mixer control |
 

@@ -37,7 +37,7 @@ Use **Replay groove fixture** or per-device **Tap note** to exercise routing and
 | MPC One | Port I/O untested; MPC 3 remote **unavailable** |
 | SP-404MKII stock | Notes/CC untested; pad remote **unavailable** |
 | SP-404MKII DOOM | Experimental profile flag; DOOM features **unknown** |
-| Circuit Rhythm | Track→role logical map; hardware Scene Sync **unavailable** |
+| Circuit Rhythm | Track→role logical map; Mixer Level CC29→dest CC7 (sim verified, hardware untested); Scene Sync **unavailable** |
 | M-VAVE FM1 (**H-1** default) | **Unknown** until Bench Pass — treat as generic MIDI; community docs claim CC 20–23 (untested); deep CC/SysEx map **unavailable** (not Open) |
 | ZED-10FX | USB audio only — **no** fake mixer MIDI |
 
