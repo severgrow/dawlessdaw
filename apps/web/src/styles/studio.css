@@ -1,83 +1,90 @@
 /*
- * Splot MIDI Brain visual system
- * Near-black + bone type. Soft mint = primary (lower saturation, quiet fills).
- * Burgundy = quiet accents only. No neon / glow haze.
- * Greyscale for structure. Film grain + soft mint atmosphere.
+ * Splot MIDI Brain visual system — Hardware-Feel Pass E finish
+ * Matte charcoal + bone type. Soft mint = activity / primary.
+ * Burgundy = quiet accents only. Sparse amber = caution (CLIP / warn).
+ * No neon / glow haze. Plex + full radius tokens = later Visual Consistency pass.
  */
 :root {
-  --bg-0: #0b0c0b; /* page */
-  --bg-1: #111211; /* bars, rails */
-  --bg-2: #171917; /* modules */
-  --bg-3: #1f211f; /* hover / inset */
-  --bg-4: #2a2c2a; /* pressed / unlit pads */
-  --line: #282a28;
-  --line-soft: #1b1d1b;
-  --line-hard: #383a38;
-  --text: #ebeae4; /* bone typography */
-  --text-dim: #9a9891;
-  --text-mute: #63615c;
+  /* Matte charcoal surfaces */
+  --bg-0: #0c0d0c; /* page */
+  --bg-1: #121312; /* bars, rails */
+  --bg-2: #181a18; /* modules */
+  --bg-3: #202220; /* hover / inset */
+  --bg-4: #2b2d2b; /* pressed / unlit pads */
+  --line: #2a2c2a;
+  --line-soft: #1c1e1c;
+  --line-hard: #3a3c3a;
+  --text: #efece4; /* bone typography */
+  --text-dim: #9c9a92;
+  --text-mute: #66645e;
 
-  /* Mint scale — softened, lower saturation */
-  --mint-0: #161e1b;
-  --mint-1: #1f2a26;
-  --mint-2: #3a4f47;
-  --mint-3: #6a8f82;
-  --mint-4: #8fb5a6;
-  --mint-5: #a8c4b7;
-  --mint-6: #c5d6cd;
+  /* Mint scale — soft, lower saturation (activity) */
+  --mint-0: #151c19;
+  --mint-1: #1e2925;
+  --mint-2: #384d45;
+  --mint-3: #65887c;
+  --mint-4: #8bb0a1;
+  --mint-5: #a5c2b4;
+  --mint-6: #c2d4cb;
 
-  /* Burgundy — quieter accents (still readable) */
-  --burgundy: #8a4050;
-  --burgundy-2: #6e3340;
-  --burgundy-dim: #2e181d;
-  --burgundy-glow: rgba(138, 64, 80, 0.18);
-  --burgundy-wash: rgba(138, 64, 80, 0.1);
-  --burgundy-ink: #f0e6e8;
+  /* Burgundy — quieter accents (Panic / experimental badges) */
+  --burgundy: #7a3d4a;
+  --burgundy-2: #5f303b;
+  --burgundy-dim: #24161a;
+  --burgundy-glow: rgba(122, 61, 74, 0.12);
+  --burgundy-wash: rgba(122, 61, 74, 0.06);
+  --burgundy-ink: #ebe0e2;
 
-  /* ON / selected / live — soft mint (not burgundy) */
+  /* Sparse amber — caution only (CLIP, warn callouts) */
+  --caution: #c4a574;
+  --caution-2: #9a7f52;
+  --caution-dim: #2a2418;
+  --caution-wash: rgba(196, 165, 116, 0.12);
+
+  /* ON / selected / live — soft mint */
   --on: var(--mint-4);
   --on-2: var(--mint-3);
   --on-dim: var(--mint-1);
-  --on-glow: rgba(143, 181, 166, 0.16);
-  --on-wash: rgba(143, 181, 166, 0.1);
+  --on-glow: rgba(139, 176, 161, 0.14);
+  --on-wash: rgba(139, 176, 161, 0.08);
 
-  /* ALERT / warn / audio — lighter mint shades */
+  /* ALERT fills stay soft mint (not red alarm) */
   --alert: var(--mint-5);
   --alert-hi: var(--mint-6);
   --alert-dim: var(--mint-0);
-  --alert-glow: rgba(168, 196, 183, 0.14);
-  --alert-wash: rgba(168, 196, 183, 0.08);
+  --alert-glow: rgba(165, 194, 180, 0.12);
+  --alert-wash: rgba(165, 194, 180, 0.07);
 
   /* Device colours */
   --bone: #e4ddd0; /* MPC */
   --bone-dim: #37342d;
   --bone-wash: rgba(228, 221, 208, 0.12);
-  --sp-accent: var(--burgundy); /* SP stays burgundy accent */
+  --sp-accent: var(--burgundy);
   --fm1-accent: var(--mint-4);
 
   /* Roles */
   --accent: var(--on);
   --accent-dim: var(--on-dim);
   --accent-glow: var(--on-glow);
-  --accent-ink: #0c0e0c; /* dark text on mint fills (AA) */
+  --accent-ink: #0c0e0c;
   --alert-ink: #0c0e0c;
   --ok: var(--on);
   --ok-glow: var(--on-glow);
-  --warn: var(--mint-5);
-  --err: var(--burgundy); /* errors = burgundy accent, not a mint flood */
+  --warn: var(--caution); /* Pass E: caution amber, not mint flood */
+  --err: var(--burgundy);
   --cyan: var(--mint-4);
 
-  /* kept for older inline styles */
-  --amber: var(--accent);
-  --amber-dim: var(--accent-dim);
-  --amber-glow: var(--accent-glow);
+  --amber: var(--caution);
+  --amber-dim: var(--caution-dim);
+  --amber-glow: var(--caution-wash);
   --focus: var(--mint-5);
 
+  /* Keep Syne for Pass E (IBM Plex = Visual Consistency pass) */
   --font-display: 'Syne', 'Avenir Next', 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-ui: 'Syne', 'Avenir Next', 'Segoe UI', sans-serif;
-  --radius: 8px;
-  --radius-lg: 14px;
+  --radius: 7px; /* tiny cohesion tweak — full token ladder later */
+  --radius-lg: 10px;
   --bar-h: 40px;
   --strip-h: 64px;
   --foot-h: 26px;
@@ -97,13 +104,13 @@ body,
 }
 
 body {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.5;
+  /* Matte charcoal atmosphere — soft mint wash only, no burgundy haze */
   background:
-    radial-gradient(120% 80% at 12% -10%, color-mix(in srgb, var(--mint-2) 22%, transparent), transparent 55%),
-    radial-gradient(90% 60% at 100% 0%, color-mix(in srgb, var(--burgundy-dim) 55%, transparent), transparent 50%),
-    linear-gradient(180deg, #0e100e 0%, var(--bg-0) 42%, #0a0b0a 100%);
+    radial-gradient(110% 70% at 8% -8%, color-mix(in srgb, var(--mint-2) 14%, transparent), transparent 52%),
+    linear-gradient(180deg, #0f100f 0%, var(--bg-0) 48%, #0a0b0a 100%);
   background-attachment: fixed;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -383,13 +390,16 @@ label {
 }
 
 .error-badge {
-  border-color: var(--err);
-  color: var(--err);
+  /* Quiet burgundy outline — not a filled alarm */
+  border-color: color-mix(in srgb, var(--burgundy) 55%, var(--line-hard));
+  color: color-mix(in srgb, var(--burgundy) 70%, var(--text-dim));
+  background: transparent;
 }
 
 .error-badge .dot {
-  background: var(--err);
+  background: color-mix(in srgb, var(--burgundy) 75%, var(--text-mute));
   box-shadow: none;
+  animation: none;
 }
 
 .live-badge .dot {
@@ -785,7 +795,7 @@ kbd {
 }
 
 .warn {
-  color: var(--warn);
+  color: var(--caution);
   font-weight: 600;
 }
 
@@ -1299,8 +1309,9 @@ textarea.session-io {
 }
 
 .warn-callout {
-  border-color: var(--warn);
-  color: var(--warn);
+  border-color: color-mix(in srgb, var(--caution) 45%, var(--line));
+  color: var(--caution);
+  background: var(--caution-wash);
 }
 
 button.linklike {
@@ -3876,9 +3887,10 @@ button.send-add {
 }
 
 .rec-big.stop {
-  background: var(--alert);
-  color: var(--alert-ink);
-  border-color: var(--alert-hi);
+  /* Quiet burgundy stop — not a mint flood or alarm red */
+  background: transparent;
+  color: color-mix(in srgb, var(--burgundy) 75%, var(--text));
+  border-color: color-mix(in srgb, var(--burgundy) 55%, var(--line-hard));
 }
 
 .rec-elapsed {
@@ -6020,9 +6032,9 @@ button.setup-cta {
   text-transform: uppercase;
   padding: 0.15rem 0.4rem;
   border-radius: 4px;
-  border: 1px solid var(--burgundy);
-  color: var(--burgundy-ink);
-  background: var(--burgundy-dim);
+  border: 1px solid color-mix(in srgb, var(--burgundy) 50%, var(--line-hard));
+  color: color-mix(in srgb, var(--burgundy) 65%, var(--text-dim));
+  background: transparent;
 }
 
 .ci-lead {
@@ -7004,4 +7016,143 @@ button.setup-cta {
 
 .circuit-tempo.phase-live .circuit-tempo-label {
   color: var(--mint-4);
+}
+
+/* ─── Hardware-Feel Pass E — shell optical finish ─────────
+   Cohesion across B–D chrome. No Plex / no full radius ladder. */
+
+.app {
+  background: var(--bg-0);
+}
+
+.status-bar,
+.footer-bar,
+.nav {
+  background: var(--bg-1);
+}
+
+.transport-strip {
+  background: color-mix(in srgb, var(--mint-0) 35%, var(--bg-1));
+}
+
+.page-head h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  text-transform: lowercase;
+}
+
+.page-head .readout,
+.page-head .seq-brand-chip {
+  font-family: var(--font-mono);
+}
+
+.status-cta,
+button.status-cta,
+.setup-cta,
+button.setup-cta {
+  background: var(--mint-4);
+  border-color: var(--mint-3);
+  color: var(--accent-ink);
+  box-shadow: none;
+}
+
+.status-cta:hover:not(:disabled),
+.setup-cta:hover:not(:disabled) {
+  background: var(--mint-5);
+}
+
+.context-chip {
+  border-radius: 999px;
+  border-color: var(--mint-2);
+  background: color-mix(in srgb, var(--mint-0) 55%, var(--bg-2));
+}
+
+.device-chip-quiet {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+}
+
+.seq-transport-dominant {
+  background:
+    radial-gradient(ellipse at 8% 0%, var(--on-wash), transparent 55%),
+    var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+.flip-lane-discover {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.rec-meter.clip {
+  outline: 1px solid var(--caution);
+}
+
+.rec-clip,
+.rec-clip-warn {
+  color: var(--caution) !important;
+}
+
+.rec-phase-chip-recording {
+  border-color: color-mix(in srgb, var(--burgundy) 45%, var(--line));
+  color: color-mix(in srgb, var(--burgundy) 70%, var(--text-dim));
+}
+
+.wizard-card {
+  background: var(--bg-2);
+  border: 1px solid var(--line-hard);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 48px color-mix(in srgb, #000 55%, transparent);
+}
+
+.wizard-focus {
+  border-color: var(--mint-2);
+  background: color-mix(in srgb, var(--mint-0) 70%, var(--bg-2));
+}
+
+.midi-learn-glass.mlg-focus {
+  border-color: var(--mint-2);
+  box-shadow:
+    0 14px 36px color-mix(in srgb, #000 50%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--mint-3) 28%, transparent);
+}
+
+.panel {
+  border-radius: var(--radius);
+}
+
+.main {
+  background: transparent;
+}
+
+/* Multi-viewport: keep shell from sideways scroll after B–D chrome */
+@media (max-width: 720px) {
+  html,
+  body,
+  .app {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  .main {
+    padding: 1rem 0.85rem 1.75rem;
+  }
+  .page-head h1 {
+    font-size: 1.35rem;
+  }
+  .seq-transport-dominant .seq-flip-jump {
+    margin-left: 0;
+  }
+  .device-strip-empty {
+    max-width: 100%;
+  }
+  .status-cta {
+    min-height: 2rem;
+    padding: 0.3rem 0.65rem;
+    font-size: 11px;
+  }
 }
