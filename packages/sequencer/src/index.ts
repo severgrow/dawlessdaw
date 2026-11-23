@@ -9,3 +9,7 @@ export * from './circuit-intelligence';
 export * from './clock-health';
 export * from './clock-service';
 export * from './performance-memory';
+export * from './scale';
+export * from './observation';
+export * from './generative';
+export * from './circuit-midi-out';

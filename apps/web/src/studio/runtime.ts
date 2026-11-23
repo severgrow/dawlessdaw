@@ -7,16 +7,23 @@ import {
   type MidiMessage,
 } from '@dawlessdaw/core';
 import {
+  CircuitEchoGuard,
   CircuitIntelligenceEngine,
   CircuitMirrorEngine,
   ClockHealthMonitor,
+  GenerativeEngine,
   SequencerEngine,
   adaptClockService,
+  patternFromMirror,
   type CircuitIntelligenceSnapshot,
   type ClockHealthSnapshot,
   type ClockService,
+  type GenerativeSettings,
+  type GenerativeSnapshot,
+  type GenerativeSourceKind,
   type SeqClockSource,
   type SeqEngineSnapshot,
+  type SeqPattern,
   type SeqScheduledNote,
   type SeqStep,
 } from '@dawlessdaw/sequencer';
@@ -320,6 +327,16 @@ export interface StudioRuntimeSnapshot {
   spEffectNames: SpEffectNameProfile;
   /** Phase 3 — effect-by-ear sweep in progress. */
   spEffectSweep: { cc: number; step: number; running: boolean } | null;
+  /**
+   * Circuit P1 generative workspace — source vs working, locks, scale/mutate.
+   * Experimental until Bench. Not Guided Record / not .ncs write.
+   */
+  generative: GenerativeSnapshot;
+  /**
+   * Opt-in: also send sequencer notes to Circuit Out (documented ch 1–8).
+   * Experimental / untested — needs Note Rx Bench. Never emits clock.
+   */
+  hearOnCircuit: boolean;
 }
 
 type Listener = () => void;
@@ -587,6 +604,13 @@ export class StudioRuntime {
     autoFocus: loadCircuitIntelAutoFocus(),
   });
   private intelUnsub: (() => void) | null = null;
+  /** Circuit P1 — source/working generative pattern (software grid). */
+  private generative = new GenerativeEngine();
+  private generativeUnsub: (() => void) | null = null;
+  /** Suppress Mirror feedback when auditioning notes on Circuit Out. */
+  private circuitEchoGuard = new CircuitEchoGuard();
+  /** Opt-in Note Rx audition to Circuit — off by default. */
+  private hearOnCircuit = false;
   /** Passive Clock Health — Timing Lab Stage A. */
   private clockHealth = new ClockHealthMonitor();
   private clockHealthUnsub: (() => void) | null = null;
@@ -629,6 +653,7 @@ export class StudioRuntime {
       onAllNotesOff: () => this.routing.allNotesOff(),
     });
     this.seqUnsub = this.sequencer.subscribe(() => this.notify());
+    this.generativeUnsub = this.generative.subscribe(() => this.notify());
     this.intelUnsub = this.circuitIntel.subscribe(() => {
       this.ingestPerformanceMemoryFromIntel();
       this.notify();
@@ -830,6 +855,8 @@ export class StudioRuntime {
         knobs: this.spEffectNames.knobs.map((k) => ({ ...k })),
       },
       spEffectSweep: this.spEffectSweep ? { ...this.spEffectSweep } : null,
+      generative: this.generative.getSnapshot(),
+      hearOnCircuit: this.hearOnCircuit,
     };
   }
 
@@ -1155,14 +1182,35 @@ export class StudioRuntime {
   /**
    * Route a scheduled note through existing Controller destinations via the
    * routing engine (Circuit track channel as source). Does not emit MIDI clock.
+   * When hearOnCircuit is on, also sends documented Note On/Off to Circuit Out
+   * and arms the echo guard so Mirror does not treat the bounce-back as observation.
    */
   private fireSequencerNote(note: SeqScheduledNote): void {
-    const circuitIn = portsForRoles(this.assignments).circuitIn;
-    if (!circuitIn) return;
-    const onData = buildNoteOn(note.track, note.pitch, note.velocity);
-    this.routing.inject(parseMidiMessage(onData, note.time, circuitIn));
-    const offData = buildNoteOff(note.track, note.pitch, 0);
-    this.routing.inject(parseMidiMessage(offData, note.time + note.durationMs, circuitIn));
+    const ports = portsForRoles(this.assignments);
+    const circuitIn = ports.circuitIn;
+    if (circuitIn) {
+      const onData = buildNoteOn(note.track, note.pitch, note.velocity);
+      this.routing.inject(parseMidiMessage(onData, note.time, circuitIn));
+      const offData = buildNoteOff(note.track, note.pitch, 0);
+      this.routing.inject(parseMidiMessage(offData, note.time + note.durationMs, circuitIn));
+    }
+    // Opt-in Circuit audition — notes only, channels 1–8, never clock/SysEx.
+    if (this.hearOnCircuit && ports.circuitOut) {
+      const ch = note.track;
+      if (ch >= 1 && ch <= 8) {
+        this.circuitEchoGuard.recordOutbound(ch, note.pitch, note.time);
+        this.transport.send(
+          ports.circuitOut,
+          buildNoteOn(ch, note.pitch, note.velocity),
+          note.time,
+        );
+        this.transport.send(
+          ports.circuitOut,
+          buildNoteOff(ch, note.pitch, 0),
+          note.time + note.durationMs,
+        );
+      }
+    }
   }
 
   seqPlay(): void {
@@ -1264,6 +1312,106 @@ export class StudioRuntime {
   seqRedo(): void {
     this.sequencer.redo();
     this.notify();
+  }
+
+  /** Push generative working pattern into the playable sequencer slot. */
+  private applyGenerativeToSequencer(pushUndo = true): void {
+    const working = this.generative.getSnapshot().working;
+    this.sequencer.replaceActivePattern(working, pushUndo);
+  }
+
+  setHearOnCircuit(on: boolean): void {
+    this.hearOnCircuit = on;
+    if (!on) this.circuitEchoGuard.clear();
+    this.setStatus(
+      on
+        ? 'Hear on Circuit ON — experimental Note Rx audition (ch 1–8). Not Guided Record.'
+        : 'Hear on Circuit OFF',
+    );
+    this.notify();
+  }
+
+  genSetSettings(patch: Partial<GenerativeSettings>): void {
+    this.generative.setSettings(patch);
+    this.notify();
+  }
+
+  /** Capture Live Mirror → generative source + working, then load into Pattern. */
+  genCaptureFromMirror(): void {
+    const pat = patternFromMirror(this.circuitMirror.getSnapshot(), {
+      name: 'Observed Circuit',
+      bpm: this.estimatedBpm ?? this.sequencer.getSnapshot().bank.patterns[
+        this.sequencer.getSnapshot().bank.activePatternIndex
+      ]!.bpm,
+    });
+    this.generative.captureSource(pat, 'mirror');
+    this.applyGenerativeToSequencer(true);
+    this.setStatus('Captured Live observation as source · experimental (not pattern RAM)');
+    this.notify();
+  }
+
+  /** Capture current Splot Pattern as generative source. */
+  genCaptureFromPattern(): void {
+    const snap = this.sequencer.getSnapshot();
+    const pat = snap.bank.patterns[snap.bank.activePatternIndex]!;
+    this.generative.captureSource(pat, 'pattern');
+    this.setStatus('Pattern captured as generative source');
+    this.notify();
+  }
+
+  /** Capture a SeqPattern from Saved .ncs mapping. */
+  genCapturePattern(pattern: SeqPattern, kind: GenerativeSourceKind = 'ncs'): void {
+    this.generative.captureSource(pattern, kind);
+    this.applyGenerativeToSequencer(true);
+    this.setStatus(`Captured ${kind} as generative source`);
+    this.notify();
+  }
+
+  genGenerate(): void {
+    this.generative.generate();
+    this.applyGenerativeToSequencer(true);
+    this.setStatus('Generate — unlocked steps (source kept)');
+    this.notify();
+  }
+
+  genMutate(): void {
+    this.generative.mutate();
+    this.applyGenerativeToSequencer(true);
+    this.setStatus('Mutate — unlocked steps (source kept)');
+    this.notify();
+  }
+
+  genResetToSource(): void {
+    this.generative.resetToSource();
+    this.applyGenerativeToSequencer(true);
+    this.setStatus('Reset working → source (locks kept)');
+    this.notify();
+  }
+
+  genUndo(): void {
+    this.generative.undo();
+    this.applyGenerativeToSequencer(false);
+    this.setStatus('Generative undo');
+    this.notify();
+  }
+
+  genToggleLock(track: number, step: number): void {
+    this.generative.toggleLock(track, step);
+    this.notify();
+  }
+
+  genEditStep(
+    track: number,
+    step: number,
+    patch: Partial<Pick<SeqStep, 'pitch' | 'velocity' | 'gate' | 'on'>>,
+  ): void {
+    this.generative.editStep(track, step, patch);
+    this.applyGenerativeToSequencer(true);
+    this.notify();
+  }
+
+  getGenerative(): GenerativeEngine {
+    return this.generative;
   }
 
   /** Circuit Mirror Live engine — subscribe via getSnapshot / subscribe. Read-only. */
@@ -2599,18 +2747,25 @@ export class StudioRuntime {
               message.velocity ?? 0,
             );
             // Circuit Mirror Live: Circuit **input** only (fromCircuit gate above).
+            // Echo guard: ignore notes we just sent to Circuit Out (no feedback loop).
             if (fromCircuit) {
-              this.circuitMirror.onNoteOn(
+              const echo = this.circuitEchoGuard.shouldSuppressIncoming(
                 message.channel,
                 message.note,
-                message.velocity ?? 0,
               );
-              // Activity fingerprints — after routing path; analysis only.
-              this.circuitIntel.onNoteOn(
-                message.channel,
-                message.note,
-                message.velocity ?? 0,
-              );
+              if (!echo) {
+                this.circuitMirror.onNoteOn(
+                  message.channel,
+                  message.note,
+                  message.velocity ?? 0,
+                );
+                // Activity fingerprints — after routing path; analysis only.
+                this.circuitIntel.onNoteOn(
+                  message.channel,
+                  message.note,
+                  message.velocity ?? 0,
+                );
+              }
             }
           }
         }

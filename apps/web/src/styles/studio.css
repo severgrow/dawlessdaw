@@ -4815,24 +4815,37 @@ button.send-add {
   transform: scale(1.04);
 }
 
+/* !important: win over visual-consistency `button:not(.ghost)` glass fill */
 .seq-pad.lit {
-  background: var(--on);
-  border-color: var(--on-2);
-  box-shadow: inset 0 0 0 1px var(--mint-2);
+  background: var(--mint-4) !important;
+  border-color: var(--mint-3) !important;
+  box-shadow: inset 0 0 0 1px var(--mint-2) !important;
+  min-height: 0 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 
 .seq-pad.lit.dev-sp {
-  background: var(--burgundy);
-  border-color: var(--burgundy-2);
+  background: var(--burgundy) !important;
+  border-color: var(--burgundy-2) !important;
 }
 .seq-pad.lit.dev-fm1 {
-  background: color-mix(in srgb, var(--mint-4) 80%, var(--mint-2));
-  border-color: var(--mint-2);
+  background: color-mix(in srgb, var(--mint-4) 80%, var(--mint-2)) !important;
+  border-color: var(--mint-2) !important;
 }
 .seq-pad.lit.dev-mpc {
-  background: color-mix(in srgb, var(--bone) 55%, var(--on));
-  border-color: var(--bone-dim);
-  color: var(--bg-0);
+  background: color-mix(in srgb, var(--bone) 55%, var(--mint-4)) !important;
+  border-color: var(--bone-dim) !important;
+  color: var(--bg-0) !important;
+}
+
+.seq-pad:not(.lit) {
+  min-height: 0 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  background: var(--bg-4) !important;
+  border: 1px solid var(--line-hard) !important;
+  box-shadow: none !important;
 }
 
 .seq-pad.outside {
@@ -4847,6 +4860,54 @@ button.send-add {
 .seq-pad.playhead {
   animation: seq-playhead 0.18s ease-out;
   box-shadow: 0 0 0 1px var(--mint-3);
+}
+
+.seq-pad.locked {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--caution) 70%, transparent),
+    var(--press-rest);
+}
+
+.seq-pad.locked::after {
+  content: '';
+  display: block;
+  width: 28%;
+  height: 28%;
+  margin: auto;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--caution) 85%, transparent);
+}
+
+/* Circuit P1 generative strip — dark glass, machined controls */
+.gen-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--align-gap, 0.55rem) var(--shell-gutter, 1rem);
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-md, 6px);
+  background: var(--glass-2);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.gen-strip .seq-field {
+  margin: 0;
+}
+
+.gen-strip .gen-range {
+  min-width: 7.5rem;
+}
+
+.gen-strip .gen-range input[type='range'] {
+  width: 100%;
+}
+
+.gen-meta {
+  align-self: center;
+  color: var(--text-mute);
+  margin-left: auto;
 }
 
 @keyframes seq-playhead {
@@ -5034,6 +5095,14 @@ button.send-add {
   gap: 0.75rem 1rem;
   align-items: center;
   margin-top: 0.75rem;
+}
+
+.cm-leg-note {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--caution);
 }
 
 .cm-leg {
