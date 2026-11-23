@@ -83,10 +83,13 @@ export function App() {
   };
 
   return (
-    <div className={`app app-phase1${jam ? ' jam-open' : ''}`}>
-      <StatusBar onOpenConnect={openConnect} connectOpen={wizardOpen} />
-      <DeviceStrip onOpenConnect={openConnect} />
-      <TransportStrip onOpenJam={() => setJam(true)} onOpenConnect={openConnect} />
+    <div className={`app app-phase1 app-premium-v2${jam ? ' jam-open' : ''}`}>
+      {/* Compact chrome: brand + transport share one band; workspace dominates */}
+      <div className="chrome">
+        <StatusBar onOpenConnect={openConnect} connectOpen={wizardOpen} />
+        <DeviceStrip onOpenConnect={openConnect} />
+        <TransportStrip onOpenJam={() => setJam(true)} onOpenConnect={openConnect} />
+      </div>
       <div className="shell">
         <Nav />
         <main className="main">

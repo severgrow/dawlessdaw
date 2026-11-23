@@ -46,11 +46,9 @@ export interface MpcLibraryBrowserProps {
 }
 
 /**
- * Phase D/E — Projects / Audio / Expansions browser + backup / Import→FLIP.
- * Connected only after real companion /health. Fixture preview never claims Connected.
- *
- * Premium design showcase: Ableton-like browser (sections + dense rows + detail),
- * TE-sparse chrome, RC-20 tactile rows. Visual/IA only — no write-to-MPC.
+ * MPC Library — premium showcase (v2).
+ * Library list is the hero; Probe / Fixtures live under Diagnostics.
+ * Connected only after real companion /health. Never fake Connected.
  */
 export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
   const [snap, setSnap] = useState<MpcLibraryClientSnapshot>(() =>
@@ -128,12 +126,12 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
   return (
     <div
       className={`mpc-lib-browser${compact ? ' mpc-lib-browser--compact' : ''}`}
-      data-mpc-library-phase="premium"
+      data-mpc-library-phase="premium-v2"
       data-status={snap.status}
     >
       <header className="mpc-lib-head">
         <div className="mpc-lib-title-row">
-          <h2 className="mpc-lib-title">MPC Library</h2>
+          <h2 className="mpc-lib-title">Library</h2>
           <span className="ci-badge">experimental</span>
           <span
             className={`mpc-lib-status mpc-lib-status--${statusTone}`}
@@ -144,24 +142,6 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
           </span>
         </div>
         <div className="mpc-lib-toolbar" role="toolbar" aria-label="Library actions">
-          <button
-            type="button"
-            className="mpc-lib-probe"
-            onClick={() => void probe()}
-            disabled={snap.status === 'probing' || busy}
-          >
-            Probe
-          </button>
-          {snap.status !== 'connected' ? (
-            <button
-              type="button"
-              className={useFixturesWhileOffline ? 'active' : 'ghost'}
-              onClick={() => setUseFixturesWhileOffline((v) => !v)}
-              disabled={busy}
-            >
-              Fixtures
-            </button>
-          ) : null}
           <button
             type="button"
             disabled={!canImportFlip || busy}
@@ -184,6 +164,18 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
         </div>
       </header>
 
+      {showingFixturesOnly && useFixturesWhileOffline ? (
+        <p className="mpc-lib-fixture-banner" data-testid="mpc-lib-fixture-banner">
+          Fixtures · still Offline
+        </p>
+      ) : null}
+
+      {!useFixturesWhileOffline && snap.status !== 'connected' ? (
+        <p className="mpc-lib-hint muted small">
+          Offline · open Diagnostics → Probe after <code className="mono">npm run mpc-library</code>
+        </p>
+      ) : null}
+
       {progress ? (
         <p className="mpc-lib-progress muted small mono" data-testid="mpc-lib-progress">
           Backup {progress.done}/{progress.total}
@@ -199,19 +191,7 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
 
       {snap.error ? <p className="warn small mono mpc-lib-err">{snap.error}</p> : null}
 
-      {showingFixturesOnly && useFixturesWhileOffline ? (
-        <p className="mpc-lib-fixture-banner" data-testid="mpc-lib-fixture-banner">
-          Fixtures · still Offline
-        </p>
-      ) : null}
-
-      {!useFixturesWhileOffline && snap.status !== 'connected' ? (
-        <p className="mpc-lib-hint muted small">
-          Offline · <code className="mono">npm run mpc-library</code> then Probe
-        </p>
-      ) : null}
-
-      {/* Ableton-like browser: section rail + list/detail stage */}
+      {/* Hero: section rail + list + detail — edge-to-edge functional */}
       <div className="mpc-lib-body">
         <div className="mpc-lib-sections" role="tablist" aria-label="Library sections">
           {MPC_LIBRARY_SECTIONS.map((s) => (
@@ -279,18 +259,42 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
               </div>
             </div>
           ) : (
-            <div className="mpc-lib-detail mpc-lib-detail--empty muted small">
-              Select a row
-            </div>
+            <div className="mpc-lib-detail mpc-lib-detail--empty muted small">Select a row</div>
           )}
         </div>
       </div>
 
-      {snap.health ? (
-        <p className="muted small mono mpc-lib-meta">
-          {snap.health.mode} · v{snap.health.version} · SSH off
-        </p>
-      ) : null}
+      {/* Diagnostics demoted — Probe / Fixtures are not the hero */}
+      <details className="mpc-lib-diag">
+        <summary>Diagnostics</summary>
+        <div className="mpc-lib-diag-body">
+          <button
+            type="button"
+            className="ghost mpc-lib-probe"
+            onClick={() => void probe()}
+            disabled={snap.status === 'probing' || busy}
+          >
+            Probe
+          </button>
+          {snap.status !== 'connected' ? (
+            <button
+              type="button"
+              className={useFixturesWhileOffline ? 'active' : 'ghost'}
+              onClick={() => setUseFixturesWhileOffline((v) => !v)}
+              disabled={busy}
+            >
+              Fixtures
+            </button>
+          ) : null}
+          {snap.health ? (
+            <span className="muted small mono mpc-lib-meta">
+              {snap.health.mode} · v{snap.health.version} · SSH off
+            </span>
+          ) : (
+            <span className="muted small">Companion loopback · read-only</span>
+          )}
+        </div>
+      </details>
     </div>
   );
 }

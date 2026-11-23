@@ -42,7 +42,7 @@ export function RigWorkspace() {
         </span>
         {/* Global Panic lives in the transport strip (Pass B) */}
       </div>
-      <HowTo sentence="Studio map. Tap a device for ports. Tap a track to shape it.">
+      <HowTo sentence="Tap a device for ports · tap a track to shape it.">
         <p>
           Destinations edit under{' '}
           <button type="button" className="linklike" onClick={() => openController(1)}>

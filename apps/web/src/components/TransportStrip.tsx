@@ -35,20 +35,34 @@ export function TransportStrip({
 
   return (
     <div className="transport-strip" role="region" aria-label="Transport">
-      <button type="button" className={playing ? 'ts-btn on' : 'ts-btn'} onClick={() => seqPlay()} title="Play">
-        Play
-      </button>
-      <button type="button" className="ts-btn" onClick={() => seqStop()} title="Stop">
-        Stop
-      </button>
-      <button type="button" className="ts-btn danger" onClick={() => panic()} title="All notes off">
-        Panic
-      </button>
-      {onOpenJam ? (
-        <button type="button" className="ts-btn jam" onClick={onOpenJam} title="Jam (J)">
-          Jam
+      <div className="ts-cluster" role="group" aria-label="Transport controls">
+        <button
+          type="button"
+          className={`ts-btn ts-play${playing ? ' on' : ''}`}
+          onClick={() => seqPlay()}
+          title="Play"
+        >
+          <span className="ts-glyph" aria-hidden />
+          Play
         </button>
-      ) : null}
+        <button type="button" className="ts-btn ts-stop" onClick={() => seqStop()} title="Stop">
+          <span className="ts-glyph" aria-hidden />
+          Stop
+        </button>
+        <button
+          type="button"
+          className="ts-btn ts-panic danger"
+          onClick={() => panic()}
+          title="All notes off"
+        >
+          Panic
+        </button>
+        {onOpenJam ? (
+          <button type="button" className="ts-btn ts-jam jam" onClick={onOpenJam} title="Jam (J)">
+            Jam
+          </button>
+        ) : null}
+      </div>
       <CircuitTempo size="strip" showBarBeat={next.kind === 'ready'} />
       {status ? (
         <span className="ts-status" title={status}>
