@@ -18,21 +18,22 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 const noteName = (n: number) => `${NOTE_NAMES[n % 12]}${Math.floor(n / 12) - 1}`;
 
 const MODE_KEY = 'dawlessdaw.circuitMirror.mode';
+/** Pass D: Pattern first (playable default); Live/Saved are progressive disclosure. */
 const MODES: { id: SequencerViewMode; label: string; blurb: string }[] = [
   {
+    id: 'splot-pattern',
+    label: 'Pattern',
+    blurb: 'Editable 8×16 grid → Controller destinations',
+  },
+  {
     id: 'circuit-live',
-    label: 'Circuit Live',
-    blurb: 'Read-only window into Circuit performance MIDI (input only)',
+    label: 'Live',
+    blurb: 'Read-only view of Circuit performance MIDI (input only)',
   },
   {
     id: 'circuit-saved',
-    label: 'Circuit Saved',
-    blurb: 'View a saved .ncs session file — not live RAM',
-  },
-  {
-    id: 'splot-pattern',
-    label: 'Splot Pattern',
-    blurb: 'Editable Splot 8×16 grid → Controller destinations',
+    label: 'Saved',
+    blurb: 'View a local .ncs file — not live RAM',
   },
 ];
 
@@ -96,7 +97,7 @@ function emptyMirrorSnap(): CircuitMirrorSnapshot {
 }
 
 /**
- * Sequencer workspace: Circuit Live / Circuit Saved / Splot Pattern modes.
+ * Sequencer workspace (Pass D): Pattern-first when no Circuit; Live/Saved optional.
  * Circuit Live listens to Circuit input MIDI only — never changes outbound routing.
  */
 export function SequencerWorkspace() {
@@ -113,11 +114,12 @@ export function SequencerWorkspace() {
   const [mode, setMode] = useState<SequencerViewMode>(() => {
     const pref = loadModePref();
     if (pref) return pref;
-    return 'circuit-live';
+    // Pass D: playable Pattern by default (no Circuit jargon wall).
+    return 'splot-pattern';
   });
   const [userPickedMode, setUserPickedMode] = useState(() => loadModePref() != null);
 
-  // Default Circuit Live when Circuit is connected + activity; still respect a saved preference.
+  // Offer Live only when Circuit is connected + active — never override a saved pick.
   useEffect(() => {
     if (userPickedMode) return;
     if (circuitIn && (mirror.playing || mirror.lastNote || snap.estimatedBpm != null)) {
@@ -206,15 +208,22 @@ export function SequencerWorkspace() {
     URL.revokeObjectURL(url);
   };
 
+  const pageTitle =
+    mode === 'splot-pattern' ? 'pattern' : mode === 'circuit-live' ? 'live view' : 'saved .ncs';
+
   return (
     <div className="section-enter seq-page">
       <div className="page-head">
-        <h1>splot pattern</h1>
+        <h1>{pageTitle}</h1>
         <span className="seq-brand-chip" title="Product brand">
           Splot MIDI Brain
         </span>
       </div>
-      <p className="lead">Live view · saved .ncs · or your Splot pattern.</p>
+      <p className="lead">
+        {mode === 'splot-pattern'
+          ? 'Play · Stop · Record — tap pads · FLIP below transport.'
+          : 'Optional Circuit views — Pattern stays the playable grid.'}
+      </p>
 
       <div className="cm-mode-row" role="tablist" aria-label="Sequencer mode">
         {MODES.map((m) => (
@@ -235,23 +244,25 @@ export function SequencerWorkspace() {
       {mode === 'circuit-live' ? (
         <>
           <p className="callout seq-honesty" role="status">
-            <strong>Live · experimental</strong> — watches Circuit in only.
+            <strong>Live · experimental</strong> — watches Circuit in only (not editable).
           </p>
           {!circuitIn ? (
-            <p className="callout warn-callout">
-              Assign Circuit MIDI in on Setup — Mirror listens to that port only.
-            </p>
+            <p className="callout warn-callout">Assign Circuit MIDI in on Setup.</p>
           ) : (
-            <p className="muted small">
-              Listening on Circuit in · press Play on the Circuit to start the clock.
-            </p>
+            <p className="muted small">Listening · press Play on the Circuit.</p>
           )}
+          <p className="muted small">
+            Want pads + FLIP?{' '}
+            <button type="button" className="linklike" onClick={() => pickMode('splot-pattern')}>
+              Open Pattern
+            </button>
+          </p>
           <div className="row cm-actions">
             <button type="button" className="ghost" onClick={() => a.getRuntime().resetCircuitMirror()}>
-              Clear mirror
+              Clear
             </button>
             <button type="button" className="ghost" onClick={downloadMirrorDiag}>
-              Export diagnostic JSON
+              Export JSON
             </button>
             {mirror.lastNote ? (
               <span className="mono small">
@@ -268,22 +279,27 @@ export function SequencerWorkspace() {
           </div>
           <CircuitMirrorGrid
             snap={mirror}
-            label="Circuit Live"
-            readOnlyHint="Bright = confirmed across loops · Dim = this cycle / fading · Empty = silent. Activity labels are guesses — never auto-mute."
+            label="Live"
+            readOnlyHint="Bright = steady · Dim = fading · Empty = silent. Guesses only — never auto-mute."
             intelligence={intel}
           />
-          <CircuitIntelligencePanel intel={intel} />
+          <details className="panel collapsed-chrome seq-intel-fold">
+            <summary>
+              <h2>Circuit details</h2>
+            </summary>
+            <CircuitIntelligencePanel intel={intel} />
+          </details>
         </>
       ) : null}
 
       {mode === 'circuit-saved' ? (
         <>
           <p className="callout seq-honesty" role="status">
-            <strong>Saved · experimental</strong> — open a local <code>.ncs</code> from SD (never auto USB).
+            <strong>Saved · experimental</strong> — local <code>.ncs</code> only (never auto USB).
           </p>
           <div className="row cm-actions">
             <label className="seq-btn">
-              Open .ncs (card / file)
+              Open .ncs
               <input
                 type="file"
                 accept=".ncs,application/octet-stream"
@@ -293,7 +309,7 @@ export function SequencerWorkspace() {
             </label>
             {ncsPatterns ? (
               <label className="seq-field">
-                Pattern
+                Slot
                 <select
                   value={savedPatternIndex}
                   onChange={(e) => switchSavedPattern(Number(e.target.value))}
@@ -311,23 +327,15 @@ export function SequencerWorkspace() {
           {savedSummary ? <p className="muted small">{savedSummary}</p> : null}
           <CircuitMirrorGrid
             snap={savedSnap}
-            label="Circuit Saved"
-            readOnlyHint="First 16 steps of each track’s selected pattern slot from the .ncs file."
+            label="Saved"
+            readOnlyHint="First 16 steps of each track’s selected pattern from the file."
           />
         </>
       ) : null}
 
       {mode === 'splot-pattern' ? (
         <>
-          <p className="callout seq-honesty" role="status">
-            <strong>Splot pattern</strong> — your 8×16 grid via Controller routes.
-          </p>
-
-          {!circuitIn ? (
-            <p className="callout warn-callout">Assign Circuit in under Ports.</p>
-          ) : null}
-
-          <div className="seq-transport" role="toolbar" aria-label="Sequencer transport">
+          <div className="seq-transport seq-transport-dominant" role="toolbar" aria-label="Sequencer transport">
             <button
               type="button"
               className={seq.playing ? 'seq-btn on' : 'seq-btn'}
@@ -356,7 +364,7 @@ export function SequencerWorkspace() {
               />
             </label>
             {snap.estimatedBpm != null ? (
-              <span className="seq-meta muted small">Circuit ≈ {snap.estimatedBpm}</span>
+              <span className="seq-meta muted small">≈ {snap.estimatedBpm}</span>
             ) : null}
             <label className="seq-field">
               PATTERN
@@ -409,10 +417,26 @@ export function SequencerWorkspace() {
                 <option value="internal">Internal BPM</option>
               </select>
             </label>
+            <a className="seq-flip-jump" href="#flip-lane">
+              FLIP ↓
+            </a>
           </div>
 
+          {/* Pass D: FLIP above the fold — not buried under the full grid */}
+          <FlipLane
+            bpm={pattern.bpm}
+            playhead={seq.playhead}
+            playing={seq.playing}
+            clockSource={seq.bank.clockSource}
+            trackMutes={pattern.tracks.map((t) => t.muted)}
+            setTrackMute={(track, muted) => a.seqSetTrackMute(track, muted)}
+          />
+
           <div className="seq-grid-wrap">
-            <div className="seq-grid-label">Splot Pattern</div>
+            <div className="seq-grid-label">
+              Pattern · T{selected.track}
+              {selStep ? ` · step ${selected.step + 1}` : ''}
+            </div>
             <div className="seq-step-nums" aria-hidden="true">
               <span className="seq-track-gutter" />
               {Array.from({ length: 16 }, (_, i) => (
@@ -496,15 +520,6 @@ export function SequencerWorkspace() {
             </div>
           </div>
 
-          <FlipLane
-            bpm={pattern.bpm}
-            playhead={seq.playhead}
-            playing={seq.playing}
-            clockSource={seq.bank.clockSource}
-            trackMutes={pattern.tracks.map((t) => t.muted)}
-            setTrackMute={(track, muted) => a.seqSetTrackMute(track, muted)}
-          />
-
           {selStep ? (
             <div className="panel seq-edit">
               <h2>
@@ -565,12 +580,11 @@ export function SequencerWorkspace() {
         </>
       ) : null}
 
-      <MoreInfo label="Circuit Mirror limits">
+      <MoreInfo label="Live / Saved limits">
         <p className="small muted">
-          Live observation uses USB performance MIDI (notes + clock). Stock Circuit does not expose
-          unsaved pattern RAM over MIDI. Saved view reads local <code>.ncs</code> only. Browser
-          clock is main-thread — treat Live as a window, not a sample-accurate dump. Status:{' '}
-          <b>experimental</b> until Patryk confirms on hardware.
+          Live watches USB performance MIDI (notes + clock). Unsaved pattern RAM is not exposed over
+          MIDI. Saved reads local <code>.ncs</code> only. Status: <b>experimental</b> until confirmed
+          on hardware.
         </p>
       </MoreInfo>
     </div>

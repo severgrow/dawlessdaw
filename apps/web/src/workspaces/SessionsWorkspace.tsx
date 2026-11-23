@@ -623,7 +623,10 @@ export function SessionsWorkspace() {
   const canPickSpVolume = fileSystemAccessSupported();
 
   const recording = status.state === 'recording';
+  const stopping = status.state === 'stopping';
   const elapsedSec = status.elapsedMs / 1000;
+  const clipHot = status.meters.clipLeft || status.meters.clipRight;
+  const recordPhase = recording ? 'recording' : stopping ? 'stopping' : selected ? 'after' : 'idle';
 
   const tagLine = useMemo(() => {
     if (!selected) return '';
@@ -645,21 +648,40 @@ export function SessionsWorkspace() {
         <h1>sessions</h1>
         <span className="readout mono">{spaceHint}</span>
       </div>
-      <p className="lead">Stereo from Scarlett / ZED / USB. Stays on this Mac.</p>
+      <p className="lead">
+        Choose input → Record → Stop → Listen. Stereo from Scarlett / ZED / USB.
+      </p>
 
       {recoverNote ? <p className="warn">{recoverNote}</p> : null}
       {msg ? <p className="mono small">{msg}</p> : null}
 
-      <div className="panel rec-capture">
-        <h2>Record</h2>
-        <CaptureLastBars />
+      <div className={`panel rec-capture rec-phase-${recordPhase}`}>
+        <div className="rec-phase-row">
+          <h2>Record</h2>
+          <span className={`rec-phase-chip rec-phase-chip-${recordPhase}`} role="status">
+            {recordPhase === 'recording'
+              ? 'Recording…'
+              : recordPhase === 'stopping'
+                ? 'Saving…'
+                : recordPhase === 'after'
+                  ? 'Take ready — listen below'
+                  : 'Ready'}
+          </span>
+        </div>
+
+        <ol className="rec-flow" aria-label="Record workflow">
+          <li className={!selectedInput ? 'current' : 'done'}>1 Input</li>
+          <li className={recording || stopping ? 'current' : selectedInput ? 'done' : ''}>2 Record</li>
+          <li className={recordPhase === 'after' ? 'current' : ''}>3 Listen</li>
+        </ol>
+
         <label className="field">
-          <span>Audio input</span>
+          <span>1 · Audio input</span>
           <select
             className="text-input"
             value={selectedInput?.deviceId ?? ''}
             onChange={(e) => onPickDevice(e.target.value)}
-            disabled={recording}
+            disabled={recording || stopping}
           >
             {inputs.length === 0 ? (
               <option value="">Plug in an interface</option>
@@ -675,13 +697,15 @@ export function SessionsWorkspace() {
             )}
           </select>
         </label>
+
         <div className="rec-transport">
           <button
             type="button"
-            className={`rec-big ${recording ? 'stop' : 'record'}`}
+            className={`rec-big ${recording || stopping ? 'stop' : 'record'}`}
+            disabled={stopping || (!recording && !selectedInput && inputs.length > 0)}
             onClick={() => void (recording ? stopRecord() : startRecord())}
           >
-            {recording ? 'Stop' : 'Record'}
+            {recording || stopping ? 'Stop' : 'Record'}
           </button>
           <div className="rec-elapsed mono">{formatTime(elapsedSec)}</div>
           <div className="rec-meters">
@@ -694,7 +718,7 @@ export function SessionsWorkspace() {
             onClick={toggleMidiArm}
             title="Start when Circuit sends MIDI Start; stop on MIDI Stop"
           >
-            Follow Circuit Start/Stop {midiArm ? 'on' : 'off'}
+            Follow Start/Stop {midiArm ? 'on' : 'off'}
           </button>
           <button
             type="button"
@@ -702,7 +726,7 @@ export function SessionsWorkspace() {
             onClick={toggleMonitorInput}
             title="Play the live input through the computer speakers. Off by default — with echo cancel off, monitoring feeds back into the take."
           >
-            Monitor input {monitorInput ? 'on' : 'off'}
+            Monitor {monitorInput ? 'on' : 'off'}
           </button>
           <button
             type="button"
@@ -722,19 +746,34 @@ export function SessionsWorkspace() {
             Marker (M)
           </button>
         </div>
+        {clipHot ? (
+          <p className="warn rec-clip-warn" role="alert">
+            CLIP — turn down the interface / mixer. Hold clears after ~2 s.
+          </p>
+        ) : null}
         {monitorInput ? (
           <p className="warn small">Monitor on — use headphones if it rings.</p>
         ) : null}
         {snap.estimatedBpm != null ? (
-          <p className="mono small">Circuit ≈ {snap.estimatedBpm} bpm</p>
+          <p className="mono small">≈ {snap.estimatedBpm} bpm</p>
         ) : null}
+
+        <details className="panel collapsed-chrome rec-capture-advanced">
+          <summary>
+            <h2>Advanced · MIDI capture</h2>
+          </summary>
+          <p className="muted small">
+            Rolling MIDI memory — not audio. Experimental; does not replace Record above.
+          </p>
+          <CaptureLastBars />
+        </details>
+
         <MoreInfo>
           <p className="muted small">
             ZED USB = 16-bit / 48 kHz max; for 24-bit route ZED → Scarlett and pick Scarlett. Raw PCM
             via AudioWorklet (echo cancel / AGC off). Clip at −0.3 dBFS (2 s hold). Performance
-            Memory records transport / project / activity / macros / morphs while you record;
-            inferred markers are dashed and labelled. Section Bridge event-actions stay off by
-            default.
+            Memory listens while you record; inferred markers are dashed. Unsaved recoveries stay
+            labelled.
           </p>
         </MoreInfo>
       </div>

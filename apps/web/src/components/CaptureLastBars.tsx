@@ -1,6 +1,6 @@
 /**
- * Minimal “Capture last N bars” control — soft mint, little copy.
- * Observation-only MIDI rolling buffer (experimental).
+ * “Capture last N bars” — observation-only MIDI rolling buffer (experimental).
+ * Pass D: demoted under Sessions Advanced; never outranks audio Record.
  * Goes through StudioCommands.captureRecentBars (plan step 11).
  */
 import { useEffect, useState } from 'react';
@@ -34,7 +34,7 @@ export function CaptureLastBars() {
   };
 
   return (
-    <div className="capture-last-bars" data-honesty="experimental">
+    <div className="capture-last-bars capture-last-bars-quiet" data-honesty="experimental">
       <div className="capture-last-bars-row">
         <div className="capture-last-bars-opts" role="group" aria-label="Bars">
           {CAPTURE_BAR_OPTIONS.map((n) => (
@@ -59,7 +59,9 @@ export function CaptureLastBars() {
           {last.limitations.length ? ' · experimental' : ''}
         </p>
       ) : (
-        <p className="capture-last-bars-readout muted small">MIDI memory · experimental</p>
+        <p className="capture-last-bars-readout muted small">
+          MIDI memory only · experimental — not audio Record
+        </p>
       )}
     </div>
   );

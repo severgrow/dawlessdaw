@@ -209,7 +209,7 @@ export function FlipLane({
   const handoff = status.handoff;
 
   return (
-    <section className="flip-lane" aria-label="FLIP capture lane">
+    <section id="flip-lane" className="flip-lane flip-lane-discover" aria-label="FLIP capture lane">
       <div className="flip-lane-head">
         <div className="flip-title-row">
           <h2 className="flip-title">FLIP</h2>
@@ -217,12 +217,14 @@ export function FlipLane({
           <span className="ci-badge">experimental</span>
           <span className={`flip-phase flip-phase-${status.phase}`}>{status.phaseLabel}</span>
         </div>
-        <p className="flip-lead muted small">Stereo from Scarlett / ZED / USB — not a MIDI track.</p>
+        <p className="flip-lead muted small">
+          Stereo loop catcher (Scarlett / ZED / USB) — not MIDI. Limits stay honest below.
+        </p>
         <ol className="flip-steps" aria-label="FLIP workflow">
           <li>Input</li>
-          <li>PLAY seq</li>
+          <li>PLAY</li>
           <li>ARM</li>
-          <li>PLAY LOOP</li>
+          <li>LOOP</li>
         </ol>
       </div>
 

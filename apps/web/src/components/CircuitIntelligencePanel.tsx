@@ -63,10 +63,10 @@ export function CircuitIntelligencePanel({
           </p>
           {pos.lastProject ? (
             <p className="muted small">
-              Last Project {pos.lastProject.index} ({pos.lastProject.kind}) — informational
+              Last project {pos.lastProject.index} ({pos.lastProject.kind}) — informational
             </p>
           ) : (
-            <p className="muted small">No Project Change heard yet (PC ch16).</p>
+            <p className="muted small">No project change heard yet.</p>
           )}
         </div>
 
@@ -85,7 +85,7 @@ export function CircuitIntelligencePanel({
               <p className="muted small">{touch.reason}</p>
             </>
           ) : (
-            <p className="muted small">Twist a Circuit macro (CC 21–28) to detect the selected track.</p>
+            <p className="muted small">Twist a macro to detect the selected track.</p>
           )}
           <label className="ci-autofocus row">
             <input
@@ -94,7 +94,7 @@ export function CircuitIntelligencePanel({
               onChange={(e) => a.getRuntime().setCircuitIntelAutoFocus(e.target.checked)}
             />
             <span className="small">
-              Auto-focus Live controller on last-touched
+              Auto-focus Live on last-touched
               {active != null ? ` (now T${active})` : ''}
             </span>
           </label>
@@ -103,9 +103,7 @@ export function CircuitIntelligencePanel({
 
       <div className="ci-activity">
         <h3>Track activity</h3>
-        <p className="muted small">
-          Active / Silent / Possible mute / Possible pattern change / Unknown — guesses only.
-        </p>
+        <p className="muted small">Active / Silent / Possible mute / Unknown — guesses only.</p>
         <div className="ci-tracks" role="list">
           {intel.tracks.map((tr) => (
             <div

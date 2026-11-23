@@ -3718,6 +3718,26 @@ button.send-add {
   border: 1px solid color-mix(in srgb, var(--mint-2) 70%, transparent);
 }
 
+/* Pass D: demote Capture so audio Record stays dominant */
+.capture-last-bars-quiet {
+  margin: 0.35rem 0 0;
+  background: transparent;
+  border-color: var(--line);
+}
+
+.capture-last-bars-quiet .capture-last-bars-go {
+  background: transparent;
+  border-color: var(--line-hard);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.capture-last-bars-quiet .capture-bars-opt.on,
+.capture-last-bars-quiet .capture-bars-opt[aria-pressed='true'] {
+  background: var(--mint-1);
+  color: var(--mint-5);
+}
+
 .capture-last-bars-row {
   display: flex;
   flex-wrap: wrap;
@@ -3775,6 +3795,68 @@ button.send-add {
   align-items: center;
   gap: 0.75rem 1rem;
   margin: 0.75rem 0;
+}
+
+.rec-phase-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.rec-phase-row h2 {
+  margin: 0;
+}
+
+.rec-phase-chip {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text-mute);
+}
+
+.rec-phase-chip-recording {
+  border-color: color-mix(in srgb, var(--alert, #8a4050) 55%, var(--line));
+  color: color-mix(in srgb, var(--alert, #8a4050) 80%, var(--text));
+}
+
+.rec-phase-chip-after {
+  border-color: var(--mint-2);
+  color: var(--mint-5);
+}
+
+.rec-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin: 0.55rem 0 0.85rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+
+.rec-flow .current {
+  color: var(--mint-5);
+  font-weight: 700;
+}
+
+.rec-flow .done {
+  color: var(--text-dim);
+}
+
+.rec-clip-warn {
+  margin: 0.35rem 0 0.15rem;
+}
+
+.rec-capture-advanced {
+  margin-top: 0.85rem;
 }
 
 .rec-big {
@@ -4397,6 +4479,48 @@ button.send-add {
     linear-gradient(180deg, var(--bg-2), var(--bg-1));
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
+}
+
+.seq-transport-dominant {
+  border-color: var(--mint-2);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mint-3) 25%, transparent);
+}
+
+.seq-transport-dominant .seq-btn {
+  min-height: 2.35rem;
+  font-weight: 700;
+}
+
+.seq-flip-jump {
+  margin-left: auto;
+  align-self: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mint-5);
+  text-decoration: none;
+  border: 1px solid var(--mint-2);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+}
+
+.seq-flip-jump:hover {
+  border-color: var(--mint-3);
+}
+
+.flip-lane-discover {
+  margin-top: 0.35rem;
+  border-color: color-mix(in srgb, var(--mint-2) 70%, var(--line));
+}
+
+.seq-intel-fold {
+  margin-top: 0.85rem;
+}
+
+.seq-intel-fold .ci-panel {
+  border: none;
+  padding: 0;
+  background: transparent;
 }
 
 .seq-btn {
