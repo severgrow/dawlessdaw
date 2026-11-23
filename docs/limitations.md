@@ -15,6 +15,7 @@ Capability statuses used throughout the app: **verified** | **untested** | **exp
 | FLIP capture lane | experimental (browser) | Hardware stereo loop under the 8 MIDI tracks via Session Recorder AudioWorklet. Quantised start vs sequencer clock is **not** sample-accurate; unaligned takes are labelled; **no** silent time-stretch. Circuit audio unused. Live Scarlett/ZED capture **unverified**. See [flip.md](./flip.md). |
 | MockMidiTransport | verified | Deterministic fixtures for simulation / tests |
 | NativeBridgeTransport | unavailable | Stub only — no native MIDI bridge in v0.1 |
+| MPC Library companion | experimental (PoC) | Optional loopback helper (`@dawlessdaw/mpc-library` / `npm run mpc-library`). Fixtures only; Offline until `/health` ok. No SSH, no shell, no expansion-builder. Separate from Network MIDI. |
 
 ## USB app clock → MPC One (sequencer follow)
 

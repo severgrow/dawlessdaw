@@ -13,6 +13,7 @@ export default defineConfig({
       '@dawlessdaw/core': path.resolve(__dirname, 'packages/core/src'),
       '@dawlessdaw/events': path.resolve(__dirname, 'packages/events/src'),
       '@dawlessdaw/midi': path.resolve(__dirname, 'packages/midi/src'),
+      '@dawlessdaw/mpc-library': path.resolve(__dirname, 'packages/mpc-library/src'),
       '@dawlessdaw/routing': path.resolve(__dirname, 'packages/routing/src'),
       '@dawlessdaw/focus': path.resolve(__dirname, 'packages/focus/src'),
       '@dawlessdaw/devices': path.resolve(__dirname, 'packages/devices/src'),

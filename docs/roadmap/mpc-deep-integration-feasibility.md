@@ -26,6 +26,13 @@ A Feasibility (this) → B Network MIDI first-class → C Library PoC → D UI �
 - Disconnect releases hanging notes; manual assignment remembered
 - Clock follow stays opt-in (no default flip). No Library/companion.
 
+## Phase C (Library companion PoC) — shipped in stack
+
+- `@dawlessdaw/mpc-library` + `node scripts/mpc-library-companion.mjs` (127.0.0.1 only)
+- Read-only fixtures · origin-checked · no shell · no SSH · no expansion-builder
+- Setup → Experimental: honest Offline UI (never fake Connected)
+- Separate from Network MIDI
+
 ## Related
 
 - `docs/mpc-via-scarlett.md` · `docs/limitations.md` · Setup DIN next-action (PR #79)
