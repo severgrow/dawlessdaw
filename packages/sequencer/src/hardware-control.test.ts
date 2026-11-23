@@ -86,6 +86,19 @@ describe('HardwareControlEngine', () => {
     expect(eng.onCc(3, 29, 100)).toEqual({ type: 'toggle-lock' });
   });
 
+  it('keeps trigger re-arming independent by Circuit track', () => {
+    const eng = new HardwareControlEngine();
+    eng.setEnabled(true);
+    expect(eng.onCc(1, 27, 99)).toEqual({ type: 'mutate' });
+    expect(eng.onCc(2, 27, 99)).toEqual({ type: 'mutate' });
+    eng.onCc(2, 27, 20);
+    expect(eng.onCc(1, 27, 100)).toBeNull();
+    expect(eng.onCc(2, 27, 100)).toEqual({ type: 'mutate' });
+    eng.setEnabled(false);
+    expect(eng.getSnapshot().lastTrack).toBeNull();
+    expect(eng.onCc(2, 27, 110)).toBeNull();
+  });
+
   it('forbids inventing button MIDI / SysEx / breaking routes when off', () => {
     expect(HW_CONTROL_FORBIDDEN.inventedButtonMidi).toBe(true);
     expect(HW_CONTROL_FORBIDDEN.sysex).toBe(true);

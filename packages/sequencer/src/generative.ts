@@ -20,7 +20,7 @@ import {
   type SeqStep,
 } from './types';
 
-export type GenerativeSourceKind = 'none' | 'mirror' | 'ncs' | 'pattern' | 'blank';
+export type GenerativeSourceKind = 'none' | 'mirror' | 'capture' | 'ncs' | 'pattern' | 'blank';
 
 export interface GenerativeSettings {
   /** Pitch class 0–11 */
@@ -133,6 +133,7 @@ export function mutateWorkingPattern(
   settings: GenerativeSettings,
   /** Extra entropy so Mutate ≠ Generate with same seed */
   salt = 0x51ed,
+  activeTracks?: readonly boolean[],
 ): SeqPattern {
   const rng = new SeededRng((settings.seed ^ salt) >>> 0);
   const next = clonePattern(working);
@@ -140,6 +141,7 @@ export function mutateWorkingPattern(
   const amount = clamp01(settings.mutation);
 
   for (let t = 0; t < SEQ_TRACK_COUNT; t++) {
+    if (activeTracks && !activeTracks[t]) continue;
     const track = next.tracks[t]!;
     const pool = pitches.length
       ? pitches
@@ -189,6 +191,7 @@ export class GenerativeEngine {
   private settings: GenerativeSettings = { ...DEFAULT_GENERATIVE_SETTINGS };
   private sourceKind: GenerativeSourceKind = 'none';
   private undoStack: SeqPattern[] = [];
+  private mutationCount = 0;
   private listeners = new Set<GenerativeListener>();
   private cached: GenerativeSnapshot | null = null;
 
@@ -224,7 +227,11 @@ export class GenerativeEngine {
   }
 
   setSettings(patch: Partial<GenerativeSettings>): void {
-    this.settings = sanitizeSettings({ ...this.settings, ...patch });
+    const next = sanitizeSettings({ ...this.settings, ...patch });
+    if (next.root === this.settings.root && next.scaleId === this.settings.scaleId &&
+        next.density === this.settings.density && next.mutation === this.settings.mutation &&
+        next.seed === this.settings.seed) return;
+    this.settings = next;
     this.emit();
   }
 
@@ -238,6 +245,7 @@ export class GenerativeEngine {
     this.sourceKind = kind;
     this.locks = emptyLocks();
     this.undoStack = [];
+    this.mutationCount = 0;
     this.emit();
   }
 
@@ -251,13 +259,20 @@ export class GenerativeEngine {
 
   /** Generate a fresh variation into working (unlocked steps). Keeps source. */
   generate(): void {
-    const base = this.source ?? this.working;
-    this.commit(generateWorkingPattern(base, this.locks, this.settings));
+    this.commit(generateWorkingPattern(this.working, this.locks, this.settings));
   }
 
   /** Mutate working; source unchanged. */
   mutate(): void {
-    this.commit(mutateWorkingPattern(this.working, this.locks, this.settings));
+    const activeTracks = this.sourceKind === 'capture'
+      ? this.working.tracks.map((track, index) =>
+          track.steps.slice(0, this.working.length).some((step) => step.on) ||
+          this.source?.tracks[index]?.steps.some((step) => step.on) === true,
+        )
+      : undefined;
+    this.commit(mutateWorkingPattern(
+      this.working, this.locks, this.settings, 0x51ed + this.mutationCount++, activeTracks,
+    ));
   }
 
   /** Restore working from source (or empty). Respects locks — locked steps stay. */

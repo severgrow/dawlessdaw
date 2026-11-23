@@ -3284,8 +3284,8 @@ button.send-add {
   cursor: grabbing;
 }
 
-.dev-card.off {
-  opacity: 0.72;
+.dev-card.off .dev-card-art {
+  opacity: 0.55;
 }
 
 .dev-card.dev-sp {
@@ -3328,7 +3328,7 @@ button.send-add {
   color: var(--bone);
 }
 .dev-card.off .dc-status {
-  color: var(--text-mute);
+  color: var(--text-dim);
 }
 
 .dc-grip {
@@ -4530,15 +4530,15 @@ button.send-add {
 
 /* ── Sequencer workspace (8×16 Circuit-inspired pads) ─────────── */
 
-.seq-page .seq-brand-chip {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
-  color: var(--accent-ink);
-  background: var(--on);
-  border-radius: var(--radius);
-  padding: 0.28rem 0.55rem;
-  align-self: center;
+.seq-page .seq-workspace-head {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.seq-workspace-head .cm-mode-row {
+  margin: 0;
 }
 
 .seq-honesty {
@@ -4779,6 +4779,10 @@ button.send-add {
   cursor: pointer;
 }
 
+.seq-row button.seq-ms {
+  min-height: var(--ctrl-h-compact) !important;
+}
+
 .seq-ms.on {
   background: var(--on-dim);
   border-color: var(--on);
@@ -4798,21 +4802,19 @@ button.send-add {
 }
 
 .seq-pad {
-  aspect-ratio: 1;
-  min-height: 1.55rem;
-  border-radius: 6px;
+  height: clamp(1.6rem, 3.6vh, 2.1rem);
+  padding: 0;
+  border-radius: 5px;
   border: 1px solid var(--line-hard);
   background: var(--bg-4);
   cursor: pointer;
   transition:
     background 80ms ease,
-    border-color 80ms ease,
-    transform 80ms ease;
+    border-color 80ms ease;
 }
 
 .seq-pad:hover {
-  border-color: var(--text-mute);
-  transform: scale(1.04);
+  filter: brightness(1.2);
 }
 
 /* !important: win over visual-consistency `button:not(.ghost)` glass fill */
@@ -4848,6 +4850,10 @@ button.send-add {
   box-shadow: none !important;
 }
 
+.seq-pad:nth-child(4n + 1):not(.lit) {
+  background: color-mix(in srgb, var(--bg-4) 95%, var(--text-dim)) !important;
+}
+
 .seq-pad.outside {
   opacity: 0.28;
 }
@@ -4871,29 +4877,105 @@ button.send-add {
 .seq-pad.locked::after {
   content: '';
   display: block;
-  width: 28%;
-  height: 28%;
+  width: 6px;
+  height: 6px;
   margin: auto;
-  border-radius: 1px;
+  border-radius: 2px;
   background: color-mix(in srgb, var(--caution) 85%, transparent);
 }
 
-/* Circuit P1 generative strip — dark glass, machined controls */
+/* Pattern capture, audition and generator share one control surface. */
+.pattern-workflow {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  background: var(--glass-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+}
+
+.pattern-controls,
 .gen-strip {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
-  gap: var(--align-gap, 0.55rem) var(--shell-gutter, 1rem);
-  margin: 0 0 1rem;
-  padding: 0.75rem 0.9rem;
-  border-radius: var(--radius-md, 6px);
-  background: var(--glass-2);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  gap: var(--space-2);
 }
 
-.gen-strip .seq-field {
+.pattern-workflow .seq-field {
   margin: 0;
+  color: var(--text-dim);
+}
+
+.pattern-capture {
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+
+@media (min-width: 1060px) {
+  .pattern-workflow {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    column-gap: var(--space-3);
+  }
+
+  .pattern-capture {
+    margin: 0;
+    padding: 0 var(--space-3) 0 0;
+    border: 0;
+    border-right: 1px solid var(--line);
+  }
+
+  .pattern-variation {
+    align-self: end;
+  }
+
+  .pattern-settings-row {
+    grid-column: 1 / -1;
+  }
+}
+
+.pattern-audition {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding-right: var(--space-2);
+  margin-right: var(--space-1);
+  border-right: 1px solid var(--line-hard);
+}
+
+.pattern-workflow button.seq-btn.pattern-primary:not(:disabled) {
+  background: var(--on) !important;
+  color: var(--accent-ink) !important;
+}
+
+.pattern-workflow button.seq-btn:active:not(:disabled) {
+  filter: brightness(0.88);
+}
+
+.pattern-feedback {
+  min-height: 1lh;
+  margin: var(--space-2) 0 0;
+  color: var(--text-dim);
+}
+
+.pattern-settings {
+  display: inline-block;
+  margin-top: var(--space-2);
+  margin-right: var(--space-3);
+}
+
+.pattern-settings[open] {
+  display: block;
+}
+
+.pattern-settings summary {
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 0.76rem;
+}
+
+.pattern-settings .gen-strip {
+  margin-top: var(--space-2);
 }
 
 .gen-strip .gen-range {
@@ -4904,21 +4986,13 @@ button.send-add {
   width: 100%;
 }
 
-.gen-meta {
-  align-self: center;
-  color: var(--text-mute);
-  margin-left: auto;
-}
-
 /* Circuit P2 — Hardware Control Mode + adaptive Guide */
 .hw-control {
   margin: 0 0 1rem;
   padding: 0.85rem 1rem;
   border-radius: var(--radius-md, 6px);
-  background: var(--glass-2);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid transparent;
+  background: var(--glass-1);
+  border: 1px solid var(--line);
 }
 
 .hw-control-head {
@@ -4962,7 +5036,7 @@ button.send-add {
 
 .hw-map-row {
   display: grid;
-  grid-template-columns: 3.2rem minmax(0, 1.4fr) minmax(0, 1fr) 2.4rem;
+  grid-template-columns: 3.2rem minmax(0, 1.4fr) minmax(0, 1fr) 3.3rem;
   gap: 0.45rem;
   align-items: center;
   padding: 0.28rem 0.45rem;
@@ -5624,7 +5698,10 @@ button.send-add {
 }
 
 @media (max-width: 720px) {
-  .seq-step-nums,
+  .seq-step-nums {
+    grid-template-columns: minmax(5.5rem, 6.5rem) repeat(16, minmax(0, 1fr));
+  }
+
   .seq-row {
     grid-template-columns: minmax(5.5rem, 6.5rem) minmax(0, 1fr);
   }

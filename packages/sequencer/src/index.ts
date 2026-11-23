@@ -14,3 +14,4 @@ export * from './observation';
 export * from './generative';
 export * from './circuit-midi-out';
 export * from './hardware-control';
+export * from './euclidean';

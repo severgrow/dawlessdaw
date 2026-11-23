@@ -7,6 +7,17 @@ function advanceSteps(eng: CircuitIntelligenceEngine, steps: number): void {
 }
 
 describe('CircuitIntelligenceEngine', () => {
+  it('provides precise capture ticks between throttled UI snapshots', () => {
+    const intel = new CircuitIntelligenceEngine();
+    intel.onTransportStart();
+    const initial = intel.getSnapshot();
+    intel.onClock();
+    intel.onClock();
+    intel.onClock();
+    expect(intel.getSnapshot()).toBe(initial);
+    expect(intel.getMusicalPosition().tickCount).toBe(3);
+  });
+
   it('tracks last-touched from CC 21–28 with High confidence', () => {
     const eng = new CircuitIntelligenceEngine({ now: () => 1000 });
     const hit = eng.onMacroCc(3, 21, 64);

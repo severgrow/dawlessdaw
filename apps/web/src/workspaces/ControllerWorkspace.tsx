@@ -479,16 +479,16 @@ export function ControllerWorkspace() {
       <div className="page-head">
         <h1>live</h1>
         <span className="readout">
-          {circuitIn ? <b>in</b> : 'no in'}
+          {circuitIn ? 'Circuit MIDI In assigned' : 'Circuit MIDI In unassigned'}
           {circuitTrack ? (
             <>
               {' '}
-              · hw <b>T{circuitTrack}</b>
+              · Live <b>T{circuitTrack}</b>
             </>
           ) : null}
           <>
             {' '}
-            · edit <b>T{selected}</b>
+            · Editing <b>T{selected}</b>
           </>
         </span>
       </div>
@@ -587,7 +587,7 @@ export function ControllerWorkspace() {
               <DeviceArt kind={d} lit={connected(d)} pulse={snap.destActivity[d]} className="dev-card-art" />
               <div>
                 <strong>{DEVICE_NAME[d]}</strong>
-                <span className="dc-status">{connected(d) ? '● connected' : '○ not connected'}</span>
+                <span className="dc-status">{connected(d) ? '● MIDI out assigned' : '○ MIDI out unassigned'}</span>
                 <span className="dc-blurb">{DEVICE_BLURB[d]}</span>
                 <span className="dc-tracks">
                   {preset.tracks
