@@ -79,6 +79,11 @@ export class MockMidiTransport implements HardwareTransport {
   }
 
   send(portId: PortId, data: Uint8Array, timestamp?: number): void {
+    // Known disconnected / non-output ports are silent no-ops (like Web MIDI
+    // when the output is gone). Synthetic Vitest dest ids that are not in the
+    // port list still record — fixtures often omit registering them.
+    const port = this.ports.find((p) => p.id === portId);
+    if (port && (port.type !== 'output' || port.state === 'disconnected')) return;
     this.sent.push({ portId, data: new Uint8Array(data), timestamp: timestamp ?? performanceNow() });
   }
 

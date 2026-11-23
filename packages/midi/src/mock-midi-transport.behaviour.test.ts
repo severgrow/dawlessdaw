@@ -39,4 +39,15 @@ describe('MockMidiTransport behavioural', () => {
     expect(last.find((p) => p.id === 'mock-circuit-in')?.state).toBe('disconnected');
     expect(t.getSent()).toHaveLength(0);
   });
+
+  it('send to a disconnected output is a silent no-op (Web MIDI parity)', async () => {
+    const t = new MockMidiTransport();
+    await t.start();
+    t.setPortConnected('mock-mpc-out', false);
+    t.send('mock-mpc-out', new Uint8Array([0x90, 60, 100]));
+    expect(t.getSent()).toHaveLength(0);
+    t.setPortConnected('mock-mpc-out', true);
+    t.send('mock-mpc-out', new Uint8Array([0x80, 60, 0]));
+    expect(t.getSent()).toHaveLength(1);
+  });
 });
