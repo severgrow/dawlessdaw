@@ -1,3 +1,4 @@
+import splotIcon from '../assets/brand/splot-icon-bone-transparent.svg';
 /**
  * FLIP lane UI — stereo mix capture under the 8 MIDI tracks.
  * Workflow: Input → PLAY Circuit/seq → ARM → capture → PLAY LOOP.
@@ -213,7 +214,7 @@ export function FlipLane({
       <div className="flip-lane-head">
         <div className="flip-title-row">
           <h2 className="flip-title">FLIP</h2>
-          <span className="flip-brand muted small">Splot MIDI Brain</span>
+          <img className="splot-small-icon" src={splotIcon} width="18" height="18" alt="SPLOT" />
           <span className="ci-badge">experimental</span>
           <span className={`flip-phase flip-phase-${status.phase}`}>{status.phaseLabel}</span>
         </div>

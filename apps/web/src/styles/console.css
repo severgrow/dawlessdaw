@@ -1,5 +1,8 @@
 /* Shared geometry for the studio console and its workspace controls. */
 .app-premium-v3.app-premium-v4 {
+  --splot-bone: #f3efe5;
+  --splot-charcoal: #171819;
+  --splot-rule: #383736;
   --control-corner: 6px;
   --radius: var(--control-corner);
   --radius-compact: var(--control-corner);
@@ -26,8 +29,8 @@
 .app-premium-v4 .studio-console {
   display: grid;
   align-content: center;
-  background: #191d1c;
-  border-bottom: 1px solid #35403c;
+  background: var(--splot-charcoal);
+  border-bottom: 1px solid var(--splot-rule);
   overflow: visible;
 }
 
@@ -43,11 +46,11 @@
 }
 
 .console-navigation {
-  border-bottom: 1px solid #343d39;
+  border-bottom: 1px solid var(--splot-rule);
 }
 
 .console-transport {
-  background: #131716;
+  background: #141516;
 }
 
 .app-premium-v4 .console-navigation .status-bar--compact {
@@ -56,9 +59,67 @@
   gap: var(--space-3);
 }
 
-.app-premium-v4 .console-navigation .brand {
-  font-size: 15px;
+.splot-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
   white-space: nowrap;
+}
+
+.splot-wordmark {
+  display: block;
+  width: 72px;
+  height: auto;
+}
+
+.splot-descriptor {
+  color: #c3bfb6;
+  font: var(--fw-medium) 11px/1 var(--font-ui);
+  letter-spacing: 0.025em;
+}
+
+.splot-small-icon {
+  display: block;
+  flex: none;
+  object-fit: contain;
+}
+
+.splot-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.splot-footer-brand > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.splot-connect-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 0.35rem;
+}
+
+.wizard-card .splot-connect-heading h2 {
+  margin: 0;
+}
+
+.app-premium-v4 .console-navigation .nav button.active .nav-text {
+  color: var(--splot-bone);
+}
+
+@media (forced-colors: active) {
+  .splot-brand {
+    background: Canvas;
+  }
+
+  .app-premium-v4 .console-navigation .nav button.active .nav-text {
+    color: ButtonText;
+  }
 }
 
 .app-premium-v4 .console-navigation nav.nav--horizontal {

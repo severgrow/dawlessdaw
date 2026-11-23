@@ -373,31 +373,6 @@ label {
   color: var(--accent);
 }
 
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.01em;
-  text-transform: lowercase;
-  color: var(--text);
-}
-
-.brand .brand-slash {
-  color: var(--accent);
-}
-
-.brand .cursor {
-  display: inline-block;
-  width: 7px;
-  height: 13px;
-  margin-left: 2px;
-  background: var(--accent);
-  animation: cursor 1.05s steps(1, end) infinite;
-}
-
 @keyframes cursor {
   50% {
     opacity: 0;
@@ -2370,17 +2345,6 @@ button.ap-clip.on {
   stroke: var(--on-dim);
 }
 
-.art-label {
-  fill: var(--on);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.unlit .art-label {
-  fill: var(--text-mute);
-}
-
 .art-pad {
   fill: var(--bg-4);
   stroke: #333;
@@ -2990,21 +2954,6 @@ button.send-add {
   width: 40px;
   height: 30px;
   flex: none;
-}
-
-.brand-mark {
-  width: 16px;
-  height: 16px;
-  margin-right: 0.45rem;
-}
-.bm-a {
-  fill: var(--on);
-}
-.bm-b {
-  fill: var(--on-dim);
-}
-.bm-c {
-  fill: var(--alert-hi);
 }
 
 /* ─── Circuit Controller ───────────────────────────────── */
@@ -5362,8 +5311,6 @@ button.send-add {
   font-weight: 700;
 }
 
-.flip-brand { letter-spacing: 0.02em; }
-
 .flip-phase {
   font-family: var(--mono, ui-monospace, monospace);
   font-size: 0.72rem;
@@ -7503,7 +7450,6 @@ button.ghost {
   font-feature-settings: 'zero' 1, 'ss01' 1;
 }
 
-.brand,
 .page-head h1,
 .nav button .nav-text {
   font-family: var(--font-display);
@@ -8234,18 +8180,6 @@ select.ap-select:focus-visible {
  * No MIDI / DSP / clock / persistence changes.
  * ============================================================================= */
 
-/* Brand: hero-level in chrome, not just nav text */
-.brand {
-  font-size: 14px;
-  font-weight: var(--fw-semibold);
-  letter-spacing: 0.02em;
-}
-
-.brand .brand-slash {
-  color: var(--mint-4);
-  opacity: 0.9;
-}
-
 /* Soften NO MIDI / sim badge — less red, quiet caution */
 .sim-badge:not(.live-badge):not(.error-badge) {
   border-color: color-mix(in srgb, var(--caution) 45%, transparent) !important;
@@ -8389,17 +8323,6 @@ textarea:focus-visible,
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   font-size: var(--type-micro);
-}
-
-.app-premium-v2 .chrome .brand {
-  font-size: 13px;
-  font-weight: var(--fw-semibold);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.app-premium-v2 .chrome .brand .cursor {
-  display: none; /* kill terminal caret */
 }
 
 .app-premium-v2 .chrome .sim-badge,
@@ -9152,22 +9075,6 @@ textarea:focus-visible,
   backdrop-filter: none !important;
   border: none !important;
   font-size: var(--type-micro);
-}
-
-.app-premium-v3 .chrome .brand {
-  font-size: 12.5px;
-  font-weight: var(--fw-semibold);
-  letter-spacing: 0;
-  gap: 0.35rem;
-}
-
-.app-premium-v3 .chrome .brand-mark {
-  width: 14px;
-  height: 14px;
-}
-
-.app-premium-v3 .chrome .brand .cursor {
-  display: none !important;
 }
 
 .app-premium-v3 .chrome .sim-badge {
@@ -10190,11 +10097,6 @@ textarea:focus-visible,
 .app-premium-v4 .chrome .readout b {
   font-family: var(--font-mono) !important;
   line-height: 1 !important;
-}
-
-.app-premium-v4 .chrome .brand {
-  font-family: var(--font-display) !important;
-  letter-spacing: 0.01em;
 }
 
 /* Kill jam contour — glass fill only (border reserved for state) */
