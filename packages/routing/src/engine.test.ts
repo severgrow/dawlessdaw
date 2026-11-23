@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { parseMidiMessage } from '@dawlessdaw/core';
 import { MockMidiTransport } from '@dawlessdaw/midi';
 import { MidiRoutingEngine } from './engine';
 import type { MidiRoute } from './types';
@@ -248,6 +249,26 @@ describe('MidiRoutingEngine', () => {
     transport.inject('mock-circuit-in', [0xf8]);
     expect(calls).toHaveLength(2);
     expect(calls.every((c) => c.timestamp === undefined)).toBe(true);
+  });
+
+  it('sends live notes immediately and preserves scheduled pattern timing', () => {
+    engine.setRoutes([
+      {
+        id: 'circuit-notes',
+        name: 'Circuit to MPC',
+        enabled: true,
+        sourcePortId: 'mock-circuit-in',
+        destinations: [{ portId: 'mock-mpc-out' }],
+      },
+    ]);
+    const timestamps: (number | undefined)[] = [];
+    transport.send = (_portId, _data, timestamp) => { timestamps.push(timestamp); };
+    const ahead = performance.now() + 4_000;
+    transport.inject('mock-circuit-in', [0x90, 60, 100], ahead);
+    transport.inject('mock-circuit-in', [0x80, 60, 0], ahead + 100);
+    engine.inject(parseMidiMessage(new Uint8Array([0x90, 62, 100]), ahead, 'mock-circuit-in'));
+    engine.inject(parseMidiMessage(new Uint8Array([0x80, 62, 0]), ahead + 100, 'mock-circuit-in'));
+    expect(timestamps).toEqual([undefined, undefined, ahead, ahead + 100]);
   });
 
   it('cleans up note-offs via allNotesOff', () => {

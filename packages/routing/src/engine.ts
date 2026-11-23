@@ -114,10 +114,10 @@ export class MidiRoutingEngine {
    * (used by the Dawlessdaw sequencer — no duplicate destination map).
    */
   inject(message: MidiMessage): void {
-    this.handleIncoming(message);
+    this.handleIncoming(message, message.timestamp);
   }
 
-  handleIncoming(message: MidiMessage): void {
+  handleIncoming(message: MidiMessage, scheduledAt?: number): void {
     // Feedback loop prevention
     const lastOut = this.recentOut.get(message.portId);
     if (lastOut !== undefined && message.timestamp - lastOut < this.feedbackWindowMs) {
@@ -163,7 +163,9 @@ export class MidiRoutingEngine {
         const transformed = this.transform(message, route, dest.portId);
         if (!transformed) continue;
 
-        this.sendOut(dest.portId, transformed, route.id, message.timestamp);
+        // Live input timestamps describe when MIDI arrived. Only injected
+        // sequencer messages specify when the output should play.
+        this.sendOut(dest.portId, transformed, route.id, scheduledAt);
       }
     }
   }
@@ -281,8 +283,8 @@ export class MidiRoutingEngine {
     this.recentOut.set(portId, now);
     const status = data[0] ?? 0;
     const realtime = status >= 0xf8 && status <= 0xff;
-    // Omit timestamp for system realtime so Web MIDI sends immediately (Start/Clock).
-    if (realtime) this.transport.send(portId, data);
+    // Live MIDI and system realtime must leave immediately.
+    if (realtime || timestamp === undefined) this.transport.send(portId, data);
     else this.transport.send(portId, data, ts);
     // Parse kind so outbound clock/start/stop partition into midi:clock (not UI flood)
     this.bus?.emit({
