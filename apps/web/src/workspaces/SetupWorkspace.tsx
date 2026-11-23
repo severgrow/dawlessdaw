@@ -26,7 +26,7 @@ import { useUiSelection } from '../nav/uiSelection';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import { formatRouteChannelDetail } from './routeChannelDetail';
 
-const COLOURS = ['#8a4050', '#8fb5a6', '#e4ddd0', '#4a6b5a', '#5b7c99', '#888888'] as const;
+const COLOURS = ['#8a4050', '#8fb5a6', '#e4ddd0', '#5f303b', '#c2d4cb', '#888888'] as const;
 
 function PortSelect({
   role,

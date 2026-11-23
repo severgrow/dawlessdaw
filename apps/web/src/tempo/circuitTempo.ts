@@ -15,7 +15,7 @@ export type CircuitTempoPhase =
 
 export interface CircuitTempoView {
   phase: CircuitTempoPhase;
-  /** Rounded BPM for big display, or null when unknown. */
+  /** Measured BPM to one decimal place, or null when unknown. */
   bpm: number | null;
   /** One short status line under the number. */
   label: string;
@@ -109,10 +109,10 @@ export function circuitTempoView(
   };
 }
 
-/** Format BPM for large display (drop .0). */
+/** Format the performance readout to the nearest whole BPM. */
 export function formatCircuitBpm(bpm: number | null): string {
   if (bpm == null || !Number.isFinite(bpm)) return '—';
-  return Number.isInteger(bpm) ? String(bpm) : bpm.toFixed(1);
+  return String(Math.round(bpm));
 }
 
 /**

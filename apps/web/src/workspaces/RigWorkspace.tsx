@@ -66,9 +66,8 @@ export function RigWorkspace() {
         </p>
       </div>
 
-      <div className="panel">
+      <div className="panel rig-track-bank">
         <h2>Tracks</h2>
-        <p className="muted small">Tap a track → Live with that track selected.</p>
         <div className="track-summary">
           {snap.controller.tracks.map((tr, i) => {
             const track = i + 1;
@@ -78,7 +77,7 @@ export function RigWorkspace() {
               <button
                 key={i}
                 type="button"
-                className={`ts-cell ${tr.dest ? `dev-${tr.dest.device}` : 'dev-off'}${routed ? ' ts-routed' : ''}${hit ? ' ts-live' : ''}`}
+                className={`ts-cell ${tr.dest ? `dev-${tr.dest.device}` : 'dev-off'}${routed ? ' ts-routed' : ''}`}
                 onClick={() => openController(track)}
                 title={`Shape T${track} in Live`}
               >

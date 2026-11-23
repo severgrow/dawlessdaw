@@ -31,7 +31,7 @@ export function PanelSubnav({ workspace }: { workspace: WorkspaceId }) {
   if (!multi) {
     return (
       <div className="panel-subnav-row panel-subnav-row-chip-only">
-        <ContextChip />
+        <ContextChip workspace={workspace} />
       </div>
     );
   }
@@ -61,7 +61,7 @@ export function PanelSubnav({ workspace }: { workspace: WorkspaceId }) {
           );
         })}
       </div>
-      <ContextChip />
+      <ContextChip workspace={workspace} />
     </div>
   );
 }

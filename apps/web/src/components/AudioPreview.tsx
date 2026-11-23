@@ -460,7 +460,7 @@ export function AudioPreview() {
         <label className="ap-field">
           <span className="ap-label">Output · hear it on</span>
           <select
-            className="ap-select ap-output"
+            className="ap-select"
             value={outputId}
             onChange={(e) => setOutputId(e.target.value)}
           >
@@ -481,18 +481,12 @@ export function AudioPreview() {
         </button>
       </div>
 
-      <div className="ap-stage">
+      <div className={running ? 'ap-stage' : 'ap-stage ap-stage-idle'}>
         <canvas ref={canvas} className="ap-canvas" aria-label={`Audio ${style} display`} />
         {!running ? (
           <div className="ap-idle">
             <p>
-              {inputs.length ? (
-                <>
-                  Press <b>Start</b> — interface in only.
-                </>
-              ) : (
-                PLUG_IN_INTERFACE
-              )}
+              {inputs.length ? 'Ready to monitor' : 'No signal'}
             </p>
           </div>
         ) : null}

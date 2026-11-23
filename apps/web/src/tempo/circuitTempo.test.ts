@@ -80,9 +80,10 @@ describe('circuitTempoView', () => {
     expect(v.label).toBe('—');
   });
 
-  it('formats BPM without trailing .0', () => {
+  it('rounds the readout to the nearest whole BPM', () => {
     expect(formatCircuitBpm(120)).toBe('120');
-    expect(formatCircuitBpm(120.4)).toBe('120.4');
+    expect(formatCircuitBpm(120.4)).toBe('120');
+    expect(formatCircuitBpm(120.6)).toBe('121');
     expect(formatCircuitBpm(null)).toBe('—');
   });
 

@@ -334,7 +334,7 @@ export function SessionsWorkspace() {
       const x = (m.sample / audio.left.length) * width;
       const inferred = m.inferred === true || m.source === 'inferred';
       g.strokeStyle = inferred
-        ? '#c4a574'
+        ? '#e4ddd0'
         : m.source === 'circuit-project'
           ? alert
           : m.source === 'transport'
@@ -649,7 +649,7 @@ export function SessionsWorkspace() {
         <span className="readout mono">{spaceHint}</span>
       </div>
       <p className="lead">
-        Choose input → Record → Stop → Listen. Stereo from Scarlett / ZED / USB.
+        Record stereo from Scarlett, ZED or another USB interface.
       </p>
 
       {recoverNote ? <p className="warn">{recoverNote}</p> : null}
@@ -669,14 +669,8 @@ export function SessionsWorkspace() {
           </span>
         </div>
 
-        <ol className="rec-flow" aria-label="Record workflow">
-          <li className={!selectedInput ? 'current' : 'done'}>1 Input</li>
-          <li className={recording || stopping ? 'current' : selectedInput ? 'done' : ''}>2 Record</li>
-          <li className={recordPhase === 'after' ? 'current' : ''}>3 Listen</li>
-        </ol>
-
         <label className="field">
-          <span>1 · Audio input</span>
+          <span>Audio input</span>
           <select
             className="text-input"
             value={selectedInput?.deviceId ?? ''}
@@ -705,6 +699,7 @@ export function SessionsWorkspace() {
             disabled={stopping || (!recording && !selectedInput && inputs.length > 0)}
             onClick={() => void (recording ? stopRecord() : startRecord())}
           >
+            <span className="rec-control-glyph" aria-hidden="true" />
             {recording || stopping ? 'Stop' : 'Record'}
           </button>
           <div className="rec-elapsed mono">{formatTime(elapsedSec)}</div>
@@ -712,9 +707,12 @@ export function SessionsWorkspace() {
             <Meter label="L" level={status.meters.left} clip={status.meters.clipLeft} />
             <Meter label="R" level={status.meters.right} clip={status.meters.clipRight} />
           </div>
+        </div>
+        <div className="rec-options row wrap">
           <button
             type="button"
             className={midiArm ? 'active' : ''}
+            aria-pressed={midiArm}
             onClick={toggleMidiArm}
             title="Start when Circuit sends MIDI Start; stop on MIDI Stop"
           >
@@ -723,6 +721,7 @@ export function SessionsWorkspace() {
           <button
             type="button"
             className={monitorInput ? 'active' : ''}
+            aria-pressed={monitorInput}
             onClick={toggleMonitorInput}
             title="Play the live input through the computer speakers. Off by default — with echo cancel off, monitoring feeds back into the take."
           >

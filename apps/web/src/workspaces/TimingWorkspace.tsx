@@ -161,20 +161,20 @@ export function TimingWorkspace() {
         <p className="muted small">{health.reason}</p>
         <div className="tl-metrics">
           <div>
-            <span className="tl-k">Clock</span>
+            <span className="tl-k">Circuit clock</span>
             <b>{health.clockDetected ? 'detected' : 'missing'}</b>
           </div>
           <div>
-            <span className="tl-k">BPM</span>
+            <span className="tl-k">Measured BPM</span>
             <b>{health.bpm != null ? `≈ ${health.bpm}` : '—'}</b>
-          </div>
-          <div>
-            <span className="tl-k">Fluctuation</span>
-            <b>{health.bpmFluctuation != null ? `±${health.bpmFluctuation}` : '—'}</b>
           </div>
           <div>
             <span className="tl-k">Jitter</span>
             <b>{health.jitterMs != null ? `${health.jitterMs} ms` : '—'}</b>
+          </div>
+          <div>
+            <span className="tl-k">Fluctuation</span>
+            <b>{health.bpmFluctuation != null ? `±${health.bpmFluctuation}` : '—'}</b>
           </div>
           <div>
             <span className="tl-k">Gaps</span>

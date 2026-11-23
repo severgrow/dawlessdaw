@@ -21,36 +21,36 @@
  */
 :root {
   /* Surfaces — use ≤3 levels: page / chrome / module */
-  --bg-0: #0b0c0b; /* page = surface-0 — slightly deeper for Ableton density */
-  --bg-1: #121312; /* chrome = surface-1 */
-  --bg-2: #181a18; /* module = surface-2 */
-  --bg-3: #1e201e; /* hover only — not a 4th nesting level */
-  --bg-4: #282a28; /* pressed / unlit pads */
+  --bg-0: #101112; /* page = surface-0 — slightly deeper for Ableton density */
+  --bg-1: #171819; /* chrome = surface-1 */
+  --bg-2: #202122; /* module = surface-2 */
+  --bg-3: #272829; /* hover only — not a 4th nesting level */
+  --bg-4: #303132; /* pressed / unlit pads */
   --surface-0: var(--bg-0);
   --surface-1: var(--bg-1);
   --surface-2: var(--bg-2);
   /* Dark glass — matte hierarchy; chrome buttons stay near-opaque so page
      atmosphere does not read as a cheap top-light bevel through the fill */
-  --glass-1: color-mix(in srgb, #1a1c1a 78%, transparent);
-  --glass-2: color-mix(in srgb, #222522 84%, transparent);
-  --glass-3: color-mix(in srgb, #2a2e2a 88%, transparent);
-  --glass-btn: color-mix(in srgb, #1e211e 92%, transparent); /* chrome controls */
+  --glass-1: color-mix(in srgb, #202122 78%, transparent);
+  --glass-2: color-mix(in srgb, #262728 84%, transparent);
+  --glass-3: color-mix(in srgb, #303132 88%, transparent);
+  --glass-btn: color-mix(in srgb, #242526 92%, transparent); /* chrome controls */
   --glass-blur: blur(14px) saturate(1.02);
   /* Press — matte, no top-light bevel / plastic shine */
   --press-rest: none;
   --press-down: none;
   --press-fill: color-mix(in srgb, #000 18%, var(--glass-3));
-  --line: #2a2c2a; /* reserved for state / hairline separators */
-  --line-soft: #1c1e1c;
-  --line-hard: #3a3c3a;
-  --text: #efece4; /* bone */
-  --text-dim: #9c9a92;
-  --text-mute: #66645e;
+  --line: #343536; /* reserved for state / hairline separators */
+  --line-soft: #272829;
+  --line-hard: #494a4b;
+  --text: #f3efe5; /* bone */
+  --text-dim: #b9b5ac;
+  --text-mute: #918e87;
 
   /* Mint — activity / primary (softer, lower saturation) */
-  --mint-0: #151c19;
-  --mint-1: #1e2925;
-  --mint-2: #384d45;
+  --mint-0: #171819;
+  --mint-1: #252627;
+  --mint-2: #414243;
   --mint-3: #65887c;
   --mint-4: #8bb0a1;
   --mint-5: #a5c2b4;
@@ -64,11 +64,11 @@
   --burgundy-wash: rgba(122, 61, 74, 0.06);
   --burgundy-ink: #ebe0e2;
 
-  /* Caution amber */
-  --caution: #c4a574;
-  --caution-2: #9a7f52;
-  --caution-dim: #2a2418;
-  --caution-wash: rgba(196, 165, 116, 0.12);
+  /* Caution uses bone text on a neutral surface. */
+  --caution: #e4ddd0;
+  --caution-2: #b9b5ac;
+  --caution-dim: #28292a;
+  --caution-wash: rgba(228, 221, 208, 0.12);
 
   --on: var(--mint-4);
   --on-2: var(--mint-3);
@@ -83,7 +83,7 @@
   --alert-wash: rgba(165, 194, 180, 0.07);
 
   --bone: #e4ddd0;
-  --bone-dim: #37342d;
+  --bone-dim: #343536;
   --bone-wash: rgba(228, 221, 208, 0.12);
   --sp-accent: var(--burgundy);
   --fm1-accent: var(--mint-4);
@@ -91,8 +91,8 @@
   --accent: var(--on);
   --accent-dim: var(--on-dim);
   --accent-glow: var(--on-glow);
-  --accent-ink: #0c0e0c;
-  --alert-ink: #0c0e0c;
+  --accent-ink: #101112;
+  --alert-ink: #101112;
   --ok: var(--on);
   --ok-glow: var(--on-glow);
   --warn: var(--caution);
@@ -143,8 +143,8 @@
   --shell-rail: 220px; /* left nav width — keep workspaces aligned */
 
   /* Selection / inset wells (browser lists, pads) */
-  --selection-fill: color-mix(in srgb, var(--mint-2) 62%, transparent);
-  --selection-ink: var(--mint-6);
+  --selection-fill: var(--bg-4);
+  --selection-ink: var(--text);
   --inset-well: color-mix(in srgb, var(--bg-0) 55%, transparent);
   --elev-press: none; /* matte — no bounce / bevel press */
 
@@ -171,11 +171,7 @@ body {
   font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.5;
-  /* Matte charcoal atmosphere — soft mint wash only, no burgundy haze */
-  background:
-    radial-gradient(110% 70% at 8% -8%, color-mix(in srgb, var(--mint-2) 14%, transparent), transparent 52%),
-    linear-gradient(180deg, #0f100f 0%, var(--bg-0) 48%, #0a0b0a 100%);
-  background-attachment: fixed;
+  background: var(--bg-0);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   font-feature-settings: 'zero' 1, 'ss01' 1;
@@ -184,18 +180,6 @@ body {
 ::selection {
   background: var(--accent);
   color: var(--accent-ink);
-}
-
-/* Film grain over everything — the same SVG noise as severgrow-01's "Soil" texture
-   (fractal noise, neutral grey, 3.2%). Static: no cost per frame, never blocks clicks. */
-body::after {
-  content: '';
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .75  0 0 0 0 .75  0 0 0 0 .75  0 0 0 1.1 -.42'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
-  opacity: 0.032;
 }
 
 ::-webkit-scrollbar {
@@ -261,8 +245,8 @@ button:focus-visible,
 select:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: 1px;
+  outline: 1px solid var(--text);
+  outline-offset: 2px;
 }
 
 button:disabled {
@@ -270,14 +254,14 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Lit pad: the one place the accent fills a surface */
+/* Pressed controls share a neutral fill and a bone outline. */
 button.active,
 button.active:hover:not(:disabled),
 button[aria-pressed='true'],
 button[aria-pressed='true']:hover:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
+  background: var(--selection-fill);
+  border-color: var(--text-dim);
+  color: var(--text);
   box-shadow: none;
 }
 
@@ -1950,7 +1934,7 @@ button.sp-pad.selected .sp-pad-num {
 }
 
 .sp-usb-panel .warn {
-  color: var(--warn, #c47a3a);
+  color: var(--warn, #7a3d4a);
 }
 
 .sp-usb-check {
@@ -2183,11 +2167,6 @@ select.ap-select:hover:not(:disabled) {
   border-color: var(--text-mute);
 }
 
-select.ap-select.ap-output {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--on-wash);
-}
-
 button.ap-start {
   height: 44px;
   min-width: 7rem;
@@ -2412,10 +2391,10 @@ button.ap-clip.on {
 }
 /* ZED channel colour coding from the real mixer */
 .art-knob-blue circle {
-  fill: #6a8eb8;
+  fill: #a5c2b4;
 }
 .art-knob-yellow circle {
-  fill: #c9b24a;
+  fill: #e4ddd0;
 }
 
 .unlit {
@@ -3094,7 +3073,7 @@ button.send-add {
 }
 .ct-track.dev-mpc .ct-pad {
   background: var(--bone);
-  color: #1a1814;
+  color: #171819;
 }
 .ct-track.dev-off .ct-pad {
   background: var(--bg-4);
@@ -3352,7 +3331,7 @@ button.send-add {
 .dest-btn.dev-mpc.active {
   background: var(--bone);
   border-color: var(--bone);
-  color: #1a1814;
+  color: #171819;
 }
 .dest-btn.dev-off.active {
   background: var(--bg-4);
@@ -3791,7 +3770,7 @@ button.send-add {
 .capture-bars-opt[aria-pressed='true'] {
   background: var(--mint-4);
   border-color: var(--mint-3);
-  color: var(--accent-ink, #0c1210);
+  color: var(--accent-ink, #101112);
 }
 
 .capture-last-bars-go {
@@ -3800,7 +3779,7 @@ button.send-add {
   border-radius: 8px;
   border: 1px solid var(--mint-3);
   background: color-mix(in srgb, var(--mint-4) 78%, var(--mint-2));
-  color: var(--accent-ink, #0c1210);
+  color: var(--accent-ink, #101112);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -3855,27 +3834,6 @@ button.send-add {
   color: var(--mint-5);
 }
 
-.rec-flow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.75rem;
-  margin: 0.55rem 0 0.85rem;
-  padding: 0;
-  list-style: none;
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-mute);
-}
-
-.rec-flow .current {
-  color: var(--mint-5);
-  font-weight: 700;
-}
-
-.rec-flow .done {
-  color: var(--text-dim);
-}
 
 .rec-clip-warn {
   margin: 0.35rem 0 0.15rem;
@@ -4502,7 +4460,7 @@ button.send-add {
   margin: 0.75rem 0 1rem;
   padding: 0.65rem 0.75rem;
   background:
-    radial-gradient(ellipse at 10% 0%, var(--on-wash), transparent 55%),
+    radial-gradient(ellipse at 10% 0%, var(--bone-wash), transparent 55%),
     linear-gradient(180deg, var(--bg-2), var(--bg-1));
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -5130,7 +5088,7 @@ button.send-add {
   border: 1px solid var(--line-hard);
   border-radius: 10px;
   background:
-    radial-gradient(120% 80% at 10% 0%, var(--on-wash), transparent 55%),
+    radial-gradient(120% 80% at 10% 0%, var(--bone-wash), transparent 55%),
     var(--bg-1);
 }
 
@@ -5291,7 +5249,7 @@ button.send-add {
   border-left: 3px solid var(--accent);
   background:
     linear-gradient(135deg, rgba(154, 42, 69, 0.08), transparent 42%),
-    linear-gradient(180deg, rgba(181, 234, 211, 0.04), transparent 55%);
+    linear-gradient(180deg, var(--bone-wash), transparent 55%);
 }
 
 .flip-lane-head { margin-bottom: 0.55rem; }
@@ -5335,8 +5293,8 @@ button.send-add {
 
 .flip-phase-error,
 .flip-phase-cancelled {
-  border-color: var(--warn, #c47a3a);
-  color: var(--warn, #c47a3a);
+  border-color: var(--warn, #7a3d4a);
+  color: var(--warn, #7a3d4a);
 }
 
 .flip-lead { margin: 0.25rem 0 0; max-width: 52rem; }
@@ -5563,7 +5521,7 @@ button.send-add {
 .flip-badge.align-aligned { border-color: var(--alert-hi); color: var(--alert-hi); }
 .flip-badge.align-offset_applied { border-color: var(--bone); color: var(--bone); }
 .flip-badge.align-unaligned,
-.flip-badge.align-unknown { border-color: var(--warn, #c47a3a); color: var(--warn, #c47a3a); }
+.flip-badge.align-unknown { border-color: var(--warn, #7a3d4a); color: var(--warn, #7a3d4a); }
 .flip-badge.conf-high { color: var(--alert-hi); }
 .flip-badge.conf-none,
 .flip-badge.conf-low { opacity: 0.85; }
@@ -5737,8 +5695,8 @@ button.send-add {
 }
 
 .deep-cap.tier-proven { border-left-color: var(--ok); }
-.deep-cap.tier-documented-unverified { border-left-color: #c9a227; }
-.deep-cap.tier-theoretical { border-left-color: #6b8cae; }
+.deep-cap.tier-documented-unverified { border-left-color: #e4ddd0; }
+.deep-cap.tier-theoretical { border-left-color: #a5c2b4; }
 .deep-cap.tier-unsupported { border-left-color: var(--err); }
 
 .deep-log {
@@ -5933,7 +5891,7 @@ button.wizard-cta {
   font-weight: 700;
   background: var(--mint-4);
   border-color: var(--mint-3);
-  color: var(--accent-ink, #0c1210);
+  color: var(--accent-ink, #101112);
 }
 
 .status-cta {
@@ -5942,7 +5900,7 @@ button.wizard-cta {
   font-weight: 700;
   background: var(--mint-4);
   border-color: var(--mint-3);
-  color: var(--accent-ink, #0c1210);
+  color: var(--accent-ink, #101112);
 }
 
 .ts-connect {
@@ -6056,7 +6014,7 @@ button.setup-cta {
   font-weight: 700;
   background: var(--mint-4);
   border-color: var(--mint-3);
-  color: var(--accent-ink, #0c1210);
+  color: var(--accent-ink, #101112);
 }
 
 .pt-row-focus {
@@ -6688,7 +6646,7 @@ button.setup-cta {
   min-width: 5.5rem;
   padding: 0.55rem 0.75rem;
   border: 1px solid var(--line, #333);
-  background: linear-gradient(160deg, rgba(159, 220, 194, 0.06), transparent);
+  background: linear-gradient(160deg, var(--bone-wash), transparent);
 }
 
 .c2-tick.live {
@@ -6751,8 +6709,8 @@ button.setup-cta {
   min-height: 5.5rem;
   padding: 0.5rem;
   background:
-    radial-gradient(circle at 30% 30%, rgba(159, 220, 194, 0.22), transparent 55%),
-    linear-gradient(145deg, #1a1f1c, #0e100f);
+    radial-gradient(circle at 30% 30%, var(--bone-wash), transparent 55%),
+    linear-gradient(145deg, #202122, #101112);
   border: 1px solid var(--line, #333);
 }
 
@@ -6789,7 +6747,7 @@ button.setup-cta {
 }
 
 .c2-project.hit {
-  background: linear-gradient(90deg, rgba(159, 220, 194, 0.12), transparent);
+  background: linear-gradient(90deg, var(--bone-wash), transparent);
 }
 
 .c2-project-head {
@@ -6832,7 +6790,7 @@ button.setup-cta {
   padding: 0.65rem 0.75rem 0.85rem;
   border: 1px solid var(--line, #333);
   border-top-width: 3px;
-  background: linear-gradient(165deg, rgba(159, 220, 194, 0.05), transparent 40%);
+  background: linear-gradient(165deg, var(--bone-wash), transparent 40%);
   cursor: grab;
 }
 
@@ -6903,7 +6861,7 @@ button.setup-cta {
   min-width: 5rem;
   padding: 0.55rem 0.75rem;
   border: 1px solid var(--line, #333);
-  background: linear-gradient(160deg, rgba(159, 220, 194, 0.06), transparent);
+  background: linear-gradient(160deg, var(--bone-wash), transparent);
 }
 
 .sp3-tick.live {
@@ -6964,7 +6922,7 @@ button.setup-cta {
   padding: 0.5rem;
   background:
     radial-gradient(circle at 30% 30%, rgba(154, 42, 69, 0.18), transparent 55%),
-    linear-gradient(145deg, #1a1518, #0e100f);
+    linear-gradient(145deg, #1a1518, #101112);
   border: 1px solid var(--line, #333);
 }
 
@@ -10010,14 +9968,14 @@ textarea:focus-visible,
 }
 
 .app-premium-v4 button.ts-btn.ts-play:not(.on) {
-  background: color-mix(in srgb, var(--mint-3) 22%, var(--glass-btn)) !important;
-  color: var(--mint-6) !important;
+  background: var(--glass-btn) !important;
+  color: var(--text) !important;
 }
 
 .app-premium-v4 button.ts-btn.ts-play.on {
-  background: var(--mint-4) !important;
-  color: var(--accent-ink) !important;
-  border-color: color-mix(in srgb, var(--mint-3) 55%, transparent) !important;
+  background: var(--selection-fill) !important;
+  color: var(--text) !important;
+  border-color: var(--text-dim) !important;
 }
 
 .app-premium-v4 button.ts-btn.ts-panic {
@@ -10029,7 +9987,7 @@ textarea:focus-visible,
 .app-premium-v4 button.ts-btn.ts-connect,
 .app-premium-v4 button.mpc-lib-primary:not(:disabled),
 .app-premium-v4 button.status-cta {
-  background: color-mix(in srgb, var(--mint-4) 94%, #0c0e0c) !important;
+  background: var(--bone) !important;
   color: var(--accent-ink) !important;
   border-color: transparent !important;
 }
@@ -10038,7 +9996,7 @@ textarea:focus-visible,
 .app-premium-v4 button.panel-subnav-btn.on {
   background: var(--selection-fill) !important;
   color: var(--selection-ink) !important;
-  border-color: color-mix(in srgb, var(--mint-3) 45%, transparent) !important;
+  border-color: var(--line-hard) !important;
   box-shadow: none !important;
 }
 
@@ -10057,8 +10015,8 @@ textarea:focus-visible,
 }
 
 .app-premium-v4 button.ts-btn.ts-play.on:active:not(:disabled) {
-  background: color-mix(in srgb, var(--mint-4) 82%, #000) !important;
-  border-color: color-mix(in srgb, var(--mint-3) 55%, transparent) !important;
+  background: var(--press-fill) !important;
+  border-color: var(--text-dim) !important;
 }
 
 .app-premium-v4 button.ts-btn.ts-panic:active:not(:disabled) {
@@ -10103,7 +10061,7 @@ textarea:focus-visible,
 .app-premium-v4 button.ts-btn.ts-jam {
   border-color: transparent !important;
   background: var(--glass-2) !important;
-  color: var(--mint-5) !important;
+  color: var(--text) !important;
 }
 
 /* Library rows — matte, no bevel */

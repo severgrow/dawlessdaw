@@ -162,7 +162,7 @@ export function FlipLane({
     }
     const guided = clip.midiGuide?.slices ?? [];
     if (guided.length) {
-      ctx.strokeStyle = '#c4a574';
+      ctx.strokeStyle = '#e4ddd0';
       ctx.globalAlpha = 0.7;
       ctx.setLineDash([3, 3]);
       for (const s of guided) {
