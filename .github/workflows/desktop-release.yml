@@ -6,7 +6,7 @@
 # Optional secrets for smoother Gatekeeper / auto-update:
 #   CSC_LINK, CSC_KEY_PASSWORD — Apple Developer ID Application cert (base64 p12)
 #   APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID — notarization
-# Without signing, the DMG still publishes; first open may need Right-click → Open.
+# Without a Developer ID, artifact-only builds use an ad-hoc signature for testing.
 
 name: Desktop release (Mac)
 
@@ -53,7 +53,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PUBLISH_MODE: ${{ (github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) && 'always' || 'never' }}
-          # Pass through if set on the repo — unsigned builds still work for manual install.
+          # Use Developer ID signing when configured.
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -67,7 +67,32 @@ jobs:
               unset "$credential"
             fi
           done
-          npm run dist:mac -w @dawlessdaw/desktop -- --arm64 --x64 --publish "$PUBLISH_MODE"
+          signing_args=()
+          if [ -z "${CSC_LINK:-}" ]; then
+            if [ "$PUBLISH_MODE" = always ]; then
+              echo "::error::Publishing a Mac release requires a Developer ID Application certificate (CSC_LINK)."
+              exit 1
+            fi
+            # Sign the entire Electron bundle after packaging, including helpers.
+            # Developer ID builds keep the hardened runtime enabled for notarization.
+            signing_args=(-c.mac.identity=- -c.mac.hardenedRuntime=false -c.mac.notarize=false)
+          fi
+          npm run dist:mac -w @dawlessdaw/desktop -- --arm64 --x64 --publish "$PUBLISH_MODE" "${signing_args[@]}"
+
+      - name: Verify apps inside disk images
+        shell: bash
+        run: |
+          set -euo pipefail
+          for image in apps/desktop/release/*.dmg; do
+            hdiutil verify "$image"
+            mount_dir=$(mktemp -d)
+            hdiutil attach "$image" -readonly -nobrowse -mountpoint "$mount_dir"
+            trap 'hdiutil detach "$mount_dir"' EXIT
+            codesign --verify --deep --strict --verbose=2 "$mount_dir/Splot MIDI Brain.app"
+            hdiutil detach "$mount_dir"
+            trap - EXIT
+            rmdir "$mount_dir"
+          done
 
       - name: Attach test installers
         if: github.ref_type != 'tag' && (github.event_name != 'workflow_dispatch' || inputs.dry_run)
