@@ -3,16 +3,20 @@ import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import { CircuitTempo } from './CircuitTempo';
 
 /**
- * Compact transport (Pass B). CONNECT reopens the Connect wizard.
- * Status text is muted when the StatusBar CTA already owns the next action.
+ * Transport cluster — instrument affordances (Play triangle / Stop square / Panic outline).
  * Circuit tempo is display-only — never toggles app clock forward.
  */
 export function TransportStrip({
   onOpenJam,
   onOpenConnect,
+  compact = false,
+  hideConnect = false,
 }: {
   onOpenJam?: () => void;
   onOpenConnect?: () => void;
+  compact?: boolean;
+  /** When true, do not show Connect (wizard open or StatusBar owns CTA). */
+  hideConnect?: boolean;
 }) {
   const snap = useStudioStore();
   const { panic, seqPlay, seqStop } = useStudioActions();
@@ -25,46 +29,58 @@ export function TransportStrip({
     onboardingStep: snap.onboarding.step,
   });
 
-  // When blocked, StatusBar owns the words — keep strip quiet.
-  const status =
-    next.kind !== 'ready'
-      ? null
-      : snap.onboarding.step !== 'play'
-        ? snap.onboarding.message
-        : snap.statusLine;
+  const showConnect = !hideConnect && next.kind !== 'ready';
 
   return (
-    <div className="transport-strip" role="region" aria-label="Transport">
-      <button type="button" className={playing ? 'ts-btn on' : 'ts-btn'} onClick={() => seqPlay()} title="Play">
-        Play
-      </button>
-      <button type="button" className="ts-btn" onClick={() => seqStop()} title="Stop">
-        Stop
-      </button>
-      <button type="button" className="ts-btn danger" onClick={() => panic()} title="All notes off">
-        Panic
-      </button>
-      {onOpenJam ? (
-        <button type="button" className="ts-btn jam" onClick={onOpenJam} title="Jam (J)">
-          Jam
+    <div
+      className={`transport-strip${compact ? ' transport-strip--compact' : ''}`}
+      role="region"
+      aria-label="Transport"
+    >
+      <div className="ts-cluster" role="group" aria-label="Transport controls">
+        <button
+          type="button"
+          className={`ts-btn ts-play${playing ? ' on' : ''}`}
+          onClick={() => seqPlay()}
+          title="Play"
+          aria-label="Play"
+        >
+          <span className="ts-glyph" aria-hidden />
+          <span className="ts-label">Play</span>
         </button>
-      ) : null}
+        <button
+          type="button"
+          className="ts-btn ts-stop"
+          onClick={() => seqStop()}
+          title="Stop"
+          aria-label="Stop"
+        >
+          <span className="ts-glyph" aria-hidden />
+          <span className="ts-label sr-only">Stop</span>
+        </button>
+        <button
+          type="button"
+          className="ts-btn ts-panic danger"
+          onClick={() => panic()}
+          title="All notes off"
+        >
+          Panic
+        </button>
+        {onOpenJam ? (
+          <button type="button" className="ts-btn ts-jam jam" onClick={onOpenJam} title="Jam (J)">
+            Jam
+          </button>
+        ) : null}
+      </div>
       <CircuitTempo size="strip" showBarBeat={next.kind === 'ready'} />
-      {status ? (
-        <span className="ts-status" title={status}>
-          {status}
-        </span>
-      ) : (
-        <span className="ts-status ts-status-quiet" aria-hidden="true" />
-      )}
-      {next.kind !== 'ready' ? (
+      {showConnect ? (
         <button
           type="button"
           className="ts-btn ts-connect"
           onClick={() => onOpenConnect?.()}
           title={next.hint || 'Open Connect'}
         >
-          Connect
+          {next.cta || 'Connect'}
         </button>
       ) : null}
     </div>

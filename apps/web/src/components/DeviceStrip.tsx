@@ -53,43 +53,18 @@ export function DeviceStrip({ onOpenConnect }: { onOpenConnect?: () => void }) {
     onboardingStep: snap.onboarding.step,
   });
 
-  // Collapse failure dashboard — StatusBar / Connect own the primary CTA.
+  // v3: never render an empty chrome row — Connect / Setup own the CTA.
   if (next.kind === 'allow-midi' || (next.kind === 'assign-ports' && connectedPorts === 0)) {
-    return (
-      <div className="device-strip device-strip-empty" role="status">
-        <button
-          type="button"
-          className="device-chip device-chip-quiet"
-          onClick={() => onOpenConnect?.()}
-          title={next.hint}
-        >
-          <DeviceArt kind="mac" lit={false} pulse={0} className="chip-art" />
-          <span className="name">No ports yet</span>
-          <span className="meta">Connect</span>
-        </button>
-      </div>
-    );
+    return null;
   }
 
-  // Pass C: ports exist but nothing assigned — one chip, not five failures.
+  // Ports exist but nothing assigned — still not a chrome toolbar (Setup owns it).
   if (assignedMidi === 0 && hasUnmatchedPorts) {
-    return (
-      <div className="device-strip device-strip-empty" role="status">
-        <button
-          type="button"
-          className="device-chip device-chip-quiet"
-          onClick={() => {
-            carrySetupRole(null, 'Assign ports');
-            setWorkspace('setup');
-          }}
-          title="Ports connected — assign roles in Setup"
-        >
-          <DeviceArt kind="mac" lit={true} pulse={0} className="chip-art" />
-          <span className="name">{connectedPorts} ports</span>
-          <span className="meta">Assign</span>
-        </button>
-      </div>
-    );
+    return null;
+  }
+
+  if (assignedMidi === 0) {
+    return null;
   }
 
   return (

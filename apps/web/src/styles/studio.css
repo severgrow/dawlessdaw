@@ -1,12 +1,25 @@
 /*
- * Splot MIDI Brain — Visual Consistency polish
- * IBM Plex Sans (UI) + IBM Plex Mono (technical values only).
- * Machined radii · soft mint · quiet burgundy · Pass E charcoal/bone/caution.
- * No neon · no SaaS pills · ≤3 surface levels.
+ * =============================================================================
+ * Splot MIDI Brain — PREMIUM DESIGN SYSTEM
+ * =============================================================================
+ * Mix: ~70% Ableton precision · 20% TE restraint · 10% RC-20 tactile.
+ * No copy of proprietary assets. Visual / IA only — never MIDI, DSP, clock,
+ * or persistence logic in this file.
+ *
+ * FUTURE UI MUST FOLLOW THESE TOKENS (do not invent one-off colors/radii):
+ *   Surfaces  — ≤3 levels: --surface-0 / --surface-1 / --surface-2 (+ glass fills)
+ *   Accent    — soft mint (--mint-*) primary; quiet burgundy accents only
+ *   Type      — --font-ui for chrome; --font-mono ONLY for technical values
+ *   Geometry  — machined radii (--radius-*); never pills (999px)
+ *   Borders   — focus / selected / error only — hierarchy via glass fill + blur
+ *   Rhythm    — --space-* · --ctrl-h* · --track-row-h · --shell-gutter
+ *   Align     — --align-ctrl · --align-gap · --align-col (baselines / equal widths)
+ * Showcase: MPC Library browser (Sounds → MPC) is the reference implementation.
+ * =============================================================================
  */
 :root {
   /* Surfaces — use ≤3 levels: page / chrome / module */
-  --bg-0: #0c0d0c; /* page = surface-0 */
+  --bg-0: #0b0c0b; /* page = surface-0 — slightly deeper for Ableton density */
   --bg-1: #121312; /* chrome = surface-1 */
   --bg-2: #181a18; /* module = surface-2 */
   --bg-3: #1e201e; /* hover only — not a 4th nesting level */
@@ -14,11 +27,15 @@
   --surface-0: var(--bg-0);
   --surface-1: var(--bg-1);
   --surface-2: var(--bg-2);
-  /* Dark glass fills — hierarchy via opacity/blur, not outlines */
-  --glass-1: color-mix(in srgb, #1a1c1a 78%, transparent);
-  --glass-2: color-mix(in srgb, #222522 72%, transparent);
-  --glass-3: color-mix(in srgb, #2a2e2a 68%, transparent);
-  --glass-blur: blur(14px) saturate(1.05);
+  /* Dark glass fills — hierarchy via opacity/blur, not opaque blocks (v4) */
+  --glass-1: color-mix(in srgb, #1a1c1a 62%, transparent);
+  --glass-2: color-mix(in srgb, #222522 55%, transparent);
+  --glass-3: color-mix(in srgb, #2a2e2a 48%, transparent);
+  --glass-blur: blur(18px) saturate(1.08);
+  /* Tactile press — inset only, never neon / plastic bevel */
+  --press-rest: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, #000 28%, transparent);
+  --press-down: inset 0 2px 4px color-mix(in srgb, #000 45%, transparent);
   --line: #2a2c2a; /* reserved for state / hairline separators */
   --line-soft: #1c1e1c;
   --line-hard: #3a3c3a;
@@ -26,7 +43,7 @@
   --text-dim: #9c9a92;
   --text-mute: #66645e;
 
-  /* Mint — activity / primary */
+  /* Mint — activity / primary (softer, lower saturation) */
   --mint-0: #151c19;
   --mint-1: #1e2925;
   --mint-2: #384d45;
@@ -35,7 +52,7 @@
   --mint-5: #a5c2b4;
   --mint-6: #c2d4cb;
 
-  /* Burgundy — quiet accents */
+  /* Burgundy — quiet accents (never intense floods) */
   --burgundy: #7a3d4a;
   --burgundy-2: #5f303b;
   --burgundy-dim: #24161a;
@@ -90,8 +107,12 @@
   --fw-regular: 400;
   --fw-medium: 500;
   --fw-semibold: 600;
+  --type-ui: 13px;
+  --type-label: 11px;
+  --type-micro: 10px;
+  --letter-label: 0.08em;
 
-  /* Spacing scale */
+  /* Spacing scale — 4px grid (Ableton precision) */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -106,14 +127,27 @@
   --radius-panel: 8px; /* panels / cards */
   --radius-lg: var(--radius-panel);
 
-  /* Control rhythm */
+  /* Control / browser rhythm */
   --ctrl-h: 36px;
   --ctrl-h-compact: 28px;
   --ctrl-h-lg: 44px;
+  --track-row-h: 32px; /* Ableton-like list rows — future browsers use this */
   --bar-h: 40px;
   --strip-h: 56px;
   --foot-h: 26px;
   --shell-gutter: var(--space-4);
+  --shell-rail: 220px; /* left nav width — keep workspaces aligned */
+
+  /* Selection / inset wells (browser lists, pads) */
+  --selection-fill: color-mix(in srgb, var(--mint-2) 62%, transparent);
+  --selection-ink: var(--mint-6);
+  --inset-well: color-mix(in srgb, var(--bg-0) 55%, transparent);
+  --elev-press: translateY(1px); /* RC-20 tactile press — use on :active */
+
+  /* Symmetry / alignment — future rows & grids MUST share these */
+  --align-ctrl: 32px; /* shared control baseline height */
+  --align-gap: var(--space-2); /* even gaps in control rows */
+  --align-col: 9.5rem; /* side rails / consistent columns */
 }
 
 *,
@@ -177,7 +211,8 @@ body::after {
 
 .app {
   display: grid;
-  grid-template-rows: var(--bar-h) var(--strip-h) auto 1fr var(--foot-h);
+  /* v2: one chrome band + workspace + thin footer — workspace dominates */
+  grid-template-rows: auto 1fr var(--foot-h);
   grid-template-columns: minmax(0, 1fr);
   height: 100%;
   min-height: 100vh;
@@ -204,9 +239,9 @@ button {
   color: var(--text);
   font-family: var(--font-ui);
   font-size: 12px;
-  font-weight: var(--fw-semibold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.01em;
+  text-transform: none; /* Ableton-like — not terminal ALL CAPS */
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 90ms ease;
 }
 
@@ -562,7 +597,7 @@ label {
 
 @media (max-width: 720px) {
   .app {
-    grid-template-rows: var(--bar-h) auto auto 1fr var(--foot-h);
+    grid-template-rows: auto 1fr var(--foot-h);
     overflow-x: hidden;
   }
   .shell {
@@ -729,7 +764,7 @@ h1,
 h2,
 h3 {
   margin: 0 0 0.65rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-display); /* Ableton hierarchy — mono only for values */
 }
 
 h1 {
@@ -7579,21 +7614,25 @@ select.ap-select:focus-visible {
   }
 }
 
-/* ─── Phase D — MPC Library browser (Sounds → MPC) ───────── */
+/* ─── Premium showcase — MPC Library browser (Sounds → MPC) ─
+ * Reference for future browsers/lists: section rail + dense rows + detail.
+ * Tokens only — do not hardcode colors/radii here.
+ * ─────────────────────────────────────────────────────────── */
 
 .mpc-workspace {
-  max-width: 52rem;
+  max-width: 56rem;
 }
 
 .mpc-lib-browser {
   background: var(--glass-1);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  border-radius: var(--radius-lg, 8px);
-  padding: var(--space-4) var(--space-4) var(--space-5);
+  border-radius: var(--radius-panel);
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  border: none;
 }
 
 .mpc-lib-browser--compact {
@@ -7601,149 +7640,298 @@ select.ap-select:focus-visible {
   gap: var(--space-2);
 }
 
+.mpc-lib-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 .mpc-lib-title-row {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .mpc-lib-title {
   margin: 0;
-  font-family: var(--font-ui);
-  font-size: 1.15rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
   font-weight: var(--fw-semibold);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+/* Status = LED + mono label (TE restraint — not a SaaS pill) */
+.mpc-lib-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--type-micro);
+  letter-spacing: var(--letter-label);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+.mpc-lib-status-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-mute);
+  flex: 0 0 auto;
+}
+
+.mpc-lib-status--on {
   color: var(--mint-5);
 }
-
-.mpc-lib-sub {
-  margin: 0.15rem 0 0;
+.mpc-lib-status--on .mpc-lib-status-led {
+  background: var(--mint-4);
 }
 
-.mpc-lib-pill {
-  font-family: var(--font-mono, var(--font-ui));
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.2rem 0.5rem;
-  border-radius: var(--radius);
-  background: var(--glass-3);
-  color: var(--text-muted, var(--mint-6));
+.mpc-lib-status--off .mpc-lib-status-led {
+  background: var(--text-mute);
 }
 
-.mpc-lib-pill--on {
-  background: color-mix(in srgb, var(--mint-3) 45%, transparent);
-  color: var(--mint-6);
+.mpc-lib-status--err {
+  color: color-mix(in srgb, var(--burgundy) 70%, var(--text-dim));
 }
-
-.mpc-lib-pill--off {
-  background: var(--burgundy-wash);
-  color: var(--burgundy-ink);
+.mpc-lib-status--err .mpc-lib-status-led {
+  background: color-mix(in srgb, var(--burgundy) 75%, var(--text-mute));
 }
 
 .mpc-lib-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: var(--space-1);
   align-items: center;
 }
 
-.mpc-lib-fixture-banner {
+.mpc-lib-toolbar button {
+  min-height: var(--ctrl-h-compact);
+  padding: 0 var(--space-3);
+  font-size: var(--type-label);
+}
+
+.mpc-lib-fixture-banner,
+.mpc-lib-action-msg,
+.mpc-lib-progress,
+.mpc-lib-hint {
   margin: 0;
-  padding: 0.45rem 0.65rem;
-  background: var(--glass-2);
-  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  background: var(--inset-well);
+  border-radius: var(--radius-compact);
+  font-size: var(--type-label);
+  color: var(--text-dim);
+}
+
+.mpc-lib-action-msg {
+  color: var(--mint-5);
+}
+
+/* Ableton-like body: section rail | list + detail */
+.mpc-lib-body {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: var(--space-2);
+  min-height: 16rem;
+  align-items: stretch;
+}
+
+.mpc-lib-browser--compact .mpc-lib-body {
+  grid-template-columns: 1fr;
+  min-height: 0;
 }
 
 .mpc-lib-sections {
   display: flex;
-  gap: 0.35rem;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--inset-well);
+  border-radius: var(--radius-compact);
+}
+
+.mpc-lib-browser--compact .mpc-lib-sections {
+  flex-direction: row;
   flex-wrap: wrap;
 }
 
-.mpc-lib-sections .mpc-lib-count {
-  margin-left: 0.4rem;
+.mpc-lib-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--track-row-h);
+  padding: 0 var(--space-2);
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: var(--fw-medium);
+  font-size: var(--type-label);
+  background: transparent;
+  border-radius: var(--radius-compact);
+  color: var(--text-dim);
+}
+
+.mpc-lib-browser--compact .mpc-lib-section {
+  width: auto;
+  flex: 1 1 auto;
+}
+
+.mpc-lib-section:hover:not(:disabled):not(.active) {
+  background: var(--glass-2);
+  color: var(--text);
+}
+
+.mpc-lib-section.active,
+.mpc-lib-section.active:hover:not(:disabled) {
+  background: var(--selection-fill);
+  color: var(--selection-ink);
+  border-color: transparent;
+}
+
+.mpc-lib-section-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mpc-lib-count {
+  font-size: var(--type-micro);
   opacity: 0.55;
-  font-size: 10px;
+  font-family: var(--font-mono);
+}
+
+.mpc-lib-stage {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 0;
 }
 
 .mpc-lib-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: var(--space-1);
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  max-height: min(22rem, 50vh);
+  gap: 1px;
+  max-height: min(22rem, 48vh);
   overflow: auto;
-  background: var(--glass-2);
-  border-radius: var(--radius);
-  padding: 0.35rem;
+  background: var(--inset-well);
+  border-radius: var(--radius-compact);
 }
 
 .mpc-lib-row {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: var(--space-3);
   text-align: left;
   text-transform: none;
   letter-spacing: 0.01em;
-  font-weight: var(--fw-medium, 500);
-  min-height: 2.15rem;
+  font-weight: var(--fw-medium);
+  min-height: var(--track-row-h);
+  height: var(--track-row-h);
+  padding: 0 var(--space-2);
   background: transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-tech);
+  border: 1px solid transparent;
 }
 
 .mpc-lib-row:hover:not(:disabled) {
-  background: var(--glass-3);
+  background: var(--glass-2);
+}
+
+.mpc-lib-row:active:not(:disabled) {
+  transform: var(--elev-press);
 }
 
 .mpc-lib-row.selected,
 .mpc-lib-row.selected:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--mint-2) 55%, transparent);
+  background: var(--selection-fill);
   border-color: transparent;
-  color: var(--mint-6);
+  color: var(--selection-ink);
   box-shadow: none;
 }
 
 .mpc-lib-kind {
-  flex: 0 0 2.4rem;
-  font-size: 10px;
-  opacity: 0.65;
+  flex: 0 0 2.5rem;
+  font-size: var(--type-micro);
+  letter-spacing: var(--letter-label);
   color: var(--mint-4);
+  opacity: 0.75;
+}
+
+.mpc-lib-row.selected .mpc-lib-kind {
+  color: var(--mint-5);
+  opacity: 1;
 }
 
 .mpc-lib-name {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: var(--type-ui);
 }
 
 .mpc-lib-empty {
-  padding: 0.75rem;
+  padding: var(--space-4);
 }
 
 .mpc-lib-detail {
-  padding: 0.75rem 0.85rem;
-  border-radius: var(--radius);
-  background: var(--glass-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-compact);
+  background: var(--glass-2);
   backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: none;
+}
+
+.mpc-lib-detail--empty {
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--ctrl-h) + var(--space-2));
+  color: var(--text-mute);
 }
 
 .mpc-lib-detail-name {
   font-weight: var(--fw-semibold);
-  color: var(--mint-5);
+  font-size: var(--type-ui);
+  color: var(--text);
 }
 
 .mpc-lib-detail-path {
-  margin-top: 0.2rem;
+  margin-top: var(--space-1);
+  font-size: var(--type-micro);
+  color: var(--text-mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mpc-lib-detail-actions {
-  margin-top: 0.65rem;
-  gap: 0.4rem;
+  margin-top: var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.mpc-lib-detail-actions button {
+  min-height: var(--ctrl-h-compact);
+  padding: 0 var(--space-3);
+  font-size: var(--type-label);
 }
 
 .mpc-lib-meta,
@@ -7751,10 +7939,1994 @@ select.ap-select:focus-visible {
   margin: 0;
 }
 
-.mpc-lib-action-msg {
-  margin: 0;
-  padding: 0.4rem 0.6rem;
+@media (max-width: 720px) {
+  .mpc-lib-body {
+    grid-template-columns: 1fr;
+  }
+  .mpc-lib-sections {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .mpc-lib-section {
+    width: auto;
+    flex: 1 1 auto;
+  }
+}
+
+/* =============================================================================
+ * Premium Design Pass — shell + workspaces (tokens only)
+ * Future chrome / panels / strips MUST reuse these rules or the :root tokens.
+ * No MIDI / DSP / clock / persistence changes.
+ * ============================================================================= */
+
+/* Brand: hero-level in chrome, not just nav text */
+.brand {
+  font-size: 14px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.02em;
+}
+
+.brand .brand-slash {
+  color: var(--mint-4);
+  opacity: 0.9;
+}
+
+/* Soften NO MIDI / sim badge — less red, quiet caution */
+.sim-badge:not(.live-badge):not(.error-badge) {
+  border-color: color-mix(in srgb, var(--caution) 45%, transparent) !important;
+  color: var(--caution) !important;
+  background: var(--caution-wash) !important;
+}
+
+.sim-badge:not(.live-badge):not(.error-badge) .dot {
+  background: var(--caution) !important;
+}
+
+/* Shell rail width aligned to token */
+.shell {
+  grid-template-columns: var(--shell-rail) minmax(0, 1fr);
+}
+
+.nav {
+  border-right: none !important;
+  background: var(--glass-1) !important;
+}
+
+/* Device strip — frameless modules, selection via fill not outline */
+.device-strip {
+  background: transparent !important;
+  border-bottom: none !important;
+  gap: var(--space-1);
+  padding: 0 var(--shell-gutter);
+}
+
+.device-chip {
+  border-radius: var(--radius-compact) !important;
+  background: var(--glass-1) !important;
+}
+
+.device-chip.focus {
+  background: var(--selection-fill) !important;
+}
+
+.device-chip.focus::after {
+  background: var(--mint-4) !important;
+  height: 2px;
+}
+
+/* Transport strip — denser Ableton-like control row */
+.transport-strip {
+  gap: var(--space-2) !important;
+}
+
+.transport-strip .ts-btn:active:not(:disabled) {
+  transform: var(--elev-press);
+}
+
+/* Workspace page heads — TE restraint (less stacked copy) */
+.page-head {
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.page-head h1 {
+  font-size: 1.2rem;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+.page-head .lead,
+.main > .lead {
+  max-width: 36rem;
+  color: var(--text-dim);
+  font-size: var(--type-ui);
+}
+
+/* Workspace modules share glass-2 — never invent a 4th nesting level */
+.workspace .panel,
+.workspace .glass-surface {
   background: var(--glass-2);
-  border-radius: var(--radius);
-  color: var(--mint-5);
+  border: none;
+  border-radius: var(--radius-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+/* Panel subnav — machined segment, selection fill */
+.panel-subnav-btn {
+  min-height: var(--ctrl-h-compact);
+  border-radius: var(--radius-compact) !important;
+}
+
+.panel-subnav-btn.on {
+  background: var(--selection-fill) !important;
+  color: var(--selection-ink) !important;
+}
+
+/* Focus ring stays mint — only real state contour */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+.mpc-lib-row:focus-visible,
+.mpc-lib-section:focus-visible {
+  outline: 1px solid var(--focus);
+  outline-offset: 1px;
+}
+
+@media (max-width: 1080px) {
+  .shell {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+}
+
+/* =============================================================================
+ * Premium Design Pass v2 — Patryk feedback (Ableton/TE bar)
+ * Collapse chrome · cut uppercase/terminal · Library hero · edge-to-edge
+ * Distinct transport · precise Rig. Visual/IA only.
+ * ============================================================================= */
+
+.app-premium-v2 {
+  --bar-h: 32px;
+  --strip-h: 40px;
+  --foot-h: 22px;
+  --chrome-pad-y: 0;
+}
+
+/* One compact chrome band: brand row + thin devices + transport */
+.app-premium-v2 .chrome {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--glass-1);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  z-index: 5;
+}
+
+.app-premium-v2 .chrome .status-bar {
+  min-height: var(--bar-h);
+  height: var(--bar-h);
+  padding: 0 var(--shell-gutter);
+  gap: var(--space-2);
+  background: transparent !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  font-size: var(--type-micro);
+}
+
+.app-premium-v2 .chrome .brand {
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.app-premium-v2 .chrome .brand .cursor {
+  display: none; /* kill terminal caret */
+}
+
+.app-premium-v2 .chrome .sim-badge,
+.app-premium-v2 .chrome .readout,
+.app-premium-v2 .chrome .status-cta,
+.app-premium-v2 .chrome .status-bar > button {
+  min-height: 24px !important;
+  padding: 0 var(--space-2) !important;
+  font-size: var(--type-micro) !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  border-radius: var(--radius-compact) !important;
+}
+
+.app-premium-v2 .chrome .device-strip {
+  min-height: 0;
+  max-height: 36px;
+  padding: 0 var(--shell-gutter) !important;
+  gap: var(--space-1) !important;
+  background: transparent !important;
+  overflow: hidden;
+}
+
+/* Empty device strip is noise — StatusBar already owns Allow MIDI / Connect */
+.app-premium-v2 .chrome .device-strip-empty {
+  display: none !important;
+}
+
+.app-premium-v2 .chrome .device-chip {
+  min-height: 28px !important;
+  padding: 0.15rem 0.55rem 0.15rem 1.35rem !important;
+  font-size: var(--type-micro);
+}
+
+.app-premium-v2 .chrome .device-chip .name {
+  font-size: 11px !important;
+  font-weight: var(--fw-medium) !important;
+  text-transform: none !important;
+}
+
+.app-premium-v2 .chrome .device-chip .meta {
+  font-size: 9px !important;
+}
+
+.app-premium-v2 .chrome .transport-strip {
+  min-height: var(--strip-h);
+  padding: var(--space-1) var(--shell-gutter) !important;
+  gap: var(--space-3) !important;
+  background: color-mix(in srgb, var(--surface-0) 40%, transparent) !important;
+  border: none !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Distinct physical affordances — not identical rectangles */
+.app-premium-v2 .ts-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.app-premium-v2 .ts-btn {
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+  font-weight: var(--fw-medium) !important;
+  font-size: 12px !important;
+  min-height: 32px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.app-premium-v2 .ts-play {
+  min-width: 5.25rem !important;
+  padding: 0 1rem !important;
+  border-radius: var(--radius) !important;
+  background: color-mix(in srgb, var(--mint-3) 35%, var(--glass-2)) !important;
+  color: var(--mint-6) !important;
+}
+
+.app-premium-v2 .ts-play .ts-glyph {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 5px 0 5px 8px;
+  border-color: transparent transparent transparent currentColor;
+}
+
+.app-premium-v2 .ts-play.on {
+  background: var(--mint-4) !important;
+  color: var(--accent-ink) !important;
+}
+
+.app-premium-v2 .ts-stop {
+  min-width: 2.5rem !important;
+  width: 2.5rem !important;
+  padding: 0 !important;
+  border-radius: var(--radius-tech) !important; /* square stop */
+  font-size: 0 !important; /* glyph-only feel; keep accessible title */
+  color: transparent !important;
+  position: relative;
+}
+
+.app-premium-v2 .ts-stop .ts-glyph {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  background: var(--text);
+  border-radius: 1px;
+}
+
+.app-premium-v2 .ts-stop:hover:not(:disabled) .ts-glyph {
+  background: var(--text);
+}
+
+.app-premium-v2 .ts-panic {
+  min-width: 3.75rem !important;
+  padding: 0 0.7rem !important;
+  border-radius: var(--radius-compact) !important;
+  background: transparent !important;
+  border: 1px solid color-mix(in srgb, var(--burgundy) 55%, transparent) !important;
+  color: color-mix(in srgb, var(--burgundy) 75%, var(--text-dim)) !important;
+  font-size: 11px !important;
+}
+
+.app-premium-v2 .ts-panic:hover:not(:disabled) {
+  background: var(--burgundy-wash) !important;
+}
+
+.app-premium-v2 .ts-jam {
+  min-width: 3.5rem !important;
+  min-height: 28px !important;
+  padding: 0 0.85rem !important;
+  border-radius: var(--radius-panel) !important; /* softer than Play, not a SaaS pill */
+  background: transparent !important;
+  border: 1px solid color-mix(in srgb, var(--mint-3) 40%, transparent) !important;
+  color: var(--mint-5) !important;
+  font-style: italic;
+}
+
+.app-premium-v2 .ts-connect {
+  margin-left: auto;
+  border-radius: var(--radius) !important;
+  background: var(--mint-4) !important;
+  color: var(--accent-ink) !important;
+  text-transform: none !important;
+}
+
+.app-premium-v2 .ts-status {
+  font-family: var(--font-ui) !important;
+  font-size: var(--type-label) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+
+/* Nav — sentence-case Ableton labels, not terminal */
+.app-premium-v2 .nav button {
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+  min-height: 2.5rem !important;
+  padding: 0.4rem 0.75rem !important;
+}
+
+.app-premium-v2 .nav button .nav-text {
+  font-size: 12.5px !important;
+  font-weight: var(--fw-medium) !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+}
+
+.app-premium-v2 .nav button .key {
+  opacity: 0.35;
+  text-transform: none !important;
+}
+
+.app-premium-v2 .panel-subnav-btn {
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+  font-weight: var(--fw-medium) !important;
+}
+
+/* Workspace dominates — kill empty canvas island / max-width card */
+.app-premium-v2 .main {
+  padding: var(--space-2) var(--space-3) var(--space-4) !important;
+  background: var(--surface-0) !important;
+  max-width: none;
+}
+
+.app-premium-v2 .main > * {
+  max-width: none !important;
+}
+
+.app-premium-v2 button {
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+}
+
+.app-premium-v2 .panel {
+  max-width: none !important;
+  border-radius: var(--radius-compact) !important;
+}
+
+.app-premium-v2 .panel > h2:first-child {
+  font-family: var(--font-ui) !important;
+  font-size: var(--type-label) !important;
+  font-weight: var(--fw-semibold) !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  color: var(--text-dim) !important;
+}
+
+.app-premium-v2 .page-head h1 {
+  font-family: var(--font-display) !important;
+  font-size: 1.05rem !important;
+  font-weight: var(--fw-semibold) !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: var(--text) !important;
+}
+
+.app-premium-v2 .page-head {
+  margin-bottom: var(--space-3) !important;
+}
+
+.app-premium-v2 .howto {
+  margin-bottom: var(--space-3) !important;
+}
+
+.app-premium-v2 .howto-sentence,
+.app-premium-v2 .howto .howto-sentence {
+  font-family: var(--font-ui) !important;
+  font-size: var(--type-ui) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  color: var(--text-dim) !important;
+}
+
+/* MPC Library v2 — edge-to-edge hero, no floating glass island */
+.app-premium-v2 .mpc-workspace {
+  max-width: none !important;
+  height: 100%;
+}
+
+.app-premium-v2 .mpc-lib-browser {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  gap: var(--space-2) !important;
+  min-height: calc(100vh - 11rem);
+}
+
+.app-premium-v2 .mpc-lib-title {
+  font-size: 1.35rem !important;
+  font-weight: var(--fw-semibold) !important;
+  letter-spacing: -0.01em !important;
+  color: var(--text) !important;
+  text-transform: none !important;
+}
+
+.app-premium-v2 .mpc-lib-body {
+  flex: 1;
+  min-height: 22rem;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.app-premium-v2 .mpc-lib-list {
+  max-height: none;
+  min-height: 0;
+  flex: 1;
+  height: 100%;
+}
+
+.app-premium-v2 .mpc-lib-stage {
+  min-height: calc(100vh - 14rem);
+  height: 100%;
+}
+
+.app-premium-v2 .mpc-lib-body {
+  min-height: calc(100vh - 14rem) !important;
+}
+
+.app-premium-v2 .mpc-lib-toolbar button {
+  text-transform: none !important;
+}
+
+/* Diagnostics demoted */
+.app-premium-v2 .mpc-lib-diag {
+  margin-top: auto;
+  padding-top: var(--space-2);
+  border-top: 1px solid color-mix(in srgb, var(--line) 40%, transparent);
+  color: var(--text-mute);
+  font-size: var(--type-label);
+}
+
+.app-premium-v2 .mpc-lib-diag summary {
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--font-ui);
+  font-size: var(--type-label);
+  color: var(--text-mute);
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.app-premium-v2 .mpc-lib-diag summary::-webkit-details-marker {
+  display: none;
+}
+
+.app-premium-v2 .mpc-lib-diag summary::before {
+  content: '▸ ';
+  opacity: 0.5;
+}
+
+.app-premium-v2 .mpc-lib-diag[open] summary::before {
+  content: '▾ ';
+}
+
+.app-premium-v2 .mpc-lib-diag-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.app-premium-v2 .mpc-lib-diag-body button {
+  min-height: var(--ctrl-h-compact) !important;
+  padding: 0 var(--space-2) !important;
+  font-size: var(--type-micro) !important;
+  text-transform: none !important;
+  opacity: 0.85;
+}
+
+/* Rig — precise studio tool, less decorative map */
+.app-premium-v2 .rig-map {
+  aspect-ratio: 1000 / 360;
+  border: none !important;
+  border-radius: var(--radius-compact) !important;
+  background:
+    linear-gradient(var(--line-soft) 1px, transparent 1px) 0 0 / 100% 24px,
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px) 0 0 / 24px 100%,
+    var(--surface-1) !important;
+}
+
+.app-premium-v2 .rig-map.with-backdrop {
+  background:
+    linear-gradient(var(--line-soft) 1px, transparent 1px) 0 0 / 100% 24px,
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px) 0 0 / 24px 100%,
+    var(--surface-1) !important;
+}
+
+.app-premium-v2 .rig-mixer-wash {
+  opacity: 0.25 !important;
+  animation: none !important;
+}
+
+.app-premium-v2 .rig-ghost {
+  opacity: 0.08 !important;
+  animation: none !important;
+  filter: grayscale(0.6) !important;
+}
+
+.app-premium-v2 .rig-mixer-bars {
+  opacity: 0.08 !important;
+}
+
+.app-premium-v2 .rig-mixer-bars i {
+  animation: none !important;
+}
+
+.app-premium-v2 button.rig-backdrop-toggle {
+  text-transform: none !important;
+  letter-spacing: 0.02em !important;
+  font-weight: var(--fw-medium) !important;
+}
+
+.app-premium-v2 .rig-name {
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+  font-family: var(--font-ui) !important;
+}
+
+.app-premium-v2 .footer-bar {
+  font-size: 10px;
+  min-height: var(--foot-h);
+  color: var(--text-mute);
+  text-transform: none;
+}
+
+@media (max-width: 720px) {
+  .app-premium-v2 {
+    grid-template-rows: auto 1fr var(--foot-h);
+  }
+  .app-premium-v2 .chrome .device-strip {
+    display: none;
+  }
+  .app-premium-v2 .mpc-lib-body {
+    grid-template-columns: 1fr;
+    min-height: 14rem;
+  }
+  .app-premium-v2 .ts-stop {
+    font-size: 0 !important;
+  }
+}
+
+/* =============================================================================
+ * Premium v2 — symmetry & alignment (Patryk add-on)
+ * Shared baselines · equal control widths in rows · column grids · optical centre
+ * ============================================================================= */
+
+.app-premium-v2 {
+  --align-ctrl: 32px; /* shared baseline height for chrome + toolbars */
+  --align-gap: var(--space-2); /* even gap in control rows */
+  --align-col: 9.5rem; /* library section rail / consistent side cols */
+}
+
+/* Shared baselines across chrome rows */
+.app-premium-v2 .chrome .status-bar,
+.app-premium-v2 .chrome .transport-strip {
+  align-items: center;
+}
+
+.app-premium-v2 .chrome .status-bar > *,
+.app-premium-v2 .chrome .transport-strip > *,
+.app-premium-v2 .ts-cluster {
+  align-self: center;
+}
+
+.app-premium-v2 .chrome .status-cta,
+.app-premium-v2 .chrome .status-bar > button,
+.app-premium-v2 .chrome .sim-badge,
+.app-premium-v2 .ts-btn,
+.app-premium-v2 .panel-subnav-btn,
+.app-premium-v2 .mpc-lib-toolbar button,
+.app-premium-v2 .mpc-lib-detail-actions button {
+  min-height: var(--align-ctrl) !important;
+  height: var(--align-ctrl) !important;
+  box-sizing: border-box;
+}
+
+/* Transport: distinct shapes, shared baseline + optical glyph centre */
+.app-premium-v2 .ts-cluster {
+  gap: var(--align-gap);
+  height: var(--align-ctrl);
+}
+
+.app-premium-v2 .ts-play {
+  min-width: 5.5rem !important;
+  width: 5.5rem !important;
+  justify-content: center !important;
+}
+
+.app-premium-v2 .ts-play .ts-glyph {
+  display: block;
+  flex: 0 0 auto;
+  /* optical centre — triangle sits slightly left of geometric centre */
+  margin-top: 0.5px;
+  margin-right: 1px;
+}
+
+.app-premium-v2 .ts-stop {
+  width: var(--align-ctrl) !important;
+  min-width: var(--align-ctrl) !important;
+  height: var(--align-ctrl) !important;
+  padding: 0 !important;
+}
+
+.app-premium-v2 .ts-stop .ts-glyph {
+  /* true optical centre of the square pad */
+  inset: 50% auto auto 50%;
+  margin: -4.5px 0 0 -4.5px;
+}
+
+.app-premium-v2 .ts-panic {
+  min-width: 4.25rem !important;
+  width: 4.25rem !important;
+  justify-content: center !important;
+}
+
+.app-premium-v2 .ts-jam {
+  min-width: 4.25rem !important;
+  width: 4.25rem !important;
+  height: var(--align-ctrl) !important;
+  min-height: var(--align-ctrl) !important;
+  justify-content: center !important;
+  font-style: normal !important; /* italic broke optical balance */
+}
+
+.app-premium-v2 .ts-connect {
+  min-width: 5.5rem !important;
+  height: var(--align-ctrl) !important;
+  margin-left: auto;
+}
+
+.app-premium-v2 .transport-strip {
+  display: grid !important;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: var(--space-3);
+}
+
+.app-premium-v2 .transport-strip .ts-cluster {
+  grid-column: 1;
+}
+
+.app-premium-v2 .transport-strip .circuit-tempo {
+  grid-column: 2;
+  justify-self: center;
+  align-self: center;
+}
+
+.app-premium-v2 .transport-strip .ts-status {
+  display: none; /* quiet chrome — status lives in header when ready */
+}
+
+.app-premium-v2 .transport-strip .ts-connect {
+  grid-column: 3;
+  margin-left: 0 !important;
+  justify-self: end;
+}
+
+/* Panel subnav — equal control widths in the row */
+.app-premium-v2 .panel-subnav {
+  display: grid !important;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(5.5rem, 1fr);
+  gap: var(--align-gap) !important;
+  width: max-content;
+  max-width: 100%;
+  margin-bottom: var(--space-3) !important;
+}
+
+.app-premium-v2 .panel-subnav-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 0 var(--space-2) !important;
+}
+
+.app-premium-v2 .panel-subnav-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+/* Library — consistent column grid + equal row heights */
+.app-premium-v2 .mpc-lib-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: var(--space-3);
+  min-height: var(--align-ctrl);
+}
+
+.app-premium-v2 .mpc-lib-toolbar {
+  display: grid !important;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(6.5rem, auto);
+  gap: var(--align-gap) !important;
+}
+
+.app-premium-v2 .mpc-lib-toolbar button {
+  width: 100%;
+  justify-content: center;
+}
+
+.app-premium-v2 .mpc-lib-body {
+  grid-template-columns: var(--align-col) minmax(0, 1fr) !important;
+  gap: var(--align-gap) !important;
+}
+
+.app-premium-v2 .mpc-lib-section {
+  height: var(--track-row-h);
+  min-height: var(--track-row-h) !important;
+  padding-inline: var(--space-2) !important;
+}
+
+.app-premium-v2 .mpc-lib-row {
+  height: var(--track-row-h) !important;
+  min-height: var(--track-row-h) !important;
+  display: grid !important;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--space-2);
+  padding-inline: var(--space-2) !important;
+}
+
+.app-premium-v2 .mpc-lib-kind {
+  flex: none !important;
+  width: auto !important;
+  text-align: left;
+  justify-self: start;
+}
+
+.app-premium-v2 .mpc-lib-detail-actions {
+  display: grid !important;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(6.5rem, auto);
+  gap: var(--align-gap) !important;
+  width: max-content;
+}
+
+.app-premium-v2 .mpc-lib-detail-actions button {
+  width: 100%;
+  justify-content: center;
+}
+
+.app-premium-v2 .mpc-lib-diag-body {
+  gap: var(--align-gap) !important;
+}
+
+.app-premium-v2 .mpc-lib-diag-body button {
+  min-width: 5.5rem;
+  height: var(--ctrl-h-compact) !important;
+  min-height: var(--ctrl-h-compact) !important;
+  justify-content: center;
+}
+
+/* Nav — even vertical rhythm */
+.app-premium-v2 .nav {
+  padding-block: var(--space-2) !important;
+}
+
+.app-premium-v2 .nav button {
+  min-height: 2.75rem !important;
+  height: 2.75rem !important;
+  padding-inline: var(--space-3) !important;
+  align-items: center;
+}
+
+.app-premium-v2 .nav button .key {
+  width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  line-height: 1;
+}
+
+/* Kill remaining terminal ALL-CAPS headings in workspaces */
+.app-premium-v2 h2,
+.app-premium-v2 .panel > h2,
+.app-premium-v2 .rig-map-head > span:first-child {
+  text-transform: none !important;
+  letter-spacing: 0.02em !important;
+  font-family: var(--font-ui) !important;
+}
+
+.app-premium-v2 .page-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--align-ctrl);
+}
+
+/* Device chips when present — equal widths in the strip */
+.app-premium-v2 .chrome .device-strip:not(.device-strip-empty) {
+  display: grid !important;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--align-gap) !important;
+  align-items: stretch;
+  max-height: none;
+  padding-block: var(--space-1) !important;
+}
+
+.app-premium-v2 .chrome .device-chip {
+  min-height: var(--align-ctrl) !important;
+  height: auto !important;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .app-premium-v2 .transport-strip {
+    grid-template-columns: 1fr;
+    row-gap: var(--space-2);
+  }
+  .app-premium-v2 .transport-strip .circuit-tempo,
+  .app-premium-v2 .transport-strip .ts-connect {
+    justify-self: start;
+  }
+  .app-premium-v2 .mpc-lib-head {
+    grid-template-columns: 1fr;
+    row-gap: var(--space-2);
+  }
+  .app-premium-v2 .panel-subnav {
+    grid-auto-columns: minmax(4.5rem, 1fr);
+    width: 100%;
+  }
+}
+
+/* =============================================================================
+ * Premium Design Pass v3 — Patryk hard fixes
+ * Single chrome baseline · full-bleed workspace · instrument controls
+ * Align everywhere · ≤3 surfaces · mobile. Visual/IA only.
+ * ============================================================================= */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.app-premium-v3 {
+  --chrome-h: 44px;
+  --align-ctrl: 28px;
+  --align-gap: 6px;
+  --align-col: 10rem;
+  --shell-gutter: 12px;
+  grid-template-rows: var(--chrome-h) 1fr 20px;
+}
+
+/* —— 1–2. One compact horizontal chrome band —— */
+.app-premium-v3 .chrome.chrome--single {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-3);
+  height: var(--chrome-h);
+  min-height: var(--chrome-h);
+  max-height: var(--chrome-h);
+  padding: 0 var(--shell-gutter);
+  background: var(--surface-1);
+  border-bottom: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: hidden;
+}
+
+.app-premium-v3 .chrome .status-bar,
+.app-premium-v3 .chrome .status-bar--compact {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--align-gap);
+  height: var(--align-ctrl);
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  border: none !important;
+  font-size: var(--type-micro);
+}
+
+.app-premium-v3 .chrome .brand {
+  font-size: 12.5px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0;
+  gap: 0.35rem;
+}
+
+.app-premium-v3 .chrome .brand-mark {
+  width: 14px;
+  height: 14px;
+}
+
+.app-premium-v3 .chrome .brand .cursor {
+  display: none !important;
+}
+
+.app-premium-v3 .chrome .sim-badge {
+  min-height: 22px !important;
+  height: 22px !important;
+  padding: 0 0.45rem !important;
+  border-radius: var(--radius-tech) !important;
+  border: none !important;
+  background: transparent !important;
+  font-family: var(--font-ui) !important;
+  font-size: 10px !important;
+  font-weight: var(--fw-medium) !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  color: var(--text-mute) !important;
+}
+
+.app-premium-v3 .chrome .sim-badge.error-badge {
+  color: color-mix(in srgb, var(--burgundy) 65%, var(--text-dim)) !important;
+}
+
+.app-premium-v3 .chrome .sim-badge .dot {
+  width: 5px;
+  height: 5px;
+}
+
+.app-premium-v3 .chrome .readout {
+  min-height: 22px !important;
+  height: 22px !important;
+  padding: 0 0.4rem !important;
+  border: none !important;
+  background: var(--inset-well) !important;
+  border-radius: var(--radius-tech) !important;
+  text-transform: none !important;
+}
+
+/* Horizontal tabs on the chrome baseline */
+.app-premium-v3 .nav.nav--horizontal {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 2px;
+  height: var(--align-ctrl);
+  padding: 0 !important;
+  margin: 0;
+  background: transparent !important;
+  border: none !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+}
+
+.app-premium-v3 .nav.nav--horizontal button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  height: var(--align-ctrl) !important;
+  min-height: var(--align-ctrl) !important;
+  min-width: 4.25rem;
+  padding: 0 0.65rem !important;
+  border: none !important;
+  border-left: none !important;
+  border-radius: var(--radius-tech) !important;
+  background: transparent !important;
+  color: var(--text-dim);
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+}
+
+.app-premium-v3 .nav.nav--horizontal button .nav-text {
+  font-size: 12px !important;
+  font-weight: var(--fw-medium) !important;
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+}
+
+.app-premium-v3 .nav.nav--horizontal button .nav-sub,
+.app-premium-v3 .nav.nav--horizontal .nav-hint {
+  display: none !important;
+}
+
+.app-premium-v3 .nav.nav--horizontal button .key {
+  width: 14px;
+  height: 14px;
+  font-size: 9px;
+  opacity: 0.35;
+  border: none !important;
+  background: transparent !important;
+  line-height: 1;
+  display: inline-grid;
+  place-items: center;
+}
+
+.app-premium-v3 .nav.nav--horizontal button:hover:not(:disabled):not(.active) {
+  background: var(--glass-2) !important;
+  color: var(--text);
+}
+
+.app-premium-v3 .nav.nav--horizontal button.active {
+  background: var(--selection-fill) !important;
+  color: var(--selection-ink) !important;
+  border-left: none !important;
+  box-shadow: inset 0 -2px 0 var(--mint-4);
+}
+
+/* Transport on same baseline */
+.app-premium-v3 .chrome .transport-strip,
+.app-premium-v3 .chrome .transport-strip--compact {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  height: var(--align-ctrl);
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  grid-template-columns: none !important;
+}
+
+.app-premium-v3 .ts-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--align-gap);
+  height: var(--align-ctrl);
+}
+
+.app-premium-v3 .ts-btn {
+  height: var(--align-ctrl) !important;
+  min-height: var(--align-ctrl) !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: var(--fw-medium) !important;
+  font-size: 11px !important;
+  border-radius: var(--radius-tech) !important;
+  background: var(--bg-2) !important;
+  border: 1px solid transparent !important;
+}
+
+/* Instrument affordances */
+.app-premium-v3 .ts-play {
+  width: 4.75rem !important;
+  min-width: 4.75rem !important;
+  background: color-mix(in srgb, var(--mint-3) 40%, var(--bg-2)) !important;
+  color: var(--mint-6) !important;
+  border-radius: var(--radius-compact) !important;
+}
+
+.app-premium-v3 .ts-play .ts-glyph {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 5px 0 5px 8px;
+  border-color: transparent transparent transparent currentColor;
+  margin-top: 0.5px;
+}
+
+.app-premium-v3 .ts-play.on {
+  background: var(--mint-4) !important;
+  color: var(--accent-ink) !important;
+}
+
+.app-premium-v3 .ts-stop {
+  width: var(--align-ctrl) !important;
+  min-width: var(--align-ctrl) !important;
+  padding: 0 !important;
+  border-radius: 2px !important;
+  position: relative;
+}
+
+.app-premium-v3 .ts-stop .ts-glyph {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  background: var(--text);
+  border-radius: 1px;
+}
+
+.app-premium-v3 .ts-panic {
+  width: 3.75rem !important;
+  min-width: 3.75rem !important;
+  background: transparent !important;
+  border: 1px solid color-mix(in srgb, var(--burgundy) 50%, transparent) !important;
+  color: color-mix(in srgb, var(--burgundy) 70%, var(--text-dim)) !important;
+  border-radius: var(--radius-tech) !important;
+}
+
+.app-premium-v3 .ts-jam {
+  width: 3.25rem !important;
+  min-width: 3.25rem !important;
+  background: transparent !important;
+  border: 1px solid color-mix(in srgb, var(--mint-3) 35%, transparent) !important;
+  color: var(--mint-5) !important;
+  border-radius: var(--radius-tech) !important;
+}
+
+.app-premium-v3 .ts-connect {
+  width: auto !important;
+  min-width: 5.5rem !important;
+  padding: 0 0.75rem !important;
+  background: var(--mint-4) !important;
+  color: var(--accent-ink) !important;
+  border-radius: var(--radius-compact) !important;
+  border: none !important;
+}
+
+.app-premium-v3 .chrome .circuit-tempo {
+  margin: 0;
+}
+
+.app-premium-v3 .chrome .circuit-tempo-bpm {
+  font-family: var(--font-mono) !important;
+  font-size: 13px !important;
+}
+
+.app-premium-v3 .chrome .circuit-tempo-unit,
+.app-premium-v3 .chrome .circuit-tempo-label {
+  text-transform: none !important;
+  font-size: 10px !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* Device strip — only when live; thin under chrome, not a second toolbar */
+.app-premium-v3 > .device-strip {
+  height: 28px;
+  max-height: 28px;
+  padding: 0 var(--shell-gutter) !important;
+  gap: var(--align-gap) !important;
+  background: var(--surface-0) !important;
+  border: none !important;
+  display: grid !important;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+.app-premium-v3 > .device-strip .device-chip {
+  min-height: 26px !important;
+  border-radius: var(--radius-tech) !important;
+}
+
+/* When device strip present, grow chrome area */
+.app-premium-v3:has(> .device-strip) {
+  grid-template-rows: var(--chrome-h) 28px 1fr 20px;
+}
+
+/* —— Full-bleed workspace: kill islands & dead zones —— */
+.app-premium-v3 .shell.shell--bleed {
+  display: block !important;
+  grid-template-columns: none !important;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-premium-v3 .main {
+  height: 100%;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: var(--surface-0) !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-premium-v3 .main > * {
+  max-width: none !important;
+}
+
+.app-premium-v3 .panel-subnav-row {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  padding: var(--space-2) var(--shell-gutter);
+  gap: var(--space-3);
+  background: var(--surface-0);
+  border-bottom: none;
+  align-items: center;
+}
+
+.app-premium-v3 .panel-subnav {
+  display: flex !important;
+  gap: var(--align-gap) !important;
+  width: auto;
+  margin: 0 !important;
+  grid-auto-columns: unset !important;
+}
+
+.app-premium-v3 .panel-subnav-btn {
+  min-width: 4.5rem;
+  width: auto;
+  height: var(--align-ctrl) !important;
+  min-height: var(--align-ctrl) !important;
+  padding: 0 0.7rem !important;
+  border-radius: var(--radius-tech) !important;
+  text-transform: none !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.app-premium-v3 .panel-subnav-btn.on {
+  background: var(--selection-fill) !important;
+  color: var(--selection-ink) !important;
+  box-shadow: inset 0 -2px 0 var(--mint-4);
+}
+
+.app-premium-v3 .main > .section-enter,
+.app-premium-v3 .main > .workspace,
+.app-premium-v3 .main > [class*='workspace'],
+.app-premium-v3 .mpc-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-width: none !important;
+  overflow: auto;
+  padding: var(--space-3) var(--shell-gutter) var(--space-4);
+}
+
+/* Quiet page heads */
+.app-premium-v3 .page-head {
+  min-height: auto;
+  margin-bottom: var(--space-2) !important;
+}
+
+.app-premium-v3 .page-head h1 {
+  font-size: 1rem !important;
+  font-weight: var(--fw-medium) !important;
+  color: var(--text-dim) !important;
+}
+
+.app-premium-v3 .page-head h1::before {
+  color: var(--text-mute);
+  font-weight: 400;
+}
+
+.app-premium-v3 h2,
+.app-premium-v3 .panel > h2 {
+  text-transform: none !important;
+  letter-spacing: 0.02em !important;
+  font-size: 11px !important;
+  font-weight: var(--fw-medium) !important;
+  color: var(--text-mute) !important;
+  font-family: var(--font-ui) !important;
+}
+
+.app-premium-v3 .panel {
+  background: var(--glass-1) !important;
+  border: none !important;
+  border-radius: var(--radius-compact) !important;
+  box-shadow: none !important;
+}
+
+.app-premium-v3 .ci-badge,
+.app-premium-v3 .mpc-lib-exp {
+  text-transform: none !important;
+  letter-spacing: 0.02em !important;
+  font-size: 10px !important;
+  font-weight: var(--fw-medium) !important;
+  border-radius: var(--radius-tech) !important;
+  padding: 0.1rem 0.4rem !important;
+  background: transparent !important;
+  border: 1px solid color-mix(in srgb, var(--caution) 35%, transparent) !important;
+  color: var(--caution) !important;
+}
+
+/* —— Library full-bleed hero —— */
+.app-premium-v3 .mpc-workspace {
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+}
+
+.app-premium-v3 .mpc-lib-browser {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0 !important;
+  min-height: 0;
+  padding: var(--space-3) var(--shell-gutter) var(--space-2) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.app-premium-v3 .mpc-lib-head {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  min-height: var(--align-ctrl);
+}
+
+.app-premium-v3 .mpc-lib-title {
+  font-size: 1.15rem !important;
+  font-weight: var(--fw-semibold) !important;
+  letter-spacing: -0.015em !important;
+  color: var(--text) !important;
+}
+
+.app-premium-v3 .mpc-lib-title-row {
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.app-premium-v3 .mpc-lib-status {
+  font-size: 10px;
+  text-transform: none !important;
+  letter-spacing: 0.02em;
+}
+
+.app-premium-v3 .mpc-lib-fixture-inline {
+  font-size: 10px;
+  color: var(--text-mute);
+}
+
+.app-premium-v3 .mpc-lib-toolbar {
+  display: grid !important;
+  grid-auto-flow: column;
+  grid-auto-columns: 6.75rem;
+  gap: var(--align-gap) !important;
+}
+
+.app-premium-v3 .mpc-lib-toolbar button,
+.app-premium-v3 .mpc-lib-detail-actions button,
+.app-premium-v3 .mpc-lib-primary {
+  height: var(--align-ctrl) !important;
+  min-height: var(--align-ctrl) !important;
+  width: 100%;
+  justify-content: center;
+  border-radius: var(--radius-tech) !important;
+  text-transform: none !important;
+}
+
+.app-premium-v3 .mpc-lib-primary:not(:disabled) {
+  background: color-mix(in srgb, var(--mint-3) 35%, var(--bg-2)) !important;
+  color: var(--mint-6) !important;
+}
+
+.app-premium-v3 .mpc-lib-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-columns: var(--align-col) minmax(0, 1fr) !important;
+  gap: var(--align-gap) !important;
+  margin: 0;
+}
+
+.app-premium-v3 .mpc-lib-sections {
+  height: 100%;
+  min-height: 100%;
+  align-content: start;
+  align-self: stretch;
+  background: var(--surface-1) !important;
+  border-radius: var(--radius-tech);
+  padding: var(--space-1);
+}
+
+.app-premium-v3 .mpc-lib-section {
+  height: var(--track-row-h);
+  min-height: var(--track-row-h) !important;
+  border-radius: var(--radius-tech) !important;
+  text-transform: none !important;
+}
+
+.app-premium-v3 .mpc-lib-stage {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  gap: var(--align-gap);
+}
+
+.app-premium-v3 .mpc-lib-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  height: 100%;
+  align-self: stretch;
+  background: var(--surface-1) !important;
+  border-radius: var(--radius-tech);
+  padding: var(--space-1);
+  gap: 0;
+  /* Fill dead zone under short listings — working surface, not empty canvas */
+  min-height: calc(100vh - var(--chrome-h) - 9rem);
+}
+
+.app-premium-v3 .mpc-lib-row {
+  display: grid !important;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  align-items: center;
+  height: var(--track-row-h) !important;
+  min-height: var(--track-row-h) !important;
+  border-radius: 2px !important;
+  padding-inline: var(--space-2) !important;
+}
+
+.app-premium-v3 .mpc-lib-detail {
+  flex: 0 0 auto;
+  background: var(--surface-1) !important;
+  border-radius: var(--radius-tech);
+  border: none !important;
+}
+
+.app-premium-v3 .mpc-lib-diag {
+  flex: 0 0 auto;
+  margin-top: var(--space-2);
+  padding-top: var(--space-1);
+  border-top: none;
+  opacity: 0.7;
+}
+
+.app-premium-v3 .mpc-lib-diag summary {
+  font-size: 10px;
+  color: var(--text-mute);
+  text-transform: none;
+}
+
+.app-premium-v3 .mpc-lib-diag-body button {
+  height: 24px !important;
+  min-height: 24px !important;
+  min-width: 4.5rem;
+  opacity: 0.75;
+  border-radius: var(--radius-tech) !important;
+}
+
+/* —— Rig: full-bleed precise tool —— */
+.app-premium-v3 .rig-map {
+  width: 100%;
+  max-width: none;
+  aspect-ratio: auto;
+  min-height: 280px;
+  height: min(52vh, 420px);
+  border: none !important;
+  border-radius: var(--radius-tech) !important;
+  background:
+    linear-gradient(color-mix(in srgb, var(--line) 35%, transparent) 1px, transparent 1px) 0 0 / 100% 20px,
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 35%, transparent) 1px, transparent 1px) 0 0 / 20px 100%,
+    var(--surface-1) !important;
+}
+
+.app-premium-v3 .rig-mixer-wash,
+.app-premium-v3 .rig-ghost,
+.app-premium-v3 .rig-mixer-bars {
+  opacity: 0.06 !important;
+  animation: none !important;
+}
+
+.app-premium-v3 .howto {
+  margin-bottom: var(--space-2) !important;
+}
+
+.app-premium-v3 .footer-bar {
+  height: 20px;
+  min-height: 20px;
+  padding: 0 var(--shell-gutter);
+  font-size: 9px;
+  background: var(--surface-0) !important;
+  border: none !important;
+  color: var(--text-mute);
+}
+
+/* Kill SaaS pills globally in v3 */
+.app-premium-v3 button,
+.app-premium-v3 .readout,
+.app-premium-v3 .sim-badge,
+.app-premium-v3 .context-chip,
+.app-premium-v3 .honesty-pill,
+.app-premium-v3 .check-pill {
+  border-radius: var(--radius-tech) !important;
+  text-transform: none !important;
+}
+
+.app-premium-v3 button {
+  letter-spacing: 0.01em !important;
+}
+
+/* —— Mobile / narrow —— */
+@media (max-width: 720px) {
+  .app-premium-v3 {
+    grid-template-rows: auto 1fr 20px;
+  }
+  .app-premium-v3:has(> .device-strip) {
+    grid-template-rows: auto auto 1fr 20px;
+  }
+  .app-premium-v3 .chrome.chrome--single {
+    height: auto;
+    max-height: none;
+    min-height: var(--chrome-h);
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    row-gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    align-items: stretch;
+  }
+  .app-premium-v3 .nav.nav--horizontal {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .app-premium-v3 .nav.nav--horizontal button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .app-premium-v3 .chrome .transport-strip {
+    justify-content: flex-start;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .app-premium-v3 .mpc-lib-body {
+    grid-template-columns: 1fr !important;
+  }
+  .app-premium-v3 .mpc-lib-sections {
+    flex-direction: row !important;
+    display: flex !important;
+    height: auto;
+    flex-wrap: wrap;
+  }
+  .app-premium-v3 .mpc-lib-section {
+    flex: 1 1 auto;
+    width: auto;
+  }
+  .app-premium-v3 .mpc-lib-head {
+    grid-template-columns: 1fr;
+  }
+  .app-premium-v3 .main > .section-enter,
+  .app-premium-v3 .main > .workspace,
+  .app-premium-v3 .mpc-workspace {
+    padding: var(--space-2);
+  }
+}
+
+/* =============================================================================
+ * Premium Design Pass v4 — alignment · dark glass · tactile (no cheap)
+ * Ableton precision / TE restraint / soft mint + quiet burgundy
+ * ============================================================================= */
+
+.app-premium-v3.app-premium-v4,
+.app-premium-v4 {
+  --shell-gutter: 16px; /* snap chrome ↔ workspace columns */
+  --align-ctrl: 28px;
+  --align-gap: 6px;
+  --align-col: 10rem;
+  --chrome-h: 44px;
+}
+
+/* Shared horizontal grid: brand | tabs | transport share exact baseline */
+.app-premium-v3 .chrome.chrome--single {
+  display: grid !important;
+  grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr) minmax(18rem, auto);
+  align-items: center;
+  column-gap: var(--shell-gutter);
+  padding-inline: var(--shell-gutter) !important;
+  height: var(--chrome-h);
+  background: var(--glass-1) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: none !important;
+}
+
+.app-premium-v3 .chrome .status-bar--compact {
+  justify-self: start;
+  width: 100%;
+  min-width: 0;
+}
+
+.app-premium-v3 .nav.nav--horizontal {
+  justify-self: stretch;
+  justify-content: center;
+  gap: var(--align-gap) !important;
+}
+
+.app-premium-v3 .nav.nav--horizontal button {
+  min-width: 4.5rem !important;
+  width: 4.5rem !important; /* equal tab widths */
+  flex: 0 0 4.5rem;
+}
+
+.app-premium-v3 .chrome .transport-strip--compact {
+  justify-self: end;
+  gap: var(--align-gap) !important;
+}
+
+/* Equal transport cluster widths where shape allows */
+.app-premium-v3 .ts-cluster {
+  gap: var(--align-gap) !important;
+}
+
+.app-premium-v3 .ts-play {
+  width: 4.5rem !important;
+  min-width: 4.5rem !important;
+}
+
+.app-premium-v3 .ts-panic,
+.app-premium-v3 .ts-jam {
+  width: 3.5rem !important;
+  min-width: 3.5rem !important;
+}
+
+.app-premium-v3 .ts-connect {
+  min-width: 5.5rem !important;
+  width: 5.5rem !important;
+}
+
+/* —— Dark glass modules (kill opaque surface-1 blocks) —— */
+.app-premium-v3 .panel-subnav-row {
+  padding-inline: var(--shell-gutter) !important;
+  background: transparent !important;
+}
+
+.app-premium-v3 .panel-subnav-btn {
+  background: var(--glass-1) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--press-rest);
+  border: 1px solid transparent !important;
+}
+
+.app-premium-v3 .panel-subnav-btn.on {
+  background: var(--selection-fill) !important;
+  box-shadow: var(--press-rest);
+  border-color: transparent !important;
+}
+
+.app-premium-v3 .main > .section-enter,
+.app-premium-v3 .main > .workspace,
+.app-premium-v3 .mpc-workspace {
+  padding-inline: var(--shell-gutter) !important; /* snap to chrome gutter */
+}
+
+.app-premium-v3 .mpc-lib-browser {
+  padding-inline: var(--shell-gutter) !important;
+}
+
+.app-premium-v3 .mpc-lib-sections,
+.app-premium-v3 .mpc-lib-list,
+.app-premium-v3 .mpc-lib-detail {
+  background: var(--glass-1) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.app-premium-v3 .panel,
+.app-premium-v3 .workspace .panel,
+.app-premium-v3 .rig-map {
+  background: var(--glass-1) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.app-premium-v3 .rig-map {
+  background:
+    linear-gradient(color-mix(in srgb, var(--line) 22%, transparent) 1px, transparent 1px) 0 0 / 100% 20px,
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 22%, transparent) 1px, transparent 1px) 0 0 / 20px 100%,
+    var(--glass-1) !important;
+}
+
+.app-premium-v3 .mpc-lib-section:hover:not(:disabled):not(.active),
+.app-premium-v3 .mpc-lib-row:hover:not(:disabled) {
+  background: var(--glass-2) !important;
+}
+
+.app-premium-v3 .mpc-lib-section.active,
+.app-premium-v3 .mpc-lib-row.selected {
+  background: var(--selection-fill) !important;
+  border: 1px solid transparent !important; /* selection state only */
+}
+
+/* —— Physical button feel (machined, not plastic) —— */
+.app-premium-v3 .ts-btn,
+.app-premium-v3 .mpc-lib-toolbar button,
+.app-premium-v3 .mpc-lib-detail-actions button,
+.app-premium-v3 .mpc-lib-primary,
+.app-premium-v3 .nav.nav--horizontal button {
+  border-radius: var(--radius-compact) !important; /* ~4px machined */
+  box-shadow: var(--press-rest) !important;
+  transition: background 100ms ease, box-shadow 90ms ease, transform 80ms ease,
+    color 100ms ease;
+}
+
+.app-premium-v3 .ts-stop {
+  border-radius: 3px !important; /* tech square */
+}
+
+.app-premium-v3 .ts-btn:active:not(:disabled),
+.app-premium-v3 .mpc-lib-toolbar button:active:not(:disabled),
+.app-premium-v3 .mpc-lib-detail-actions button:active:not(:disabled),
+.app-premium-v3 .mpc-lib-primary:active:not(:disabled),
+.app-premium-v3 .panel-subnav-btn:active:not(:disabled),
+.app-premium-v3 .nav.nav--horizontal button:active:not(:disabled),
+.app-premium-v3 .mpc-lib-row:active:not(:disabled),
+.app-premium-v3 .mpc-lib-section:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: var(--press-down) !important;
+}
+
+.app-premium-v3 .ts-play {
+  background: color-mix(in srgb, var(--mint-3) 32%, var(--glass-2)) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.app-premium-v3 .ts-play.on {
+  background: var(--mint-4) !important;
+  box-shadow: var(--press-rest);
+}
+
+.app-premium-v3 .ts-stop,
+.app-premium-v3 .ts-jam {
+  background: var(--glass-2) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.app-premium-v3 .ts-panic {
+  background: var(--glass-1) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid color-mix(in srgb, var(--burgundy) 45%, transparent) !important;
+  box-shadow: var(--press-rest);
+}
+
+.app-premium-v3 .ts-connect,
+.app-premium-v3 .mpc-lib-primary:not(:disabled) {
+  background: color-mix(in srgb, var(--mint-4) 88%, transparent) !important;
+  color: var(--accent-ink) !important;
+  border-radius: var(--radius-compact) !important;
+  box-shadow: var(--press-rest);
+  border: none !important;
+}
+
+/* Kill glow / multi-border noise */
+.app-premium-v3 button:focus-visible,
+.app-premium-v3 .mpc-lib-row:focus-visible,
+.app-premium-v3 .mpc-lib-section:focus-visible {
+  outline: 1px solid var(--focus) !important;
+  outline-offset: 1px;
+  box-shadow: var(--press-rest) !important;
+}
+
+.app-premium-v3 .nav.nav--horizontal button.active {
+  box-shadow: var(--press-rest), inset 0 -2px 0 var(--mint-4);
+}
+
+/* Library column snap — rail + stage share track-row baseline */
+.app-premium-v3 .mpc-lib-body {
+  gap: var(--align-gap) !important;
+  grid-template-columns: var(--align-col) minmax(0, 1fr) !important;
+}
+
+.app-premium-v3 .mpc-lib-toolbar {
+  grid-auto-columns: 6.5rem !important;
+  gap: var(--align-gap) !important;
+}
+
+.app-premium-v3 .mpc-lib-detail-actions {
+  grid-auto-columns: 6.5rem !important;
+  gap: var(--align-gap) !important;
+}
+
+.app-premium-v3 .footer-bar {
+  padding-inline: var(--shell-gutter) !important;
+  background: transparent !important;
+}
+
+@media (max-width: 720px) {
+  .app-premium-v3 .chrome.chrome--single {
+    grid-template-columns: 1fr !important;
+  }
+  .app-premium-v3 .nav.nav--horizontal button {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+  }
+  .app-premium-v3 .ts-connect {
+    width: auto !important;
+  }
+}
+
+/* v4 tactile — win over earlier box-shadow:none !important on .ts-btn */
+.app-premium-v4 .ts-btn,
+.app-premium-v4 .ts-play,
+.app-premium-v4 .ts-stop,
+.app-premium-v4 .ts-panic,
+.app-premium-v4 .ts-jam,
+.app-premium-v4 .ts-connect,
+.app-premium-v4 .nav.nav--horizontal button,
+.app-premium-v4 .panel-subnav-btn,
+.app-premium-v4 .mpc-lib-toolbar button,
+.app-premium-v4 .mpc-lib-primary {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, #000 30%, transparent) !important;
+}
+
+.app-premium-v4 .ts-btn:active:not(:disabled),
+.app-premium-v4 .nav.nav--horizontal button:active:not(:disabled),
+.app-premium-v4 .panel-subnav-btn:active:not(:disabled),
+.app-premium-v4 .mpc-lib-toolbar button:active:not(:disabled),
+.app-premium-v4 .mpc-lib-primary:active:not(:disabled) {
+  box-shadow: inset 0 2px 4px color-mix(in srgb, #000 48%, transparent) !important;
+  transform: translateY(1px);
+}
+
+/* v4 tactile — gradient + edge borders (box-shadow inset unreliable here) */
+.app-premium-v4 .ts-btn,
+.app-premium-v4 .nav.nav--horizontal button,
+.app-premium-v4 .panel-subnav-btn,
+.app-premium-v4 .mpc-lib-toolbar button,
+.app-premium-v4 .mpc-lib-primary {
+  border: 1px solid transparent !important;
+  border-top-color: color-mix(in srgb, #fff 10%, transparent) !important;
+  border-bottom-color: color-mix(in srgb, #000 38%, transparent) !important;
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, #fff 7%, transparent),
+    transparent 42%
+  ) !important;
+  background-blend-mode: soft-light;
+}
+
+.app-premium-v4 .ts-play:not(.on) {
+  background-color: color-mix(in srgb, var(--mint-3) 32%, var(--glass-2)) !important;
+}
+
+.app-premium-v4 .ts-play.on {
+  background-color: var(--mint-4) !important;
+  border-top-color: color-mix(in srgb, #fff 14%, transparent) !important;
+}
+
+.app-premium-v4 .ts-panic {
+  border-left-color: color-mix(in srgb, var(--burgundy) 45%, transparent) !important;
+  border-right-color: color-mix(in srgb, var(--burgundy) 45%, transparent) !important;
+  border-top-color: color-mix(in srgb, var(--burgundy) 35%, #fff 8%) !important;
+  border-bottom-color: color-mix(in srgb, var(--burgundy) 55%, #000 20%) !important;
+}
+
+.app-premium-v4 .ts-btn:active:not(:disabled),
+.app-premium-v4 .nav.nav--horizontal button:active:not(:disabled),
+.app-premium-v4 .panel-subnav-btn:active:not(:disabled),
+.app-premium-v4 .mpc-lib-toolbar button:active:not(:disabled),
+.app-premium-v4 .mpc-lib-primary:active:not(:disabled) {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, #000 22%, transparent),
+    transparent 55%
+  ) !important;
+  border-top-color: color-mix(in srgb, #000 40%, transparent) !important;
+  border-bottom-color: color-mix(in srgb, #fff 6%, transparent) !important;
+  transform: translateY(1px);
+}
+
+/* v4 tactile — full shorthand wins over earlier background/border !important */
+.app-premium-v4 button.ts-btn.ts-play:not(.on),
+.app-premium-v4 button.ts-btn.ts-stop,
+.app-premium-v4 button.ts-btn.ts-jam,
+.app-premium-v4 button.ts-btn.ts-panic,
+.app-premium-v4 button.ts-btn.ts-connect,
+.app-premium-v4 .nav.nav--horizontal button:not(.active),
+.app-premium-v4 button.panel-subnav-btn:not(.on),
+.app-premium-v4 .mpc-lib-toolbar button,
+.app-premium-v4 button.mpc-lib-primary:not(:disabled) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 8%, transparent), transparent 45%),
+    var(--glass-2) !important;
+  border-style: solid !important;
+  border-width: 1px !important;
+  border-color:
+    color-mix(in srgb, #fff 12%, transparent)
+    color-mix(in srgb, #000 25%, transparent)
+    color-mix(in srgb, #000 40%, transparent)
+    color-mix(in srgb, #000 25%, transparent) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.app-premium-v4 button.ts-btn.ts-play:not(.on) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 10%, transparent), transparent 45%),
+    color-mix(in srgb, var(--mint-3) 36%, var(--glass-2)) !important;
+}
+
+.app-premium-v4 button.ts-btn.ts-play.on {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 12%, transparent), transparent 40%),
+    var(--mint-4) !important;
+  border-color:
+    color-mix(in srgb, #fff 18%, transparent)
+    color-mix(in srgb, var(--mint-2) 50%, transparent)
+    color-mix(in srgb, #000 35%, transparent)
+    color-mix(in srgb, var(--mint-2) 50%, transparent) !important;
+  color: var(--accent-ink) !important;
+}
+
+.app-premium-v4 button.ts-btn.ts-panic {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 6%, transparent), transparent 45%),
+    var(--glass-1) !important;
+  border-color: color-mix(in srgb, var(--burgundy) 50%, transparent) !important;
+  color: color-mix(in srgb, var(--burgundy) 72%, var(--text-dim)) !important;
+}
+
+.app-premium-v4 button.ts-btn.ts-connect,
+.app-premium-v4 button.mpc-lib-primary:not(:disabled) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 14%, transparent), transparent 40%),
+    color-mix(in srgb, var(--mint-4) 92%, transparent) !important;
+  border-color:
+    color-mix(in srgb, #fff 16%, transparent)
+    color-mix(in srgb, var(--mint-3) 40%, transparent)
+    color-mix(in srgb, #000 30%, transparent)
+    color-mix(in srgb, var(--mint-3) 40%, transparent) !important;
+  color: var(--accent-ink) !important;
+}
+
+.app-premium-v4 button.ts-btn:active:not(:disabled),
+.app-premium-v4 .nav.nav--horizontal button:active:not(:disabled),
+.app-premium-v4 button.panel-subnav-btn:active:not(:disabled),
+.app-premium-v4 .mpc-lib-toolbar button:active:not(:disabled),
+.app-premium-v4 button.mpc-lib-primary:active:not(:disabled) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #000 25%, transparent), transparent 50%),
+    var(--glass-3) !important;
+  border-color:
+    color-mix(in srgb, #000 42%, transparent)
+    color-mix(in srgb, #000 20%, transparent)
+    color-mix(in srgb, #fff 8%, transparent)
+    color-mix(in srgb, #000 20%, transparent) !important;
+  transform: translateY(1px);
 }
