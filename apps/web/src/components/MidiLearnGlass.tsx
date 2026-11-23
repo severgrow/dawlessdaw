@@ -12,7 +12,7 @@ const DEST_OPTIONS: Array<{ id: CtrlDevice | 'off'; label: string }> = [
   { id: 'fm1', label: 'FM1' },
   { id: 'sp', label: 'SP-404' },
   { id: 'mpc', label: 'MPC One' },
-  { id: 'off', label: 'Circuit only' },
+  { id: 'off', label: 'Off' },
 ];
 
 function deviceClass(d: CtrlDevice | null | undefined) {
@@ -61,12 +61,12 @@ export function MidiLearnGlass() {
 
   return (
     <aside
-      className={`midi-learn-glass ${deviceClass(mapping.dest?.device)}`}
+      className={`midi-learn-glass mlg-focus ${deviceClass(mapping.dest?.device)}`}
       role="dialog"
       aria-label="MIDI control mapping"
     >
       <header className="mlg-head">
-        <span className="mlg-kicker">live control · learn</span>
+        <span className="mlg-kicker">Learn · T{mapping.track}</span>
         <span className="mlg-actions-top">
           <button
             type="button"
@@ -87,16 +87,12 @@ export function MidiLearnGlass() {
 
       <div className="mlg-source">
         <strong>{mapping.sourceLabel}</strong>
-        <span className="mlg-mono" title="MIDI numbers — always available here for precision">
-          CC {mapping.sourceCc} · ch{mapping.sourceChannel}
-          {mapping.value != null ? ` · ${mapping.value}` : ''}
-        </span>
       </div>
 
-      <p className="mlg-detail">{mapping.detail}</p>
+      {mapping.detail ? <p className="mlg-detail">{mapping.detail}</p> : null}
 
       <label className="mlg-field">
-        <span>This track plays</span>
+        <span>Destination</span>
         <div className="mlg-dest-row" role="radiogroup" aria-label="Destination device">
           {DEST_OPTIONS.map((opt) => {
             const on = opt.id === 'off' ? !dest : dest?.device === opt.id;
@@ -133,7 +129,7 @@ export function MidiLearnGlass() {
           <span className="mlg-badge">{destBadge(dest)}</span>
         </label>
       ) : (
-        <p className="mlg-note">Circuit only — the app forwards nothing for Track {mapping.track}.</p>
+        <p className="mlg-note">Off — nothing forwarded for T{mapping.track}.</p>
       )}
 
       {mapping.editableKnob && knob != null && dest ? (
@@ -171,15 +167,18 @@ export function MidiLearnGlass() {
       ) : null}
 
       {mapping.kind !== 'macro' ? (
-        <p className="mlg-note">Mixer Level/Pan → Vol CC7 / Pan CC10 on this dest (not remappable).</p>
+        <p className="mlg-note">Level/Pan → Vol / Pan on this dest (fixed).</p>
       ) : null}
 
       <details className="more-info mlg-more">
-        <summary>Limits</summary>
+        <summary>MIDI # · limits</summary>
         <div className="more-info-body">
+          <p className="mlg-mono" title="MIDI numbers">
+            CC {mapping.sourceCc} · ch{mapping.sourceChannel}
+            {mapping.value != null ? ` · ${mapping.value}` : ''}
+          </p>
           <p className="mlg-honest">
-            Circuit buttons don&apos;t send MIDI — only macros and mixer Level/Pan. Some TX paths need
-            CC Tx ON in Circuit Setup.
+            Only macros and mixer Level/Pan usually send. Some paths need CC Tx ON in device setup.
           </p>
         </div>
       </details>

@@ -21,6 +21,7 @@ import {
 } from '@dawlessdaw/devices';
 import { DeviceArt } from '../components/DeviceArt';
 import { MoreInfo } from '../components/MoreInfo';
+import { setUiSelection, useUiSelection } from '../nav/uiSelection';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -201,10 +202,10 @@ function TrackPanel({ trackNo, advanced }: { trackNo: number; advanced: boolean 
   return (
     <div className={`panel track-panel ${devClass(dest?.device)}`}>
       <h2>
-        Track {trackNo} <span className="muted">· {destBadge(dest)}</span>
+        3 · T{trackNo} <span className="muted">· {destBadge(dest)}</span>
       </h2>
 
-      <h3>This track plays…</h3>
+      <h3>Destination</h3>
       <div className="dest-choice" role="radiogroup" aria-label="Destination device">
         {CTRL_DEVICES.map((d) => (
           <button
@@ -257,12 +258,20 @@ function TrackPanel({ trackNo, advanced }: { trackNo: number; advanced: boolean 
         <>
           <h3>Which note starts it?</h3>
           <div className="row">
-            <button type="button" className={`learn-big${learning ? ' active' : ''}`} onClick={() => (learning ? a.cancelControllerLearn() : a.learnFirstNote(trackNo))}>
-              {learning ? `● Listening — play a note on Circuit track ${trackNo}` : '♪ Play the first note'}
+            <button
+              type="button"
+              className={`learn-big${learning ? ' active learn-focus' : ''}`}
+              onClick={() => (learning ? a.cancelControllerLearn() : a.learnFirstNote(trackNo))}
+            >
+              {learning ? `● Listening — play pad 1 on T${trackNo}` : '♪ Learn first note'}
             </button>
             <span className="mono">
-              {track.firstNote != null ? `Circuit note ${track.firstNote} (${noteName(track.firstNote)}) = pad 1` : 'Notes pass unchanged'}
-              {advanced && trackTranspose(track) ? ` · shift ${trackTranspose(track) > 0 ? '+' : ''}${trackTranspose(track)}` : ''}
+              {track.firstNote != null
+                ? `Note ${track.firstNote} (${noteName(track.firstNote)}) = pad 1`
+                : 'Notes pass unchanged'}
+              {advanced && trackTranspose(track)
+                ? ` · shift ${trackTranspose(track) > 0 ? '+' : ''}${trackTranspose(track)}`
+                : ''}
             </span>
             {track.firstNote != null ? (
               <button type="button" className="ghost" onClick={() => a.setControllerTrack(trackNo, { firstNote: null })}>
@@ -282,10 +291,10 @@ function TrackPanel({ trackNo, advanced }: { trackNo: number; advanced: boolean 
         </>
       ) : null}
 
-      <h3>Knobs</h3>
+      <h3>Shape · knobs</h3>
       <p className="muted small">
-        8 macros on Circuit track {trackNo}. Unmapped = dropped.
-        {dest?.device === 'mpc' ? ' MPC Learn + “test” to bind.' : ''}
+        8 macros on T{trackNo}. Unmapped = dropped.
+        {dest?.device === 'mpc' ? ' Use Learn + test to bind.' : ''}
       </p>
       <div className="knob-page">
         {Array.from({ length: 8 }, (_, k) => (
@@ -398,7 +407,8 @@ export function ControllerWorkspace() {
   const snap = useStudioStore();
   const a = useStudioActions();
   const preset = snap.controller;
-  const [selected, setSelected] = useState<number>(1);
+  const uiSel = useUiSelection();
+  const [selected, setSelectedLocal] = useState<number>(() => uiSel.controllerTrack);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [advanced, setAdvanced] = useState(() => {
     try {
@@ -407,6 +417,25 @@ export function ControllerWorkspace() {
       return false;
     }
   });
+
+  const setSelected = (t: number) => {
+    setSelectedLocal(t);
+    const tr = preset.tracks[t - 1];
+    const badge = destBadge(tr?.dest ?? null);
+    setUiSelection({
+      controllerTrack: t,
+      chip: badge && badge !== '—' ? `T${t} → ${badge}` : `T${t}`,
+    });
+  };
+
+  // Pick up Rig → Live carry when entering / when chip track changes.
+  useEffect(() => {
+    if (uiSel.controllerTrack !== selected) {
+      setSelectedLocal(uiSel.controllerTrack);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uiSel.controllerTrack]);
+
   useEffect(() => {
     try {
       localStorage.setItem('dawlessdaw.ctrlAdvanced', advanced ? '1' : '0');
@@ -448,43 +477,35 @@ export function ControllerWorkspace() {
   return (
     <div className="section-enter controller">
       <div className="page-head">
-        <h1>live controller</h1>
+        <h1>live</h1>
         <span className="readout">
-          Circuit {circuitIn ? <b>connected</b> : 'not connected'}
+          {circuitIn ? <b>in</b> : 'no in'}
           {circuitTrack ? (
             <>
               {' '}
-              · on <b>T{circuitTrack}</b>
+              · hw <b>T{circuitTrack}</b>
             </>
           ) : null}
+          <>
+            {' '}
+            · edit <b>T{selected}</b>
+          </>
         </span>
       </div>
-      <p className="lead">
-        Circuit tracks play SP / FM1 / MPC. Twist macros — named knobs flash live. Unmapped knobs are
-        dropped. <strong>Advanced</strong> shows MIDI numbers.
+      <p className="lead ctl-flow-lead">
+        <span>1 Track</span>
+        <span className="setup-tier-sep">→</span>
+        <span>2 Destination</span>
+        <span className="setup-tier-sep">→</span>
+        <span>3 Shape</span>
       </p>
-
-      <div className="panel ctl-pickup">
-        <h2>Knob soft takeover</h2>
-        <p className="muted small">
-          Off by default. When on, Super Macro fan-out waits for pickup before jumping a parameter
-          (same engine as Settings → Macros). Experimental until hardware confirm.
-        </p>
-        <button
-          type="button"
-          className={snap.controllerKnobPickup ? 'active' : ''}
-          onClick={() => a.setControllerKnobPickup(!snap.controllerKnobPickup)}
-        >
-          Soft takeover {snap.controllerKnobPickup ? 'on' : 'off'}
-        </button>
-      </div>
 
       <PresetBar advanced={advanced} setAdvanced={setAdvanced} />
 
       <div className="ctl-layout">
         <div className="panel circuit-face">
-          <h2>Circuit Rhythm</h2>
-          <div className="ct-tracks" role="listbox" aria-label="Circuit tracks">
+          <h2>1 · Track</h2>
+          <div className="ct-tracks" role="listbox" aria-label="Tracks">
             {preset.tracks.map((tr, i) => {
               const t = i + 1;
               const hit = snap.trackActivity[t] ?? 0;
@@ -534,17 +555,24 @@ export function ControllerWorkspace() {
           </div>
           <p className="muted small">
             Knobs = <b>T{knobTrack}</b>
-            {circuitTrack ? ' (follows Circuit).' : ' (follows Circuit when you twist).'}
+            {circuitTrack ? ' (follows hardware).' : ' (follows when you twist).'}
           </p>
-          <MoreInfo>
+          <MoreInfo label="MIDI limits">
             <p className="muted small">
-              Circuit buttons (mute, scenes, patterns, track select) don&apos;t send MIDI — only notes and the 8
-              macros reach the app.
+              Mute / scenes / pattern buttons often don&apos;t send MIDI — notes + 8 macros do.
             </p>
+            <button
+              type="button"
+              className={snap.controllerKnobPickup ? 'active' : 'ghost'}
+              onClick={() => a.setControllerKnobPickup(!snap.controllerKnobPickup)}
+            >
+              Soft takeover {snap.controllerKnobPickup ? 'on' : 'off'}
+            </button>
           </MoreInfo>
         </div>
 
         <div className="device-cards">
+          <h2 className="dc-heading">2 · Destination</h2>
           {CTRL_DEVICES.map((d) => (
             <div
               key={d}
@@ -554,7 +582,7 @@ export function ControllerWorkspace() {
                 e.dataTransfer.setData('text/x-ctrl-device', d);
                 e.dataTransfer.effectAllowed = 'copy';
               }}
-              title={`Drag onto a Circuit track to make it play the ${DEVICE_NAME[d]}`}
+              title={`Drag onto a track → ${DEVICE_NAME[d]}`}
             >
               <DeviceArt kind={d} lit={connected(d)} pulse={snap.destActivity[d]} className="dev-card-art" />
               <div>
@@ -565,7 +593,7 @@ export function ControllerWorkspace() {
                   {preset.tracks
                     .map((tr, i) => (tr.dest?.device === d ? `T${i + 1}` : null))
                     .filter(Boolean)
-                    .join(' ') || 'no tracks yet'}
+                    .join(' ') || '—'}
                 </span>
               </div>
               <span className="dc-grip" aria-hidden="true">
@@ -573,7 +601,7 @@ export function ControllerWorkspace() {
               </span>
             </div>
           ))}
-          <p className="muted small">Drag onto a track, or pick below.</p>
+          <p className="muted small">Drag onto a track, or pick in the panel.</p>
         </div>
       </div>
 

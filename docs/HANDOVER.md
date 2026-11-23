@@ -81,6 +81,10 @@ Passive last-touched (CC 21–28), activity confidence labels, musical position.
 
 Settings → Timing. Clock Health (passive) + MIDI→audio Latency Lab (user-triggered). No clock master; no automatic delay correction. See [timing-lab.md](./timing-lab.md).
 
+## Circuit tempo follow (display)
+
+Large calm BPM on Transport, Play (Rig), and Jam from Circuit MIDI clock. Machines sync via existing thru/DIN paths. **App clock forwarding stays off by default.** See [circuit-tempo-follow.md](./circuit-tempo-follow.md).
+
 ## Cross-device macros (Milestone 3)
 
 Settings → Macros. Opt-in Super Macros, soft takeover, A/B morph (Splot-owned), traffic rate-limit. Controller MIDI Learn unchanged. See [cross-device-macros.md](./cross-device-macros.md).

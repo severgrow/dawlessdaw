@@ -199,6 +199,8 @@ export class ClockHealthMonitor {
     this.clearLossTimer();
     this.lossTimer = setTimeout(() => {
       this.lossTimer = null;
+      // Treat silence as a stop so the next Start counts as a reconnect restart (A3).
+      this.wasStopped = true;
       this.emit();
     }, LOSS_MS + 50);
   }

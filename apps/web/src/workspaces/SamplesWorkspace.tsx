@@ -425,8 +425,8 @@ export function SamplesWorkspace({ showLoopCatcher = false }: { showLoopCatcher?
         </span>
       </div>
 
-      <HowTo sentence="Load, trim, and save WAVs for the SP-404. Optional: peek at pads already on the SD card.">
-        <p>Pick a bank, drop audio on a pad, trim, then export. Clearing a bank asks first.</p>
+      <HowTo sentence="Load · trim · save WAVs for the SP-404.">
+        <p>Pick a bank, drop audio, trim, export. Clearing a bank asks first.</p>
       </HowTo>
 
       {showLoopCatcher ? (
@@ -434,7 +434,7 @@ export function SamplesWorkspace({ showLoopCatcher = false }: { showLoopCatcher?
           <h2>
             Loop catcher <span className="muted small">(FLIP)</span>
           </h2>
-          <p className="muted small">Catch a stereo loop from Scarlett / ZED / any input — not a 9th MIDI track.</p>
+          <p className="muted small">Stereo from Scarlett / ZED / USB — not a MIDI track.</p>
           <FlipLane
             bpm={pattern.bpm}
             playhead={seq.playhead}

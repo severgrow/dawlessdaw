@@ -21,6 +21,8 @@ Compact panel: **Settings → Timing**.
 
 Engine: `ClockHealthMonitor` in `@dawlessdaw/sequencer`. Wired from Circuit-in clock bus; foreign input clocks only feed the duplicate-source hint. Bar/beat mirrored from M1 musical position.
 
+**UI:** the same BPM feeds the Circuit tempo follow display on Transport / Play / Jam — display only; see [circuit-tempo-follow.md](./circuit-tempo-follow.md). Does not enable app clock forwarding.
+
 ## Stage B — MIDI → audio Latency Lab (user-triggered)
 
 Same Timing panel. You pick destination (MPC / SP / FM1) + USB audio input (ideally ZED mix), press **Run latency test**. Splot sends a few short notes, listens for onsets, reports **min / median / max** + confidence. Optional save to `localStorage` (`dawlessdaw.timingLab.calibration`).

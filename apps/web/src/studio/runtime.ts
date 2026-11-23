@@ -11,8 +11,10 @@ import {
   CircuitMirrorEngine,
   ClockHealthMonitor,
   SequencerEngine,
+  adaptClockService,
   type CircuitIntelligenceSnapshot,
   type ClockHealthSnapshot,
+  type ClockService,
   type SeqClockSource,
   type SeqEngineSnapshot,
   type SeqScheduledNote,
@@ -584,6 +586,22 @@ export class StudioRuntime {
   /** Passive Clock Health — Timing Lab Stage A. */
   private clockHealth = new ClockHealthMonitor();
   private clockHealthUnsub: (() => void) | null = null;
+  /**
+   * Shared clock seam (plan step 10) — Capture / Transport BPM / Timing Lab.
+   * Observation only; never enables app clock forwarding.
+   */
+  private clockService: ClockService = adaptClockService({
+    getMusicalTime: () => this.circuitIntel.getSnapshot().position,
+    getHealthSnapshot: () => this.clockHealth.getSnapshot(),
+    subscribe: (fn) => {
+      const a = this.circuitIntel.subscribe(fn);
+      const b = this.clockHealth.subscribe(fn);
+      return () => {
+        a();
+        b();
+      };
+    },
+  });
   /** Opt-in Super Macros — Milestone 3. */
   private superMacros = new SuperMacroEngine();
   private superMacroUnsub: (() => void) | null = null;
@@ -1280,6 +1298,14 @@ export class StudioRuntime {
 
   getClockHealth(): ClockHealthMonitor {
     return this.clockHealth;
+  }
+
+  /**
+   * Shared musical-time / clock-quality seam. Does not change route
+   * `forwardClock` defaults (always reports appClockForwarding: false).
+   */
+  getClockService(): ClockService {
+    return this.clockService;
   }
 
   resetClockHealth(): void {

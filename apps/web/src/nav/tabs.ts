@@ -13,47 +13,47 @@ export const TOP_TABS: {
   {
     id: 'play',
     label: 'Play',
-    hint: 'Your rig map + live Circuit controller',
+    hint: 'Rig',
     panels: [
       { id: 'rig', label: 'Rig' },
-      { id: 'controller', label: 'Live controller' },
+      { id: 'controller', label: 'Live' },
     ],
     defaultPanel: 'rig',
   },
   {
     id: 'build',
     label: 'Build',
-    hint: 'Splot pattern, Circuit status, song sections',
+    hint: 'Pattern',
     panels: [
-      { id: 'sequencer', label: 'Splot pattern' },
+      { id: 'sequencer', label: 'Pattern' },
       { id: 'circuit', label: 'Circuit' },
-      { id: 'sections', label: 'Song sections' },
+      { id: 'sections', label: 'Song' },
     ],
     defaultPanel: 'sequencer',
   },
   {
     id: 'sounds',
     label: 'Sounds',
-    hint: 'SP setup, pads, samples + loop catcher',
+    hint: 'SP',
     panels: [
       { id: 'sp', label: 'SP-404' },
-      { id: 'samples', label: 'SP samples' },
+      { id: 'samples', label: 'Samples' },
     ],
     defaultPanel: 'sp',
   },
   {
     id: 'record',
-    label: 'Record',
-    hint: 'Session takes / export',
+    label: 'Rec',
+    hint: 'Takes',
     panels: [{ id: 'sessions', label: 'Sessions' }],
     defaultPanel: 'sessions',
   },
   {
     id: 'settings',
-    label: 'Settings',
-    hint: 'Ports, timing, macros, tests',
+    label: 'Setup',
+    hint: 'Ports',
     panels: [
-      { id: 'setup', label: 'Ports & devices' },
+      { id: 'setup', label: 'Ports' },
       { id: 'timing', label: 'Timing' },
       { id: 'macros', label: 'Macros' },
       { id: 'test', label: 'Tests' },
@@ -62,7 +62,10 @@ export const TOP_TABS: {
   },
 ];
 
-/** Old 1–8 pad-row shortcuts (and lastTab deep links) → workspace panels. */
+/**
+ * Historical panel order (docs / migration only).
+ * Live shortcuts: digits → TOP_TABS; letters → VERTICAL_MENU_KEYS (see shortcuts.ts).
+ */
 export const LEGACY_KEY_PANELS: readonly WorkspaceId[] = [
   'rig',
   'controller',

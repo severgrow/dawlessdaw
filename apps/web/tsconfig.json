@@ -5,6 +5,7 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
+      "@dawlessdaw/audio": ["../../packages/audio/src"],
       "@dawlessdaw/core": ["../../packages/core/src"],
       "@dawlessdaw/events": ["../../packages/events/src"],
       "@dawlessdaw/midi": ["../../packages/midi/src"],

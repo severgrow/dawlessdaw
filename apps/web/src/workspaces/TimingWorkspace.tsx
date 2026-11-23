@@ -20,11 +20,12 @@ import type { AudioInputDevice } from '../recorder/types';
 
 function useClockHealth(): ClockHealthSnapshot {
   const { getRuntime } = useStudioActions();
-  const eng = getRuntime().getClockHealth();
+  // Shared ClockService seam — same underlying monitor; never enables app clock forward.
+  const svc = getRuntime().getClockService();
   return useSyncExternalStore(
-    (cb) => eng.subscribe(cb),
-    () => eng.getSnapshot(),
-    () => eng.getSnapshot(),
+    (cb) => svc.subscribe(cb),
+    () => svc.getHealthSnapshot()!,
+    () => svc.getHealthSnapshot()!,
   );
 }
 
@@ -71,6 +72,7 @@ export function TimingWorkspace() {
     void listAudioInputs().then((list) => {
       setInputs(list);
       if (!inputId && list[0]) setInputId(list[0].deviceId);
+      if (!list.length) setInputId('');
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -88,7 +90,7 @@ export function TimingWorkspace() {
       return;
     }
     if (!inputId) {
-      setError('Pick an audio input (ZED USB mix is ideal).');
+      setError('Plug in an interface (Scarlett / ZED / USB).');
       return;
     }
     const ac = new AbortController();
@@ -143,11 +145,10 @@ export function TimingWorkspace() {
         <h1>timing lab</h1>
         <span className="ci-badge">experimental</span>
       </div>
-      <HowTo sentence="Clock Health watches Circuit MIDI clock. Latency Lab measures a short MIDI ping to audio — only when you press Run.">
+      <HowTo sentence="Clock health + optional latency ping. Never the clock master.">
         <p>
-          Splot never becomes the clock master here. Latency numbers include sound attack time and the
-          USB/audio path — not pure transport delay. No automatic delay correction. Keep monitors /
-          speakers from feeding back into the input.
+          Latency includes sound attack and USB — not pure transport delay. No auto correction. Use
+          an interface input (not the laptop mic). Headphones if you monitor.
         </p>
       </HowTo>
 
@@ -254,12 +255,18 @@ export function TimingWorkspace() {
               onChange={(e) => setInputId(e.target.value)}
               disabled={Boolean(abort)}
             >
-              {inputs.length === 0 ? <option value="">Allow mic / audio access…</option> : null}
-              {inputs.map((i) => (
-                <option key={i.deviceId} value={i.deviceId}>
-                  {formatInputLabel(i)}
-                </option>
-              ))}
+              {inputs.length === 0 ? (
+                <option value="">Plug in an interface</option>
+              ) : (
+                <>
+                  {!inputId ? <option value="">Pick Scarlett / ZED / USB…</option> : null}
+                  {inputs.map((i) => (
+                    <option key={i.deviceId} value={i.deviceId}>
+                      {formatInputLabel(i)}
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
           </label>
         </div>

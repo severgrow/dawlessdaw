@@ -1,17 +1,15 @@
 import { useEffect } from 'react';
 import { LAST_TAB_KEY, useStudioActions, useStudioStore } from '../store/useStudioStore';
-import { LEGACY_KEY_PANELS, TOP_TABS, topTabFor } from '../nav/tabs';
-
-function isTyping(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
-}
+import { TOP_TABS, topTabFor } from '../nav/tabs';
+import {
+  digitLabelForTopTabIndex,
+  isTypingTarget,
+  workspaceForTopTabDigit,
+} from '../nav/shortcuts';
 
 /**
- * Five top tabs in the rail. Keys **1–8** still deep-link the old panels
- * (Rig, Controller, Sequencer, …) so smoke + muscle memory keep working.
- * Clicking a top tab opens that group’s default panel.
+ * Horizontal top tabs. Keys **1–N** match visible order (Play=1 … Setup=5).
+ * Vertical panel keys live on PanelSubnav (QAZ/WSX/EDC).
  */
 export function Nav() {
   const workspace = useStudioStore((s) => s.workspace);
@@ -28,13 +26,11 @@ export function Nav() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
-      const n = Number.parseInt(e.key, 10);
-      const panel = Number.isInteger(n) ? LEGACY_KEY_PANELS[n - 1] : undefined;
-      if (panel) {
-        e.preventDefault();
-        setWorkspace(panel);
-      }
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      const next = workspaceForTopTabDigit(e.key);
+      if (!next) return;
+      e.preventDefault();
+      setWorkspace(next);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -49,14 +45,14 @@ export function Nav() {
           type="button"
           className={activeTop === item.id ? 'active' : ''}
           aria-current={activeTop === item.id ? 'page' : undefined}
-          title={`${item.hint} (keys ${item.panels.map((p) => LEGACY_KEY_PANELS.indexOf(p.id) + 1).join('/')} for panels)`}
+          title={`${item.label} · ${item.hint} (${digitLabelForTopTabIndex(i)})`}
           onClick={() => {
             if (activeTop === item.id) return;
             setWorkspace(item.defaultPanel);
           }}
         >
-          <span className="key" aria-hidden="true">
-            {i + 1}
+          <span className="key nav-key-ghost" aria-hidden="true">
+            {digitLabelForTopTabIndex(i)}
           </span>
           <span className="nav-text">
             {item.label}
@@ -64,7 +60,11 @@ export function Nav() {
           </span>
         </button>
       ))}
-      <div className="nav-hint">click 1–5 · keys 1–8 panels · J jam</div>
+      <div className="nav-hint">
+        {digitLabelForTopTabIndex(0)}–{digitLabelForTopTabIndex(TOP_TABS.length - 1)} tabs
+        <br />
+        QAZ menu · J jam
+      </div>
     </nav>
   );
 }

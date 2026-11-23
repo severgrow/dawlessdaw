@@ -17,6 +17,11 @@ Owner confirmed **"yeah all go"** on the handover confirmation questions. Phase 
 | 11 | Default Controller preset **Ploe Live v1** (T1–4 MPC, T5–6 Skiff 1–2, T7–8 SP A–B). Keep older My Studio presets. |
 | 12 | Circuit Intelligence is **passive** (Circuit-in only). Activity labels never auto-mute hardware. Auto-focus from macros is optional (default on). |
 | 13 | Timing Lab: Clock Health is passive; Latency Lab is user-triggered only. Splot does not become clock master and does not auto-apply delay correction. |
+| 14 | Circuit tempo follow is **display only** (Transport / Play / Jam). BPM from Circuit-in clock. App MIDI clock forwarding stays off by default; hardware thru/DIN remains the sync path for SP etc. |
+| 15 | A3: route `forwardClock` is **opt-in** (`=== true` only). Undefined/false never forwards clock/transport. Studio builders emit at most one clock route per destination. |
+| 16 | Shared `ClockService` seam (plan step 10) adapts Clock Health + musical position for Capture / Transport BPM / Timing Lab. Reading the service never enables app clock forwarding (`appClockForwarding: false`). |
+| 17 | Studio commands facade (plan step 11): `panic`, `setRoute`, `captureRecentBars` (+ enable/setRoutes). UI calls through `getStudioCommands()`; no SysEx; capture observation-only; no clock-forward default change. |
+| 18 | A5 journey smoke (plan step 6): headless Vitest connect→route→play→capture→save→reopen with MockMidiTransport + StudioCommands + injected clock. No hardware, no SysEx, no built-in mic, note routes keep `forwardClock` off. |
 | 14 | Cross-device Super Macros are **opt-in**; A/B scenes are Splot-owned (not Circuit Scenes); only docs-backed/verified CC presets in the default catalog; Controller MIDI Learn stays single-destination. |
 | 15 | Performance Memory is analysis-only while recording; Section Bridge **event-actions** stay **off by default**; inferred events never auto-fill SP/MPC; original take audio/MIDI observations are kept. |
 | 16 | MIDI-guided FLIP logs note-ons for slice suggestions only — **no MIDI playback**, **no stem claim**, **no SP serial write**; original take PCM unchanged; existing FLIP edit/export preserved. |

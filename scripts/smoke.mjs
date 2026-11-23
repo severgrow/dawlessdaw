@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Headless Chrome smoke: serve apps/web/dist, open the app, press keys 1–8.
+ * Headless Chrome smoke: serve apps/web/dist, open the app, press tab/menu keys.
  * Fails on pageerror, console error, or blank #root.
  *
  * Run: npm run smoke  (expects a prior `npm run build`)
@@ -117,7 +117,8 @@ try {
   });
   if (!(await assertAlive('initial (lastTab=test)'))) throw new Error('initial fail');
 
-  for (const key of ['1', '2', '3', '4', '5', '6', '7', '8']) {
+  // Horizontal tabs 1–5 + vertical menu Q/A (Play: Rig / Live)
+  for (const key of ['1', '2', '3', '4', '5', 'q', 'a', '1']) {
     pageErrors.length = 0;
     consoleErrors.length = 0;
     await page.keyboard.press(key);
@@ -126,7 +127,7 @@ try {
   }
 
   if (process.exitCode) throw new Error('smoke failed');
-  console.log('SMOKE OK: built app loaded; keys 1–8; no blank screen / pageerror.');
+  console.log('SMOKE OK: built app loaded; keys 1–5 + Q/A; no blank screen / pageerror.');
 } catch (err) {
   if (!process.exitCode) fail(err instanceof Error ? err.message : String(err));
 } finally {

@@ -22,6 +22,7 @@ import { MacrosWorkspace } from './workspaces/MacrosWorkspace';
 import { MidiLearnGlass } from './components/MidiLearnGlass';
 import { WorkspaceErrorBoundary } from './components/WorkspaceErrorBoundary';
 import { loadExperimentalUi, saveExperimentalUi, saveWizardDismissed } from './nav/tabs';
+import { isTypingTarget } from './nav/shortcuts';
 import type { WorkspaceId } from './studio/runtime';
 
 function WorkspacePanel({
@@ -43,12 +44,6 @@ function WorkspacePanel({
   );
 }
 
-function isTyping(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
-}
-
 export function App() {
   useBindStudio();
   const workspace = useStudioStore((s) => s.workspace);
@@ -57,6 +52,7 @@ export function App() {
   const backToRig = () => setWorkspace('rig');
   const [jam, setJam] = useState(false);
   const [wizardForce, setWizardForce] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [experimental, setExperimental] = useState(loadExperimentalUi);
 
   useEffect(() => {
@@ -66,7 +62,7 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
       if (e.key === 'j' || e.key === 'J') {
         e.preventDefault();
         setJam((v) => !v);
@@ -80,11 +76,16 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [jam]);
 
+  const openConnect = () => {
+    saveWizardDismissed(false);
+    setWizardForce(true);
+  };
+
   return (
     <div className={`app app-phase1${jam ? ' jam-open' : ''}`}>
-      <StatusBar />
-      <DeviceStrip />
-      <TransportStrip onOpenJam={() => setJam(true)} />
+      <StatusBar onOpenConnect={openConnect} connectOpen={wizardOpen} />
+      <DeviceStrip onOpenConnect={openConnect} />
+      <TransportStrip onOpenJam={() => setJam(true)} onOpenConnect={openConnect} />
       <div className="shell">
         <Nav />
         <main className="main">
@@ -142,13 +143,16 @@ export function App() {
       <ConnectWizard
         forceOpen={wizardForce}
         onClose={() => setWizardForce(false)}
+        onOpenChange={setWizardOpen}
       />
       {jam ? <JamMode onClose={() => setJam(false)} /> : null}
       <footer className="footer-bar">
-        <span>Splot MIDI Brain · local · no sysex</span>
-        <span className={`mono ${midiReady ? 'live' : 'err'}`}>
-          {midiReady ? '● live web midi' : '● no midi access'}
+        <span>Splot MIDI Brain · local</span>
+        <span className="mono footer-keys" title="Tabs 1–5 · menu QAZ/WSX/EDC · Jam J">
+          1–5 · QAZ · J
         </span>
+        {/* Pass B: don't repeat “no midi” — StatusBar owns that signal */}
+        {midiReady ? <span className="mono live">● midi</span> : null}
       </footer>
     </div>
   );

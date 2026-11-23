@@ -15,3 +15,4 @@ export * from './circuit-setup';
 export * from './sp404-setup';
 export * from './sp-effect-names';
 export * from './generic-profile';
+export * from './instrument-schema';

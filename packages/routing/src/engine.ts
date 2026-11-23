@@ -87,7 +87,26 @@ export class MidiRoutingEngine {
 
   enableRoute(id: string, enabled: boolean): void {
     const route = this.routes.find((r) => r.id === id);
-    if (route) route.enabled = enabled;
+    if (!route) return;
+    // A2: disabling mid-hold must not leave dest notes hanging (Note Off
+    // would miss this route). Same blunt flush as setRoutes — we do not
+    // track which route owns each active note.
+    if (route.enabled && !enabled && this.activeNotes.size > 0) {
+      this.allNotesOff();
+    }
+    route.enabled = enabled;
+  }
+
+  /**
+   * Release tracked notes for one destination (port unplug / bad output).
+   * Leaves notes on other destinations sounding.
+   */
+  releaseNotesForPort(portId: PortId): void {
+    for (const [key, note] of [...this.activeNotes]) {
+      if (note.destPortId !== portId) continue;
+      this.rawSend(note.destPortId, buildNoteOff(note.channel, note.note, 0));
+      this.activeNotes.delete(key);
+    }
   }
 
   /**
@@ -115,7 +134,9 @@ export class MidiRoutingEngine {
       if (route.sourcePortId !== message.portId) continue;
 
       if (clockLike) {
-        if (route.forwardClock === false) continue;
+        // A3: clock/transport is opt-in only (undefined === off). Matches
+        // studio preference — app clock forwarding stays off by default.
+        if (route.forwardClock !== true) continue;
         // Only the clock authority source may forward clock (if set)
         if (
           this.clockAuthorityPortId !== null &&

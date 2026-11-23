@@ -21,4 +21,6 @@ See agent store `internal/mmt8-gap-analysis.md` for the table. Short version: ne
 
 ## Implementation checkpoint
 
-Steps 1–2 only: gap table + Vitest behavioural strengthening. Stop before event-recorder foundation / rolling Memory buffer unless separately instructed.
+Steps 1–2: gap table + Vitest behavioural strengthening (tip).  
+**Step 4 / plan step 7:** headless `MidiEventRecorder` in `@dawlessdaw/midi` — bounded, timestamped, incoming vs outbound source tags; no live-routing side effects; no MMT-8 code. See [midi-event-recorder.md](./midi-event-recorder.md).  
+**Step 5 / plan step 8:** rolling `RollingMidiCapture` — capture last N bars, bar-align only when clock confident; Sessions button. See [capture-last-n-bars.md](./capture-last-n-bars.md).

@@ -7,6 +7,7 @@ Capability statuses used throughout the app: **verified** | **untested** | **exp
 | Transport | Status | Notes |
 |-----------|--------|-------|
 | WebMidiTransport | verified (browser API) | Chrome / Edge on macOS; requires user gesture + HTTPS or localhost. Timing Clock / Start / Stop are delivered, but on the **main thread** with jitter — not a sample-accurate clock master. |
+| Circuit tempo follow (display) | experimental | Shows ≈BPM from Circuit-in F8 on Transport / Play / Jam. **Not** a clock master; does **not** enable app clock forwarding by default. SP/others follow via thru/DIN hardware. See [circuit-tempo-follow.md](./circuit-tempo-follow.md). |
 | Dawlessdaw 8×16 sequencer | experimental (browser) | Follows Circuit clock by default; optional internal BPM. Uses Web MIDI output timestamps + main-thread look-ahead — **not** sample-accurate. Does **not** display Circuit internal patterns (Circuit Pattern Unavailable). See [sequencer.md](./sequencer.md). |
 | Circuit Mirror (Live) | experimental | Passive observation of Circuit **input** notes + clock; loop-aware 8×16 grid. Does **not** change outbound routing. Not a dump of unsaved Circuit pattern RAM. Hardware **untested** until Patryk confirms. See [circuit-mirror.md](./circuit-mirror.md). |
 | Circuit Mirror (Saved .ncs) | experimental | Local file parse via Deep Sync `.ncs` layout. Prefer SD card reader. Never auto USB file-protocol (that stops device playback); USB path only after Deep Sync confirm. |

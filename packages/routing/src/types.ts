@@ -57,7 +57,10 @@ export interface MidiRoute {
   note?: NoteRemap;
   velocity?: VelocityTransform;
   cc?: CcRemap;
-  /** When false, clock/transport messages are not forwarded on this route. */
+  /**
+   * When true, clock/transport (F8/FA/FB/FC/SPP) may forward on this route.
+   * Undefined/false = off (A3 default — no accidental app clock thru).
+   */
   forwardClock?: boolean;
   /** Exclude these message kinds */
   blockKinds?: string[];

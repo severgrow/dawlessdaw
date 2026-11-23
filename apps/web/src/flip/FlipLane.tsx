@@ -92,6 +92,7 @@ export function FlipLane({
       const saved = eng.status().deviceId ?? loadPersistedInputId();
       const pick = (saved && list.find((d) => d.deviceId === saved)) || list[0] || null;
       if (pick) eng.setInput(pick.deviceId, formatInputLabel(pick));
+      else eng.setInput(null, '');
     })();
   }, []);
 
@@ -208,7 +209,7 @@ export function FlipLane({
   const handoff = status.handoff;
 
   return (
-    <section className="flip-lane" aria-label="FLIP capture lane">
+    <section id="flip-lane" className="flip-lane flip-lane-discover" aria-label="FLIP capture lane">
       <div className="flip-lane-head">
         <div className="flip-title-row">
           <h2 className="flip-title">FLIP</h2>
@@ -217,15 +218,13 @@ export function FlipLane({
           <span className={`flip-phase flip-phase-${status.phase}`}>{status.phaseLabel}</span>
         </div>
         <p className="flip-lead muted small">
-          Captures the <b>stereo audio mix</b> from your interface — not a MIDI track, not stem
-          isolation. Circuit USB audio is unused; feed Scarlett / ZED / MPC / SP / FM1 into the
-          selected input. MIDI note-ons are logged for slice suggestions only (no MIDI playback).
+          Stereo loop catcher (Scarlett / ZED / USB) — not MIDI. Limits stay honest below.
         </p>
         <ol className="flip-steps" aria-label="FLIP workflow">
           <li>Input</li>
-          <li>PLAY seq</li>
+          <li>PLAY</li>
           <li>ARM</li>
-          <li>PLAY LOOP</li>
+          <li>LOOP</li>
         </ol>
       </div>
 
@@ -238,13 +237,16 @@ export function FlipLane({
             disabled={phaseRec}
           >
             {inputs.length === 0 ? (
-              <option value="">No inputs — allow mic</option>
+              <option value="">Plug in an interface</option>
             ) : (
-              inputs.map((d) => (
-                <option key={d.deviceId} value={d.deviceId}>
-                  {formatInputLabel(d)}
-                </option>
-              ))
+              <>
+                {!status.deviceId ? <option value="">Pick input…</option> : null}
+                {inputs.map((d) => (
+                  <option key={d.deviceId} value={d.deviceId}>
+                    {formatInputLabel(d)}
+                  </option>
+                ))}
+              </>
             )}
           </select>
         </label>
