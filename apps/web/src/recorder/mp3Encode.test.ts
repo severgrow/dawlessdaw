@@ -2,10 +2,18 @@ import { describe, it, expect } from 'vitest';
 import {
   encodeMp3Sync,
   estimateMp3DurationSec,
+  mp3ModeHonesty,
+  mp3ModeToCbrKbps,
   readMp3BitrateKbps,
 } from './mp3Encode';
 
 describe('MP3 encode', () => {
+  it('maps v0 to 320 CBR stand-in (not 160)', () => {
+    expect(mp3ModeToCbrKbps('v0')).toBe(320);
+    expect(mp3ModeToCbrKbps('cbr320')).toBe(320);
+    expect(mp3ModeHonesty('v0').toLowerCase()).toMatch(/cbr|not true vbr|no vbr/);
+  });
+
   it('encodes a short stereo buffer and duration matches (±15%)', async () => {
     const sr = 48000;
     const seconds = 0.5;

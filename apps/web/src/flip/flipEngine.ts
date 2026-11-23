@@ -435,7 +435,8 @@ export class FlipEngine {
       return;
     }
     this.activeAudio = source;
-    const rendered = renderFlipAudio(source, clip);
+    // P2: single gain path — bake trim/reverse/fades only; GainNode applies clip.gain once.
+    const rendered = renderFlipAudio(source, clip, { applyClipGain: false });
     await this.startBufferLoop(rendered, clip.gain);
     this.applyHandoffIfNeeded();
     if (gate.warnPlaybackReentry) {

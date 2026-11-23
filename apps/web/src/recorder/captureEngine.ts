@@ -19,10 +19,8 @@ import {
 import {
   appendChunk,
   beginDraft,
-  clearChunks,
-  clearDraft,
   makeTakeId,
-  saveCompleteTake,
+  finalizeCompleteTake,
   buildTags,
   defaultTakeName,
   type TakeTags,
@@ -34,6 +32,7 @@ import {
   persistMonitorInput,
   planCaptureGraph,
 } from './captureGraph';
+import { buildCaptureConstraints } from './captureSettings';
 
 export type CaptureState = 'idle' | 'recording' | 'stopping';
 
@@ -168,17 +167,8 @@ export class CaptureEngine {
       throw new Error('Plug in an interface');
     }
 
-    const audioConstraints: MediaTrackConstraints = {
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: false,
-      channelCount: 2,
-      sampleRate: 48000,
-      deviceId: { exact: opts.deviceId },
-    };
-
     this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: audioConstraints,
+      audio: buildCaptureConstraints(opts.deviceId, 48000),
       video: false,
     });
 
@@ -356,9 +346,17 @@ export class CaptureEngine {
       incomplete: false,
     };
 
-    await saveCompleteTake(meta, audio);
-    await clearChunks(meta.id);
-    await clearDraft();
+    const phase = await finalizeCompleteTake(meta, audio);
+    if (phase !== 'saved_and_cleared') {
+      // Keep RAM chunks + IndexedDB draft/chunks for recovery — do not wipe.
+      this.state = 'idle';
+      this.notify();
+      throw new Error(
+        phase === 'verify_failed'
+          ? 'Take save could not be verified — recovery kept'
+          : 'Take save failed — recovery kept',
+      );
+    }
 
     this.chunks = [];
     this.state = 'idle';

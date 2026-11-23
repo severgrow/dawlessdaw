@@ -67,7 +67,8 @@ self.onmessage = (ev: MessageEvent) => {
   };
   if (data.type !== 'encode') return;
   try {
-    const kbps = data.mode === 'cbr320' ? 320 : 160;
+    // lamejs is CBR-only; `v0` is a 320 kbps CBR stand-in (not true VBR).
+    const kbps = data.mode === 'cbr320' || data.mode === 'v0' ? 320 : 320;
     const encoder = new Mp3Encoder(2, data.sampleRate, kbps);
     const left = floatToInt16PCM(data.left);
     const right = floatToInt16PCM(data.right);

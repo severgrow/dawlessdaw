@@ -4,6 +4,7 @@ import {
   applyGain,
   chopEqual,
   renderFlipAudio,
+  resolveFlipPlaybackGain,
   reverseStereo,
 } from './process';
 import type { StereoAudio } from '../recorder/types';
@@ -64,5 +65,34 @@ describe('FLIP process', () => {
     const a = ramp(2);
     const g = applyGain(a, 100);
     expect(g.left[1]!).toBeCloseTo((1 / 2) * 4, 5);
+  });
+
+  it('P2 gain matrix: playback applies gain once (not bake × node)', () => {
+    const a = ramp(4);
+    const clip = {
+      trim: { startFrame: 0, endFrame: 4 },
+      reverse: false,
+      fadeInMs: 0,
+      fadeOutMs: 0,
+      gain: 2,
+    };
+    const baked = renderFlipAudio(a, clip); // export path
+    expect(baked.left[1]!).toBeCloseTo((1 / 4) * 2, 5);
+
+    const forPlay = renderFlipAudio(a, clip, { applyClipGain: false });
+    const plan = resolveFlipPlaybackGain(clip.gain);
+    expect(plan.bufferApplyClipGain).toBe(false);
+    expect(plan.nodeGain).toBe(2);
+    // Effective = buffer × node — must equal single bake, not gain²
+    expect(forPlay.left[1]! * plan.nodeGain).toBeCloseTo(baked.left[1]!, 5);
+    expect(forPlay.left[1]! * plan.nodeGain).not.toBeCloseTo(
+      (1 / 4) * 2 * 2,
+      5,
+    );
+  });
+
+  it('resolveFlipPlaybackGain clamps node gain', () => {
+    expect(resolveFlipPlaybackGain(100).nodeGain).toBe(4);
+    expect(resolveFlipPlaybackGain(-1).nodeGain).toBe(0);
   });
 });
