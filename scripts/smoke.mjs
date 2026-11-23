@@ -94,9 +94,9 @@ async function assertAlive(label) {
     fail(`${label}: blank #root`);
     return false;
   }
-  const brand = page.locator('.brand');
-  if ((await brand.count()) === 0) {
-    fail(`${label}: missing .brand header`);
+  const brand = page.locator('.splot-brand').getByRole('img', { name: 'SPLOT', exact: true });
+  if (!(await brand.isVisible()) || !(await brand.evaluate((img) => img.decode().then(() => true, () => false)))) {
+    fail(`${label}: SPLOT wordmark did not render`);
     return false;
   }
   return true;

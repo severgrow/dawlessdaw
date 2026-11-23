@@ -43,7 +43,7 @@ async function shot(name) {
 }
 
 // ── Brand / midi honesty ──
-const brand = await page.locator('.brand').textContent().catch(() => '');
+const brand = await page.locator('.splot-brand img').getAttribute('alt').catch(() => '');
 if (/splot/i.test(brand || '')) ok('brand', brand.trim());
 else fail('brand', brand);
 

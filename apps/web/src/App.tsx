@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import splotIcon from './assets/brand/splot-icon-bone-transparent.svg';
 import { StatusBar } from './components/StatusBar';
 import { DeviceStrip } from './components/DeviceStrip';
 import { Nav } from './components/Nav';
@@ -162,7 +163,10 @@ export function App() {
       />
       {jam ? <JamMode onClose={() => setJam(false)} /> : null}
       <footer className="footer-bar">
-        <span>Splot MIDI Brain · v{__SPLOT_VERSION__} · local</span>
+        <span className="splot-footer-brand">
+          <img className="splot-small-icon" src={splotIcon} width="16" height="16" alt="" />
+          <span>SPLOT MIDI Brain · v{__SPLOT_VERSION__} · local</span>
+        </span>
         <span className="mono footer-keys" title="Tabs 1–5 · menu QAZ/WSX/EDC · Jam J">
           1–5 · QAZ · J
         </span>

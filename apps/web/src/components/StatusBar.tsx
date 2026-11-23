@@ -1,3 +1,5 @@
+import splotWordmarkBlack from '../assets/brand/splot-wordmark-black.svg';
+import splotWordmark from '../assets/brand/splot-wordmark-bone.svg';
 import { resolveNextAction } from '../nav/nextAction';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
@@ -9,14 +11,12 @@ export function StatusBar({ onOpenConnect }: { onOpenConnect: () => void }) {
 
   return (
     <header className="status-bar status-bar--compact">
-      <div className="brand" aria-label="Splot MIDI Brain">
-        <svg className="brand-mark" viewBox="0 0 20 20" aria-hidden="true">
-          <rect x="1" y="1" width="8" height="8" rx="2.5" className="bm-a" />
-          <rect x="11" y="1" width="8" height="8" rx="2.5" className="bm-b" />
-          <rect x="1" y="11" width="8" height="8" rx="2.5" className="bm-b" />
-          <rect x="11" y="11" width="8" height="8" rx="2.5" className="bm-c" />
-        </svg>
-        splot<span className="brand-slash"> / </span>midi brain
+      <div className="splot-brand">
+        <picture>
+          <source media="(forced-colors: active) and (prefers-color-scheme: light)" srcSet={splotWordmarkBlack} />
+          <img className="splot-wordmark" src={splotWordmark} width="1050" height="620" alt="SPLOT" />
+        </picture>
+        <span className="splot-descriptor">MIDI Brain</span>
       </div>
       <button
         type="button"

@@ -1,3 +1,4 @@
+import splotIcon from '../assets/brand/splot-icon-bone-transparent.svg';
 import { useEffect, useState } from 'react';
 import { loadWizardDismissed, saveWizardDismissed } from '../nav/tabs';
 import { resolveNextAction } from '../nav/nextAction';
@@ -60,7 +61,10 @@ export function ConnectWizard({
   return (
     <div className="wizard-scrim" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
       <div className="wizard-card">
-        <h2 id="wizard-title">Connect</h2>
+        <div className="splot-connect-heading">
+          <img className="splot-small-icon" src={splotIcon} width="24" height="24" alt="" />
+          <h2 id="wizard-title">Connect</h2>
+        </div>
         <p className="lead">One path. Reopen with Connect anytime.</p>
 
         {next.kind === 'allow-midi' ? (

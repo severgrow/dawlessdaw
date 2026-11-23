@@ -5,6 +5,8 @@
  * drawing dims when it isn't connected.
  */
 
+import splotWordmark from '../assets/brand/splot-wordmark-bone.svg';
+
 export type DeviceKind = 'circuit' | 'mpc' | 'sp' | 'fm1' | 'zed' | 'mac' | 'scarlett' | 'thru';
 
 interface Props {
@@ -355,12 +357,7 @@ function Drawing({ kind }: { kind: DeviceKind }) {
         <>
           <rect className="art-body" x={14} y={4} width={102} height={66} rx={7} />
           <rect className="art-screen" x={20} y={10} width={90} height={54} rx={3} />
-          <text className="art-label" x={65} y={36} textAnchor="middle">
-            splot /
-          </text>
-          <text className="art-label" x={65} y={48} textAnchor="middle">
-            midi brain
-          </text>
+          <image href={splotWordmark} x={33} y={18} width={64} height={38} />
           <path className="art-body" d="M2 74 h126 l-8 12 h-110 z" />
         </>
       );
