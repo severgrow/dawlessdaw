@@ -16,6 +16,7 @@ import {
 } from '@dawlessdaw/sequencer';
 import { CircuitIntelligencePanel } from '../components/CircuitIntelligencePanel';
 import { CircuitMirrorGrid } from '../components/CircuitMirrorGrid';
+import { HardwareControlPanel } from '../components/HardwareControlPanel';
 import { MoreInfo } from '../components/MoreInfo';
 import { FlipLane } from '../flip/FlipLane';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
@@ -560,6 +561,8 @@ export function SequencerWorkspace() {
               {gen.hasSource ? ` · src ${gen.sourceKind}` : ''}
             </span>
           </div>
+
+          <HardwareControlPanel />
 
           {/* Pass D: FLIP above the fold — not buried under the full grid */}
           <FlipLane

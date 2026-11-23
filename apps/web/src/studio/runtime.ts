@@ -12,6 +12,7 @@ import {
   CircuitMirrorEngine,
   ClockHealthMonitor,
   GenerativeEngine,
+  HardwareControlEngine,
   SequencerEngine,
   adaptClockService,
   patternFromMirror,
@@ -21,6 +22,8 @@ import {
   type GenerativeSettings,
   type GenerativeSnapshot,
   type GenerativeSourceKind,
+  type HwControlCommand,
+  type HwControlSnapshot,
   type SeqClockSource,
   type SeqEngineSnapshot,
   type SeqPattern,
@@ -337,6 +340,11 @@ export interface StudioRuntimeSnapshot {
    * Experimental / untested — needs Note Rx Bench. Never emits clock.
    */
   hearOnCircuit: boolean;
+  /**
+   * Circuit P2 — opt-in Hardware Control Mode (macros CC 21–28 ± Mixer 29/30).
+   * Off by default — Ploe Live routes unchanged. Experimental until Bench.
+   */
+  hardwareControl: HwControlSnapshot;
 }
 
 type Listener = () => void;
@@ -611,6 +619,12 @@ export class StudioRuntime {
   private circuitEchoGuard = new CircuitEchoGuard();
   /** Opt-in Note Rx audition to Circuit — off by default. */
   private hearOnCircuit = false;
+  /**
+   * Circuit P2 Hardware Control Mode — off by default.
+   * When off, ignores macros for generative (routes untouched).
+   */
+  private hardwareControl = new HardwareControlEngine();
+  private hardwareControlUnsub: (() => void) | null = null;
   /** Passive Clock Health — Timing Lab Stage A. */
   private clockHealth = new ClockHealthMonitor();
   private clockHealthUnsub: (() => void) | null = null;
@@ -654,6 +668,7 @@ export class StudioRuntime {
     });
     this.seqUnsub = this.sequencer.subscribe(() => this.notify());
     this.generativeUnsub = this.generative.subscribe(() => this.notify());
+    this.hardwareControlUnsub = this.hardwareControl.subscribe(() => this.notify());
     this.intelUnsub = this.circuitIntel.subscribe(() => {
       this.ingestPerformanceMemoryFromIntel();
       this.notify();
@@ -857,6 +872,7 @@ export class StudioRuntime {
       spEffectSweep: this.spEffectSweep ? { ...this.spEffectSweep } : null,
       generative: this.generative.getSnapshot(),
       hearOnCircuit: this.hearOnCircuit,
+      hardwareControl: this.hardwareControl.getSnapshot(),
     };
   }
 
@@ -1414,6 +1430,66 @@ export class StudioRuntime {
     return this.generative;
   }
 
+  setHardwareControlEnabled(on: boolean): void {
+    this.hardwareControl.setEnabled(on);
+    this.setStatus(
+      on
+        ? 'Hardware Control Mode ON — macros drive Generate (experimental). Buttons = Guide only.'
+        : 'Hardware Control Mode OFF — Ploe Live / Controller routes unchanged',
+    );
+    this.notify();
+  }
+
+  setHardwareControlMixer(on: boolean): void {
+    this.hardwareControl.setMixerEnabled(on);
+    this.setStatus(
+      on
+        ? 'Mixer CC 29/30 in control mode (Level=lock, Pan=undo) — experimental'
+        : 'Mixer CCs out of control mode',
+    );
+    this.notify();
+  }
+
+  getHardwareControl(): HardwareControlEngine {
+    return this.hardwareControl;
+  }
+
+  /** Apply a Hardware Control Mode command to generative + pattern. */
+  private applyHwControlCommand(cmd: HwControlCommand): void {
+    switch (cmd.type) {
+      case 'settings':
+        this.generative.setSettings(cmd.patch);
+        break;
+      case 'generate':
+        this.generative.generate();
+        this.applyGenerativeToSequencer(true);
+        this.setStatus('HW Generate');
+        break;
+      case 'mutate':
+        this.generative.mutate();
+        this.applyGenerativeToSequencer(true);
+        this.setStatus('HW Mutate');
+        break;
+      case 'reset':
+        this.generative.resetToSource();
+        this.applyGenerativeToSequencer(true);
+        this.setStatus('HW Reset → source');
+        break;
+      case 'toggle-lock': {
+        const sel = this.sequencer.getSelected();
+        this.generative.toggleLock(sel.track, sel.step);
+        this.setStatus(`HW Lock toggle T${sel.track}.${sel.step + 1}`);
+        break;
+      }
+      case 'undo':
+        this.generative.undo();
+        this.applyGenerativeToSequencer(false);
+        this.setStatus('HW Undo');
+        break;
+    }
+    this.notify();
+  }
+
   /** Circuit Mirror Live engine — subscribe via getSnapshot / subscribe. Read-only. */
   getCircuitMirror(): CircuitMirrorEngine {
     return this.circuitMirror;
@@ -1965,6 +2041,16 @@ export class StudioRuntime {
         cc: message.controller,
         value: message.value ?? 0,
       });
+    }
+
+    // P2 Hardware Control Mode — opt-in only. When off, engine returns null (routes untouched).
+    if (
+      message.kind === 'cc' &&
+      message.controller != null &&
+      this.hardwareControl.isEnabled()
+    ) {
+      const hwCmd = this.hardwareControl.onCc(t, message.controller, message.value ?? 0);
+      if (hwCmd) this.applyHwControlCommand(hwCmd);
     }
 
     if (!isNote && !resolved && knob < 0) return;
