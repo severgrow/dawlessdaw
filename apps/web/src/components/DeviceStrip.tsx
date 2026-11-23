@@ -1,5 +1,6 @@
 import { MY_STUDIO_ROLES, unmatchedConnectedPorts } from '@dawlessdaw/devices';
 import { resolveNextAction } from '../nav/nextAction';
+import { carrySetupRole, useUiSelection } from '../nav/uiSelection';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import { DeviceArt, type DeviceKind } from './DeviceArt';
 
@@ -31,11 +32,12 @@ function midiStripStatus(
 }
 
 /**
- * Device strip (Pass B). When MIDI/ports missing, collapse to one CTA chip
- * instead of five “NO WEB MIDI PORT” failures. Heavy Setup disclosure = Pass C.
+ * Device strip (Pass B/C). Empty → one quiet chip. Assigned → chips with
+ * activity pulse; click carries role into Setup Ports.
  */
 export function DeviceStrip({ onOpenConnect }: { onOpenConnect?: () => void }) {
   const snap = useStudioStore();
+  const sel = useUiSelection();
   const { setWorkspace } = useStudioActions();
   const customClaimed = Object.values(snap.customBindings ?? {}).flatMap((b) =>
     [b.inputPortId, b.outputPortId].filter((id): id is string => Boolean(id)),
@@ -43,6 +45,7 @@ export function DeviceStrip({ onOpenConnect }: { onOpenConnect?: () => void }) {
   const unmatched = unmatchedConnectedPorts(snap.ports, snap.assignments, customClaimed);
   const hasUnmatchedPorts = unmatched.length > 0;
   const connectedPorts = snap.ports.filter((p) => p.state === 'connected').length;
+  const assignedMidi = snap.assignments.filter((a) => a.connected).length;
   const next = resolveNextAction({
     midiReady: snap.midiReady,
     midiError: snap.midiError,
@@ -50,7 +53,7 @@ export function DeviceStrip({ onOpenConnect }: { onOpenConnect?: () => void }) {
     onboardingStep: snap.onboarding.step,
   });
 
-  // Pass B: collapse failure dashboard — StatusBar owns the primary CTA.
+  // Collapse failure dashboard — StatusBar / Connect own the primary CTA.
   if (next.kind === 'allow-midi' || (next.kind === 'assign-ports' && connectedPorts === 0)) {
     return (
       <div className="device-strip device-strip-empty" role="status">
@@ -63,6 +66,27 @@ export function DeviceStrip({ onOpenConnect }: { onOpenConnect?: () => void }) {
           <DeviceArt kind="mac" lit={false} pulse={0} className="chip-art" />
           <span className="name">No ports yet</span>
           <span className="meta">Connect</span>
+        </button>
+      </div>
+    );
+  }
+
+  // Pass C: ports exist but nothing assigned — one chip, not five failures.
+  if (assignedMidi === 0 && hasUnmatchedPorts) {
+    return (
+      <div className="device-strip device-strip-empty" role="status">
+        <button
+          type="button"
+          className="device-chip device-chip-quiet"
+          onClick={() => {
+            carrySetupRole(null, 'Assign ports');
+            setWorkspace('setup');
+          }}
+          title="Ports connected — assign roles in Setup"
+        >
+          <DeviceArt kind="mac" lit={true} pulse={0} className="chip-art" />
+          <span className="name">{connectedPorts} ports</span>
+          <span className="meta">Assign</span>
         </button>
       </div>
     );
@@ -89,13 +113,17 @@ export function DeviceStrip({ onOpenConnect }: { onOpenConnect?: () => void }) {
           !portName.toLowerCase().includes(role.label.split(' ').pop()!.toLowerCase())
             ? `via ${portName}`
             : null;
+        const focus = sel.setupRoleId === role.id;
         return (
           <button
             key={role.id}
             type="button"
             role="listitem"
-            className={`device-chip ${role.midi && connected ? '' : 'disconnected'}`}
-            onClick={() => setWorkspace('setup')}
+            className={`device-chip${role.midi && connected ? '' : ' disconnected'}${focus ? ' focus' : ''}`}
+            onClick={() => {
+              carrySetupRole(role.id, `Ports · ${role.label}`);
+              setWorkspace('setup');
+            }}
             title={
               connected
                 ? `${assignment?.inputPortName ?? '—'} in · ${assignment?.outputPortName ?? '—'} out`

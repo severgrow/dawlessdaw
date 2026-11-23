@@ -7,7 +7,20 @@ import {
   saveRigBackdropDrawings,
   saveRigBackdropEnabled,
 } from './mixerOutBus';
+import { carrySetupRole } from '../nav/uiSelection';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
+
+/** Map art id → Setup role id (or null = open Setup without focus). */
+const SETUP_ROLE: Record<string, string | null> = {
+  circuit: 'circuit',
+  mpc: 'mpc',
+  sp: 'sp404',
+  fm1: 'fm1',
+  scarlett: 'mpc',
+  thru: null,
+  mac: null,
+  zed: 'zed',
+};
 
 /**
  * The studio as one picture: boxes where they sit, cables for how MIDI and audio
@@ -218,27 +231,32 @@ export function RigMap() {
 
         {devices.map((d) => {
           const p = PLACES[d.id]!;
+          const roleId = SETUP_ROLE[d.id] ?? null;
           return (
             <button
               key={d.id}
               type="button"
-              className={`rig-device rig-${d.id}${d.lit ? '' : ' off'}`}
+              className={`rig-device rig-${d.id}${d.lit ? ' lit' : ' off'}${d.pulse ? ' pulsing' : ''}`}
               style={boxStyle(p)}
-              title={`${d.title} — click for Setup`}
-              onClick={() => setWorkspace('setup')}
+              title={`${d.title} — open Setup`}
+              onClick={() => {
+                carrySetupRole(roleId, roleId ? `Ports · ${p.name}` : 'Setup');
+                setWorkspace('setup');
+              }}
             >
               <DeviceArt kind={p.kind} lit={d.lit} pulse={d.pulse} title={p.name} />
               <span className="rig-name">
                 {p.name}
                 {p.sub ? <em>{p.sub}</em> : null}
               </span>
+              <span className={`rig-link-dot${d.lit ? ' on' : ''}`} aria-hidden="true" />
             </button>
           );
         })}
       </div>
       <div className="rig-legend">
         <span>
-          <i className="lg-midi" /> MIDI (flashes on notes)
+          <i className="lg-midi" /> MIDI · flashes on notes
         </span>
         <span>
           <i className="lg-clock" /> clock
@@ -247,7 +265,7 @@ export function RigMap() {
           <i className="lg-audio" /> audio
         </span>
         <span>
-          <i className="lg-off" /> not connected / not used
+          <i className="lg-off" /> off / unused
         </span>
       </div>
     </div>

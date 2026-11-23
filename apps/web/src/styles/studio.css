@@ -5557,6 +5557,160 @@ button.wizard-cta {
   color: var(--text-dim);
 }
 
+/* ── Hardware-Feel Pass C — Rig / Controller / Setup ── */
+.panel-subnav-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.panel-subnav-row .panel-subnav {
+  margin-bottom: 0;
+}
+
+.context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: min(18rem, 100%);
+  padding: 0.2rem 0.35rem 0.2rem 0.55rem;
+  border: 1px solid var(--mint-2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mint-0) 70%, transparent);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.context-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mint-5, var(--text));
+}
+
+.context-chip-x {
+  min-width: 1.4rem;
+  min-height: 1.4rem;
+  padding: 0;
+  line-height: 1;
+  border: none !important;
+  background: transparent !important;
+  color: var(--text-mute) !important;
+}
+
+.setup-tiers-lead,
+.ctl-flow-lead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  font-size: 0.85rem;
+}
+
+.setup-tier-sep {
+  opacity: 0.45;
+}
+
+.setup-tier-mark {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+.setup-empty-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.setup-empty-line {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.setup-cta,
+button.setup-cta {
+  font-weight: 700;
+  background: var(--mint-4);
+  border-color: var(--mint-3);
+  color: var(--accent-ink, #0c1210);
+}
+
+.pt-row-focus {
+  outline: 1px solid var(--mint-3);
+  outline-offset: 2px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--mint-0) 55%, transparent);
+}
+
+.setup-tier-advanced .panel-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.setup-tier-advanced h3 {
+  margin: 0.65rem 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.setup-experimental {
+  margin-top: 0.75rem;
+}
+
+.ts-cell.ts-routed {
+  border-color: color-mix(in srgb, var(--mint-3) 50%, var(--line));
+}
+
+.ts-cell.ts-live {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mint-3) 40%, transparent);
+}
+
+.rig-device.lit .rig-link-dot {
+  opacity: 1;
+}
+
+.rig-link-dot {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--text-mute);
+  opacity: 0.35;
+}
+
+.rig-link-dot.on {
+  background: var(--mint-4);
+  opacity: 1;
+}
+
+.rig-device {
+  position: relative;
+}
+
+.dc-heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  grid-column: 1 / -1;
+}
+
+.learn-big.learn-focus,
+.learn-big.active.learn-focus {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mint-4) 55%, transparent);
+}
+
+.midi-learn-glass.mlg-focus {
+  border-color: var(--mint-3);
+  box-shadow:
+    0 12px 40px color-mix(in srgb, #000 45%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--mint-3) 40%, transparent);
+}
+
 .jam-stage {
   width: min(56rem, 100%);
   max-height: min(92vh, 48rem);

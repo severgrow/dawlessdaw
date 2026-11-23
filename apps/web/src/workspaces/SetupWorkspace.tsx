@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEVICE_CATEGORIES,
   MPC_CHANNEL_ISOLATION_HINT,
@@ -12,6 +12,8 @@ import {
   type StudioRoleDef,
 } from '@dawlessdaw/devices';
 import { MoreInfo } from '../components/MoreInfo';
+import { resolveNextAction } from '../nav/nextAction';
+import { useUiSelection } from '../nav/uiSelection';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import { formatRouteChannelDetail } from './routeChannelDetail';
 
@@ -359,6 +361,7 @@ export function SetupWorkspace({
   setExperimental?: (on: boolean) => void;
 } = {}) {
   const snap = useStudioStore();
+  const sel = useUiSelection();
   const {
     rescanMidiPorts,
     setFm1Firmware,
@@ -375,204 +378,256 @@ export function SetupWorkspace({
   const mpc = snap.assignments.find((a) => a.roleId === 'mpc');
   const clock = snap.clockActivity;
   const clockAdvice = mpcClockPortAdvice(mpc?.outputPortName ?? null);
+  const next = resolveNextAction({
+    midiReady: snap.midiReady,
+    midiError: snap.midiError,
+    connectedPorts: connected.length,
+    onboardingStep: snap.onboarding.step,
+  });
+  const portsBlocked = next.kind === 'allow-midi' || connected.length === 0;
+
+  // Scroll/highlight carried role row when arriving from DeviceStrip / RigMap.
+  useEffect(() => {
+    if (!sel.setupRoleId || portsBlocked) return;
+    const el = document.getElementById(`setup-role-${sel.setupRoleId}`);
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [sel.setupRoleId, portsBlocked]);
 
   return (
-    <div className="section-enter">
+    <div className="section-enter setup-workspace">
       <div className="page-head">
         <h1>ports &amp; devices</h1>
-        <button type="button" onClick={() => void rescanMidiPorts()}>
-          Rescan ports
-        </button>
-      </div>
-      <p className="lead">Assign USB ports. Status lives in the top strip.</p>
-      <div className="row" style={{ marginBottom: '0.85rem' }}>
-        {onReopenWizard ? (
-          <button type="button" onClick={onReopenWizard}>
-            Connect guide
+        {!portsBlocked ? (
+          <button type="button" onClick={() => void rescanMidiPorts()}>
+            Rescan
           </button>
         ) : null}
-        {setExperimental ? (
-          <label className="row" style={{ gap: '0.4rem', alignItems: 'center' }}>
-            <input
-              type="checkbox"
-              checked={experimental}
-              onChange={(e) => setExperimental(e.target.checked)}
-            />
-            <span className="small">Experimental tools</span>
-          </label>
-        ) : null}
       </div>
-      {!experimental ? (
-        <p className="muted small">
-          Bench tests: <b>Tests</b> sub-tab. Deep Sync needs the experimental toggle.
-        </p>
-      ) : (
-        <p className="callout seq-honesty">
-          Experimental on — Circuit Deep Sync (Test tab) and SP USB tools may stop playback or change
-          device state; use carefully.
-        </p>
-      )}
+      <p className="lead setup-tiers-lead">
+        <span className="setup-tier-mark">Connect</span>
+        <span className="setup-tier-sep">→</span>
+        <span className="setup-tier-mark">Configure</span>
+        <span className="setup-tier-sep">→</span>
+        <span className="setup-tier-mark muted">Advanced</span>
+        <span className="setup-tier-sep">→</span>
+        <span className="setup-tier-mark muted">Diagnostics</span>
+      </p>
 
-      <div className="panel">
-        <h2>Ports</h2>
-        <div className="ports-table" role="table" aria-label="Device ports">
-          <div className="pt-row pt-head" role="row">
-            <span role="columnheader">Device</span>
-            <span role="columnheader">MIDI in (to the app)</span>
-            <span role="columnheader">MIDI out (from the app)</span>
+      {/* ── Connect ── */}
+      <div className="panel setup-tier setup-tier-connect">
+        <h2>Connect</h2>
+        {portsBlocked ? (
+          <div className="setup-empty-cta">
+            <p className="setup-empty-line">
+              {next.kind === 'allow-midi'
+                ? 'No ports — allow MIDI in Chrome, then Rescan.'
+                : 'No ports yet — plug USB, allow MIDI, then Rescan.'}
+            </p>
+            <div className="row">
+              {onReopenWizard ? (
+                <button type="button" className="setup-cta" onClick={onReopenWizard}>
+                  {next.cta || 'Connect'}
+                </button>
+              ) : null}
+              <button type="button" onClick={() => void rescanMidiPorts()}>
+                Rescan
+              </button>
+            </div>
           </div>
-          {MY_STUDIO_ROLES.filter((r) => r.midi).map((role) => {
-            const a = snap.assignments.find((x) => x.roleId === role.id);
-            return (
-              <div key={role.id} className="pt-row" role="row">
-                <span role="rowheader" className="pt-device">
-                  <span className={`indicator ${a?.connected ? 'on' : ''}`} />
-                  <strong>{role.label}</strong>
-                  {a?.inputManual || a?.outputManual ? <span className="muted mono small">by hand</span> : null}
-                </span>
-                <span role="cell">
-                  <PortSelect role={role} which="input" a={a} />
-                </span>
-                <span role="cell">
-                  <PortSelect role={role} which="output" a={a} />
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        {unmatched.length > 0 ? (
-          <p className="muted small">
-            Not assigned: {unmatched.map((p) => `${p.name} (${p.type === 'input' ? 'in' : 'out'})`).join(' · ')}
-            {' — '}add as an unknown device below, or assign above.
-          </p>
-        ) : null}
-        <p className="muted small">ZED-10FX = USB audio only (no MIDI). Missing device → cable / Audio MIDI Setup.</p>
+        ) : (
+          <div className="row">
+            <span className="muted small">
+              {connected.length} port{connected.length === 1 ? '' : 's'} · status in the top strip
+            </span>
+            {onReopenWizard ? (
+              <button type="button" className="ghost" onClick={onReopenWizard}>
+                Connect guide
+              </button>
+            ) : null}
+          </div>
+        )}
       </div>
 
-      <UnknownDevicesPanel />
+      {/* ── Configure (hidden when no ports — avoid empty auto grids) ── */}
+      {!portsBlocked ? (
+        <>
+          <div className="panel setup-tier setup-tier-configure">
+            <h2>Configure · Ports</h2>
+            <div className="ports-table" role="table" aria-label="Device ports">
+              <div className="pt-row pt-head" role="row">
+                <span role="columnheader">Device</span>
+                <span role="columnheader">MIDI in</span>
+                <span role="columnheader">MIDI out</span>
+              </div>
+              {MY_STUDIO_ROLES.filter((r) => r.midi).map((role) => {
+                const a = snap.assignments.find((x) => x.roleId === role.id);
+                const focus = sel.setupRoleId === role.id;
+                return (
+                  <div
+                    key={role.id}
+                    id={`setup-role-${role.id}`}
+                    className={`pt-row${focus ? ' pt-row-focus' : ''}`}
+                    role="row"
+                  >
+                    <span role="rowheader" className="pt-device">
+                      <span className={`indicator ${a?.connected ? 'on' : ''}`} />
+                      <strong>{role.label}</strong>
+                      {a?.inputManual || a?.outputManual ? (
+                        <span className="muted mono small">by hand</span>
+                      ) : null}
+                    </span>
+                    <span role="cell">
+                      <PortSelect role={role} which="input" a={a} />
+                    </span>
+                    <span role="cell">
+                      <PortSelect role={role} which="output" a={a} />
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {unmatched.length > 0 ? (
+              <p className="muted small">
+                Not assigned:{' '}
+                {unmatched.map((p) => `${p.name} (${p.type === 'input' ? 'in' : 'out'})`).join(' · ')}
+                {' — '}name below or assign above.
+              </p>
+            ) : null}
+            <p className="muted small">ZED = USB audio only. Missing device → cable / Audio MIDI Setup.</p>
+          </div>
 
-      <div className="panel">
-        <h2>MPC connection</h2>
-        <div className="row">
-          <button
-            type="button"
-            className={snap.mpcNoteMode === 'usb' ? 'active' : ''}
-            onClick={() => setMpcNoteMode('usb')}
-          >
-            App sends notes (USB or Scarlett)
-          </button>
-          <button
-            type="button"
-            className={snap.mpcNoteMode === 'din-only' ? 'active' : ''}
-            onClick={() => setMpcNoteMode('din-only')}
-          >
-            MIDI cable from thru box only
-          </button>
-        </div>
-        <p className="muted small">
-          {snap.mpcNoteMode === 'usb'
-            ? `Notes via MPC Out = ${mpc?.outputPortName ?? 'not assigned'}${mpc?.outputManual && !mpc.outputPortId ? ' (unplugged)' : ''}. Circuit T1–T4 → ch9–12 on that one port (per channel — the app does not fan out).`
-            : 'App sends MPC nothing — thru-box mode (MPC T1–4 on ch 1–4).'}
-        </p>
-        {snap.mpcNoteMode === 'usb' ? (
-          <MoreInfo label="Tracks sound mixed / wrong program?">
-            <p className="muted small">{MPC_CHANNEL_ISOLATION_HINT}</p>
+          {unmatched.length > 0 || snap.customProfiles.length > 0 ? <UnknownDevicesPanel /> : null}
+
+          <div className="panel setup-tier">
+            <h2>Configure · MPC</h2>
+            <div className="row">
+              <button
+                type="button"
+                className={snap.mpcNoteMode === 'usb' ? 'active' : ''}
+                onClick={() => setMpcNoteMode('usb')}
+              >
+                App sends notes
+              </button>
+              <button
+                type="button"
+                className={snap.mpcNoteMode === 'din-only' ? 'active' : ''}
+                onClick={() => setMpcNoteMode('din-only')}
+              >
+                Thru box only
+              </button>
+            </div>
+            <p className="muted small">
+              {snap.mpcNoteMode === 'usb'
+                ? `MPC Out = ${mpc?.outputPortName ?? 'not assigned'}${mpc?.outputManual && !mpc.outputPortId ? ' (unplugged)' : ''}.`
+                : 'App sends MPC nothing — thru-box mode.'}
+            </p>
+            {snap.mpcNoteMode === 'usb' ? (
+              <MoreInfo label="Tracks sound mixed?">
+                <p className="muted small">{MPC_CHANNEL_ISOLATION_HINT}</p>
+                <ol className="steps">
+                  <li>
+                    <b>MPC tracks 1–4</b> — MIDI In, channels <b>9 / 10 / 11 / 12</b> — not All.
+                  </li>
+                  <li>
+                    <b>Monitoring = In</b> (not Auto).
+                  </li>
+                  <li>
+                    <b>USB vs DIN</b> — notes either path; clock needs Scarlett→DIN.
+                  </li>
+                </ol>
+              </MoreInfo>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+
+      {/* ── Advanced ── */}
+      <details className="panel collapsed-chrome setup-tier setup-tier-advanced" open={!portsBlocked && experimental}>
+        <summary>
+          <h2>Advanced</h2>
+        </summary>
+        <div className="panel-inner">
+          <h3>MPC follows Circuit Play</h3>
+          <p className="muted small">
+            Clock → <strong>MPC Out</strong> (Scarlett→DIN; USB-B ignores clock).
+          </p>
+          <div className="switch-row">
+            <button
+              type="button"
+              className={snap.clockToMpc ? 'active' : ''}
+              onClick={() => setClockToMpc(!snap.clockToMpc)}
+              disabled={snap.mpcNoteMode === 'din-only' || portsBlocked}
+            >
+              {snap.clockToMpc ? 'On — transport → MPC' : 'Off'}
+            </button>
+          </div>
+          {snap.mpcNoteMode === 'din-only' ? (
+            <p className="warn">Switch to &quot;App sends notes&quot; first.</p>
+          ) : null}
+          <p className={clockAdvice.kind === 'warn-akai-usb' ? 'warn' : 'muted small'}>{clockAdvice.message}</p>
+          <MoreInfo label="Checklist">
             <ol className="steps">
               <li>
-                <b>Each MPC track 1–4</b> — MIDI input port = MIDI In (or the Scarlett path), channel{' '}
-                <b>9 / 10 / 11 / 12</b> — not All.
+                <b>Cable</b> Scarlett MIDI Out → MPC MIDI In.
               </li>
               <li>
-                <b>Monitoring = In</b> on those tracks — not Auto (Auto only plays the selected track, so
-                Circuit T1 drums can trigger whatever program is selected on track 3).
+                <b>Ports</b> — MPC Out = Scarlett.
               </li>
               <li>
-                <b>USB vs DIN</b> — notes work on either; sequencer clock needs Scarlett→DIN (see below).
+                <b>This switch On</b> — Circuit Clock Tx bright.
               </li>
               <li>
-                Changing a program on the MPC UI only affects that track. If every track changes, they are
-                still on All (or hearing Section Bridge PC on ch15 as All).
+                Circuit <b>Play</b> starts / stops the MPC.
               </li>
             </ol>
           </MoreInfo>
-        ) : null}
-      </div>
 
-      <div className="panel">
-        <h2>MPC follows Circuit Play</h2>
-        <p className="muted small">
-          Sequencer sync via clock → <strong>MPC Out</strong> (Scarlett→DIN; USB-B ignores clock).
-        </p>
-        <div className="switch-row">
-          <button
-            type="button"
-            className={snap.clockToMpc ? 'active' : ''}
-            onClick={() => setClockToMpc(!snap.clockToMpc)}
-            disabled={snap.mpcNoteMode === 'din-only'}
-          >
-            {snap.clockToMpc ? 'On — transport → MPC' : 'Off'}
-          </button>
-        </div>
-        {snap.mpcNoteMode === 'din-only' ? (
-          <p className="warn">Switch to &quot;App sends notes&quot; first — thru-box mode blocks transport.</p>
-        ) : null}
-        <p className={clockAdvice.kind === 'warn-akai-usb' ? 'warn' : 'muted small'}>
-          {clockAdvice.message}
-        </p>
-        <MoreInfo label="Checklist">
+          <h3>FM1 firmware</h3>
+          <div className="row">
+            <button
+              type="button"
+              className={snap.fm1Firmware === 'skiff' ? 'active' : ''}
+              onClick={() => setFm1Firmware('skiff')}
+            >
+              Skiff
+            </button>
+            <button
+              type="button"
+              className={snap.fm1Firmware === 'h1' ? 'active' : ''}
+              onClick={() => setFm1Firmware('h1')}
+            >
+              h1
+            </button>
+          </div>
           <p className="muted small">
-            Ports › MPC Out = Scarlett (not &quot;MPC One&quot;). Notes + transport share that port on
-            separate routes.
+            {snap.fm1Firmware === 'skiff'
+              ? 'Skiff: macros + Level/Pan. Keep FM1 off the thru box.'
+              : 'h1: notes only · all channels — never on the thru box.'}
           </p>
-          <ol className="steps">
-            <li>
-              <b>Cable</b> Scarlett MIDI Out → MPC MIDI In.
-            </li>
-            <li>
-              <b>Ports</b> — MPC Out = Scarlett.
-            </li>
-            <li>
-              <b>This switch On</b> — Circuit Clock Tx (pad 32) bright.
-            </li>
-            <li>
-              <b>MPC</b> MIDI In on · Receive = MIDI Clock · send clock off.
-            </li>
-            <li>
-              Circuit <b>Play</b> starts / stops the MPC sequence.
-            </li>
-          </ol>
-          <p className="muted small">Bench g3 Pass = verified on your firmware. Clock + Start only — no MMC.</p>
-        </MoreInfo>
-      </div>
 
-      <div className="panel">
-        <h2>FM1 firmware</h2>
-        <div className="row">
-          <button type="button" className={snap.fm1Firmware === 'skiff' ? 'active' : ''} onClick={() => setFm1Firmware('skiff')}>
-            Skiff
-          </button>
-          <button type="button" className={snap.fm1Firmware === 'h1' ? 'active' : ''} onClick={() => setFm1Firmware('h1')}>
-            h1
-          </button>
-        </div>
-        <p className="muted small">
-          {snap.fm1Firmware === 'skiff'
-            ? 'Skiff: macros + Level/Pan on routed tracks. Keep FM1 off the thru box.'
-            : 'h1: notes only · all channels — never on the thru box.'}
-        </p>
-        {snap.fm1Firmware === 'skiff' ? (
-          <MoreInfo>
-            <p className="muted small">
-              Macros 1–7 → sound settings, 8 → steps. Mixer CC29/30 → Skiff LEVEL/PAN. FM1 MENU › MIDI ›
-              T1–T4 CHANNEL = 5, 6, 7, 8.
+          {setExperimental ? (
+            <label className="row setup-experimental" style={{ gap: '0.4rem', alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={experimental}
+                onChange={(e) => setExperimental(e.target.checked)}
+              />
+              <span className="small">Experimental tools</span>
+            </label>
+          ) : null}
+          {experimental ? (
+            <p className="callout seq-honesty">
+              Experimental on — Deep Sync / SP USB may stop playback; use carefully.
             </p>
-          </MoreInfo>
-        ) : null}
-      </div>
+          ) : (
+            <p className="muted small">Bench tests: <b>Tests</b> sub-tab.</p>
+          )}
+        </div>
+      </details>
 
       <details className="panel diag">
         <summary>
-          <h2>Troubleshooting</h2>
+          <h2>Diagnostics</h2>
         </summary>
 
         <h3>Every port Chrome sees ({connected.length})</h3>
