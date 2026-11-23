@@ -30,3 +30,26 @@ export {
 } from './worklet-backend';
 
 export { createAudioBackend, type CreateAudioBackendOptions } from './create-backend';
+
+export type {
+  MixerBus,
+  MixerBusId,
+  MixerBusKind,
+  MixerChannelId,
+  MixerChannelStrip,
+  MixerGraph,
+  MixerParseResult,
+  ResolvedMixerChannel,
+} from './mixer-model';
+export {
+  MIXER_SCHEMA_VERSION,
+  clampLevel,
+  clampPan,
+  createDemoMixerGraph,
+  createEmptyMixerGraph,
+  findMixerBus,
+  parseMixerGraph,
+  resolveMixerAudibility,
+  validateMixerGraph,
+} from './mixer-model';
+

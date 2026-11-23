@@ -38,8 +38,9 @@ One swappable **AudioBackend** interface so headless tests can run without getUs
 ## Next (not this PR)
 
 - Optional: adapt CaptureEngine as a `WorkletAudioHost`
-- Step 15: Mixer data model
+- Step 15: Mixer data model — see [mixer-data-model.md](./mixer-data-model.md)
 - Native desktop audio host when contracts freeze
+
 
 ## Verify
 

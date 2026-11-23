@@ -106,8 +106,12 @@ export interface ChainStage {
   instrumentId: InstrumentId;
   /** Optional MIDI channel for this hop (1–16). */
   midiChannel?: number;
-  /** Optional named audio bus (step 15 mixer model will flesh this out). */
+  /**
+   * Optional named audio bus id — aligns with `@dawlessdaw/audio` `MixerBusId`
+   * (`MixerGraph.buses[].id`). Schema link only; no mixer DSP here.
+   */
   audioBus?: string;
+
 }
 
 /**
