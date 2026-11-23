@@ -12,6 +12,7 @@ import { ControllerWorkspace } from './workspaces/ControllerWorkspace';
 import { SequencerWorkspace } from './workspaces/SequencerWorkspace';
 import { SamplesWorkspace } from './workspaces/SamplesWorkspace';
 import { SectionsWorkspace } from './workspaces/SectionsWorkspace';
+import { CircuitWorkspace } from './workspaces/CircuitWorkspace';
 import { SessionsWorkspace } from './workspaces/SessionsWorkspace';
 import { TestWorkspace } from './workspaces/TestWorkspace';
 import { SetupWorkspace } from './workspaces/SetupWorkspace';
@@ -102,6 +103,9 @@ export function App() {
           </WorkspacePanel>
           <WorkspacePanel id="sections" workspace={workspace} onReset={backToRig}>
             <SectionsWorkspace />
+          </WorkspacePanel>
+          <WorkspacePanel id="circuit" workspace={workspace} onReset={backToRig}>
+            <CircuitWorkspace />
           </WorkspacePanel>
           <WorkspacePanel id="sessions" workspace={workspace} onReset={backToRig}>
             <SessionsWorkspace />

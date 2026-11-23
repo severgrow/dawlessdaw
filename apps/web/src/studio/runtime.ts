@@ -51,20 +51,28 @@ import {
   DEVICE_NAME,
   SuperMacroEngine,
   buildControllerRoutes,
+  bumpCircuitTick,
   clonePreset,
   controlMappingKey,
+  CONTROLLER_KNOB_PICKUP_KEY,
   copyTrack,
   describeIncoming,
   destChannel,
+  emptyCircuitLiveTicks,
+  emptyProjectGrid,
   isLearnGlassIgnoredMidi,
   knobTarget,
   myStudioPreset,
+  normalizeProjectGrid,
+  CIRCUIT_PROJECTS_STORAGE_KEY,
   ploeLiveV1Preset,
   presetFromTrackPlan,
   resolveControlMapping,
   sanitizePreset,
   slotCc,
   swapKnobs,
+  type CircuitLiveTicks,
+  type CircuitProjectSlot,
   type ControllerPreset,
   type CtrlDevice,
   type CtrlTrack,
@@ -133,13 +141,14 @@ import type { PerformanceTimelineEvent } from '@dawlessdaw/sequencer';
 import { getFlipEngine } from '../flip/flipEngine';
 import { hardwareLabelForChannel } from '../flip/midiGuide';
 
-/** Rig · Controller · Sequencer · Samples · Sections · Sessions (audio) · Test · Setup · Timing. */
+/** Rig · Controller · Sequencer · Samples · Sections · Circuit · Sessions · Test · Setup · Timing. */
 export type WorkspaceId =
   | 'rig'
   | 'controller'
   | 'sequencer'
   | 'samples'
   | 'sections'
+  | 'circuit'
   | 'sessions'
   | 'test'
   | 'setup'
@@ -274,6 +283,18 @@ export interface StudioRuntimeSnapshot {
    * Experimental until hardware confirm. Does not replace Controller MIDI Learn.
    */
   superMacros: SuperMacroSnapshot;
+  /**
+   * Phase 2 — live Note / CC / PC / Clock ticks from Circuit USB in.
+   * Lights the setup checklist as messages arrive. Experimental until hardware.
+   */
+  circuitLiveTicks: CircuitLiveTicks;
+  /** Phase 2 — 64 Project slots with user names / colours. */
+  circuitProjects: CircuitProjectSlot[];
+  /**
+   * Phase 2 — Controller knob soft takeover (promotes Super Macro direct → pickup).
+   * **Off by default.**
+   */
+  controllerKnobPickup: boolean;
 }
 
 type Listener = () => void;
@@ -305,6 +326,32 @@ function sanitizeSectionBridge(raw: unknown): SectionBridgeConfig | null {
     eventActionsEnabled: r.eventActionsEnabled === true,
     rows,
   };
+}
+
+function loadCircuitProjects(): CircuitProjectSlot[] {
+  try {
+    const raw = localStorage.getItem(CIRCUIT_PROJECTS_STORAGE_KEY);
+    if (!raw) return emptyProjectGrid();
+    return normalizeProjectGrid(JSON.parse(raw) as unknown);
+  } catch {
+    return emptyProjectGrid();
+  }
+}
+
+function saveCircuitProjects(slots: CircuitProjectSlot[]): void {
+  try {
+    localStorage.setItem(CIRCUIT_PROJECTS_STORAGE_KEY, JSON.stringify(slots));
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadControllerKnobPickup(): boolean {
+  try {
+    return localStorage.getItem(CONTROLLER_KNOB_PICKUP_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 /** MPC channel (9–12) → Circuit track channel (1–4), from the My Studio remap. */
@@ -501,6 +548,10 @@ export class StudioRuntime {
   private superMacroUnsub: (() => void) | null = null;
   private superMacroFlushTimer: ReturnType<typeof setInterval> | null = null;
   private superMacroMorphTimer: ReturnType<typeof setInterval> | null = null;
+  /** Phase 2 Circuit live ticks + project grid + Controller soft takeover. */
+  private circuitLiveTicks: CircuitLiveTicks = emptyCircuitLiveTicks();
+  private circuitProjects: CircuitProjectSlot[] = loadCircuitProjects();
+  private controllerKnobPickup = loadControllerKnobPickup();
 
   constructor() {
     this.transport = new WebMidiTransport();
@@ -516,6 +567,7 @@ export class StudioRuntime {
     });
     this.clockHealthUnsub = this.clockHealth.subscribe(() => this.notify());
     this.superMacroUnsub = this.superMacros.subscribe(() => this.notify());
+    this.superMacros.setControllerPickup(this.controllerKnobPickup);
     const savedMacros = loadSuperMacrosState();
     if (savedMacros?.macros) this.superMacros.setMacros(savedMacros.macros);
     if (savedMacros?.scenes) this.superMacros.setScenes(savedMacros.scenes);
@@ -690,6 +742,14 @@ export class StudioRuntime {
       circuitIntelligence: this.circuitIntel.getSnapshot(),
       clockHealth: this.clockHealth.getSnapshot(),
       superMacros: this.superMacros.getSnapshot(),
+      circuitLiveTicks: {
+        note: { ...this.circuitLiveTicks.note },
+        cc: { ...this.circuitLiveTicks.cc },
+        pc: { ...this.circuitLiveTicks.pc },
+        clock: { ...this.circuitLiveTicks.clock },
+      },
+      circuitProjects: this.circuitProjects.map((s) => ({ ...s })),
+      controllerKnobPickup: this.controllerKnobPickup,
     };
   }
 
@@ -1892,6 +1952,48 @@ export class StudioRuntime {
 
   // —— Section Bridge ——
 
+  resetCircuitLiveTicks(): void {
+    this.circuitLiveTicks = emptyCircuitLiveTicks();
+    this.notify();
+  }
+
+  setCircuitProjectSlot(index: number, patch: Partial<Pick<CircuitProjectSlot, 'name' | 'colour'>>): void {
+    const i = Math.max(1, Math.min(64, Math.round(index)));
+    const slot = this.circuitProjects[i - 1];
+    if (!slot) return;
+    if (typeof patch.name === 'string') slot.name = patch.name.trim().slice(0, 40) || `Project ${i}`;
+    if (typeof patch.colour === 'string' && patch.colour.trim()) {
+      slot.colour = patch.colour.trim().slice(0, 32);
+    }
+    saveCircuitProjects(this.circuitProjects);
+    this.notify();
+  }
+
+  setControllerKnobPickup(on: boolean): void {
+    this.controllerKnobPickup = on;
+    try {
+      localStorage.setItem(CONTROLLER_KNOB_PICKUP_KEY, on ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+    this.superMacros.setControllerPickup(on);
+    this.setStatus(
+      on
+        ? 'Knob soft takeover on — Super Macro destinations wait for pickup (experimental)'
+        : 'Knob soft takeover off (default)',
+    );
+    this.notify();
+  }
+
+  reorderSectionBridgeRows(from: number, to: number): void {
+    const rows = [...this.sectionBridge.rows];
+    if (from < 0 || from >= rows.length || to < 0 || to >= rows.length || from === to) return;
+    const [row] = rows.splice(from, 1);
+    if (!row) return;
+    rows.splice(to, 0, row);
+    this.setSectionBridge({ ...this.sectionBridge, rows });
+  }
+
   setSectionBridge(config: SectionBridgeConfig): void {
     this.sectionBridge = {
       eventActionsEnabled: config.eventActionsEnabled === true,
@@ -2219,6 +2321,18 @@ export class StudioRuntime {
     if (fromCircuit || this.registry.get(deviceId ?? '')?.kind === 'circuit-rhythm') {
       const interpreted = this.circuitInterpreter.interpret(message);
       this.lastCircuitGesture = interpreted;
+
+      // Phase 2 live ticks — Circuit USB in only (checklist lights).
+      if (fromCircuit) {
+        const at = Date.now();
+        if (message.kind === 'note-on' && (message.velocity ?? 0) > 0) {
+          this.circuitLiveTicks = bumpCircuitTick(this.circuitLiveTicks, 'note', at);
+        } else if (message.kind === 'cc') {
+          this.circuitLiveTicks = bumpCircuitTick(this.circuitLiveTicks, 'cc', at);
+        } else if (message.kind === 'program-change') {
+          this.circuitLiveTicks = bumpCircuitTick(this.circuitLiveTicks, 'pc', at);
+        }
+      }
 
       if (interpreted.gesture === 'arrangement' && interpreted.projectIndex != null) {
         this.pushBenchDetection(
@@ -2548,6 +2662,10 @@ export class StudioRuntime {
     const spOut = portsForRoles(this.assignments).spOut;
     const fm1Out = portsForRoles(this.assignments).fm1Out;
     const isIn = circuitIn != null && message.portId === circuitIn;
+    if (isIn && (message.kind === 'clock' || message.kind === 'start' || message.kind === 'continue')) {
+      // Throttle clock tick UI bumps — F8 is 24 PPQN; count every tick but notify sparsely via clock path.
+      this.circuitLiveTicks = bumpCircuitTick(this.circuitLiveTicks, 'clock', now);
+    }
     const isOut =
       (mpcOut != null && message.portId === mpcOut) ||
       (spOut != null && message.portId === spOut) ||

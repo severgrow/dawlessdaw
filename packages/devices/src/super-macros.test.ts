@@ -126,4 +126,20 @@ describe('SuperMacroEngine', () => {
     // At least progress updates
     expect(eng.getSnapshot().morph.progress).toBeGreaterThan(0.4);
   });
+
+  it('Controller knob pickup (Phase 2) is off by default and promotes direct → pickup', () => {
+    let t = 0;
+    const eng = new SuperMacroEngine({ now: () => (t += 100) });
+    expect(eng.getSnapshot().controllerPickup).toBe(false);
+    const d = createDestinationFromPreset('fm1.brightness')!;
+    d.takeover = 'direct';
+    eng.setMacros([createEmptySuperMacro({ enabled: true, sourceTrack: 1, sourceKnob: 0, destinations: [d] })]);
+    expect(eng.onMacroCc(1, 0, 0)[0]?.value).toBe(0);
+    eng.setControllerPickup(true);
+    expect(eng.getSnapshot().controllerPickup).toBe(true);
+    expect(eng.getSnapshot().destState[d.id]?.mode).toBe('pickup');
+    // Latched after enabling — jump should wait
+    expect(eng.onMacroCc(1, 0, 100)).toEqual([]);
+    expect(eng.onMacroCc(1, 0, 0).length).toBe(1);
+  });
 });

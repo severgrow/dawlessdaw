@@ -138,6 +138,14 @@ export function useStudioActions() {
       index: number,
       patch: Partial<SectionBridgeConfig['rows'][0]>,
     ) => runtime.updateSectionBridgeRow(index, patch),
+    reorderSectionBridgeRows: (from: number, to: number) =>
+      runtime.reorderSectionBridgeRows(from, to),
+    resetCircuitLiveTicks: () => runtime.resetCircuitLiveTicks(),
+    setCircuitProjectSlot: (
+      index: number,
+      patch: Partial<{ name: string; colour: string }>,
+    ) => runtime.setCircuitProjectSlot(index, patch),
+    setControllerKnobPickup: (on: boolean) => runtime.setControllerKnobPickup(on),
     panic: () => runtime.panic(),
     setActiveBench: (id: string | null) => runtime.setActiveBench(id),
     markBench: (id: string, verdict: BenchVerdict, note?: string) =>

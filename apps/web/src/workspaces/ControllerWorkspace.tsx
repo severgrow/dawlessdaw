@@ -464,6 +464,21 @@ export function ControllerWorkspace() {
         dropped. <strong>Advanced</strong> shows MIDI numbers.
       </p>
 
+      <div className="panel ctl-pickup">
+        <h2>Knob soft takeover</h2>
+        <p className="muted small">
+          Off by default. When on, Super Macro fan-out waits for pickup before jumping a parameter
+          (same engine as Settings → Macros). Experimental until hardware confirm.
+        </p>
+        <button
+          type="button"
+          className={snap.controllerKnobPickup ? 'active' : ''}
+          onClick={() => a.setControllerKnobPickup(!snap.controllerKnobPickup)}
+        >
+          Soft takeover {snap.controllerKnobPickup ? 'on' : 'off'}
+        </button>
+      </div>
+
       <PresetBar advanced={advanced} setAdvanced={setAdvanced} />
 
       <div className="ctl-layout">

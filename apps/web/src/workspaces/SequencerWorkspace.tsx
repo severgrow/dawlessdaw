@@ -284,12 +284,14 @@ export function SequencerWorkspace() {
       {mode === 'circuit-saved' ? (
         <>
           <p className="callout seq-honesty" role="status">
-            <strong>Circuit Saved · experimental</strong> — local <code>.ncs</code> file only. Never
-            opens the USB file protocol automatically (that stops playback on the device).
+            <strong>Circuit Saved · experimental</strong> — prefer a local <code>.ncs</code> from an{' '}
+            <strong>SD card reader</strong> (Components / Remix export). Never opens the USB file
+            protocol automatically — that <strong>stops playback</strong> on the Circuit. USB read
+            stays behind Tests → Deep Sync + explicit confirm only.
           </p>
           <div className="row cm-actions">
             <label className="seq-btn">
-              Open .ncs
+              Open .ncs (card / file)
               <input
                 type="file"
                 accept=".ncs,application/octet-stream"

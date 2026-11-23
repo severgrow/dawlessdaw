@@ -23,9 +23,10 @@ export const TOP_TABS: {
   {
     id: 'build',
     label: 'Build',
-    hint: 'Splot pattern, Circuit Mirror, song sections',
+    hint: 'Splot pattern, Circuit status, song sections',
     panels: [
       { id: 'sequencer', label: 'Splot pattern' },
+      { id: 'circuit', label: 'Circuit' },
       { id: 'sections', label: 'Song sections' },
     ],
     defaultPanel: 'sequencer',

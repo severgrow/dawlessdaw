@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { MoreInfo } from '../components/MoreInfo';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
@@ -30,23 +31,36 @@ function PcInput({
   );
 }
 
+/**
+ * Phase 2 — visual song section cards with drag reorder.
+ * Still drives Section Bridge (Circuit Project → SP / MPC / scene).
+ */
 export function SectionsWorkspace() {
   const snap = useStudioStore();
-  const { setSectionBridge, updateSectionBridgeRow } = useStudioActions();
+  const { setSectionBridge, updateSectionBridgeRow, reorderSectionBridgeRows } = useStudioActions();
   const bridge = snap.sectionBridge;
   const pass = (id: string) => snap.benchResults.find((b) => b.id === id)?.verdict === 'pass';
   const spInModeA = Object.values(snap.trackPlan).some((sends) => sends.some((s) => s.dest === 'sp'));
   const last = snap.lastProject;
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
 
   const removeRow = (i: number) =>
     setSectionBridge({ ...bridge, rows: bridge.rows.filter((_, j) => j !== i) });
   const addRow = () => {
     const next = Math.min(64, Math.max(0, ...bridge.rows.map((r) => r.projectIndex)) + 1);
+    const meta = snap.circuitProjects[next - 1];
     setSectionBridge({
       ...bridge,
       rows: [
         ...bridge.rows,
-        { projectIndex: next, spProgramChange: null, mpcProgramChange: null, sceneId: null, label: '' },
+        {
+          projectIndex: next,
+          spProgramChange: null,
+          mpcProgramChange: null,
+          sceneId: null,
+          label: meta?.name && meta.name !== `Project ${next}` ? meta.name : '',
+        },
       ],
     });
   };
@@ -65,7 +79,7 @@ export function SectionsWorkspace() {
       </div>
       <p className="lead">
         When you change Project on the Circuit, jump SP pattern + MPC sequence together. Needs Circuit{' '}
-        <strong>Program Change Tx</strong> on (ch 16).
+        <strong>Program Change Tx</strong> on (ch 16). Drag cards to reorder the setlist.
       </p>
 
       <div className="panel">
@@ -92,8 +106,11 @@ export function SectionsWorkspace() {
         <h2>Last Circuit project</h2>
         {last ? (
           <p className="mono">
-            Project {last.index} ({last.kind}) ·{' '}
-            {last.matched ? 'sent' : bridge.enabled ? 'no row' : 'bridge off'} ·{' '}
+            Project {last.index}
+            {snap.circuitProjects[last.index - 1]
+              ? ` · ${snap.circuitProjects[last.index - 1]!.name}`
+              : ''}{' '}
+            ({last.kind}) · {last.matched ? 'sent' : bridge.enabled ? 'no row' : 'bridge off'} ·{' '}
             {new Date(last.at).toLocaleTimeString()}
           </p>
         ) : (
@@ -102,73 +119,91 @@ export function SectionsWorkspace() {
       </div>
 
       <div className="panel">
-        <h2>Project → pattern / sequence</h2>
-        <div className="sections-table" role="table" aria-label="Section Bridge rows">
-          <div className="st-row st-head" role="row">
-            <span role="columnheader">Circuit project</span>
-            <span role="columnheader">SP pattern</span>
-            <span role="columnheader">MPC sequence</span>
-            <span role="columnheader">Name</span>
-            <span role="columnheader" aria-label="Remove" />
-          </div>
-          {bridge.rows.map((row, i) => (
-            <div
-              key={i}
-              className={`st-row${last?.matched && last.index === row.projectIndex ? ' st-hit' : ''}`}
-              role="row"
-            >
-              <span role="cell">
-                <input
-                  className="num-input"
-                  type="number"
-                  min={1}
-                  max={64}
-                  aria-label="Circuit project"
-                  value={row.projectIndex}
-                  onChange={(e) =>
-                    updateSectionBridgeRow(i, {
-                      projectIndex: Math.max(1, Math.min(64, Math.round(Number(e.target.value) || 1))),
-                    })
-                  }
-                />
-              </span>
-              <span role="cell">
-                <PcInput
-                  value={row.spProgramChange}
-                  max={16}
-                  label="SP pattern"
-                  onChange={(v) => updateSectionBridgeRow(i, { spProgramChange: v })}
-                />
-              </span>
-              <span role="cell">
-                <PcInput
-                  value={row.mpcProgramChange}
-                  max={128}
-                  label="MPC sequence"
-                  onChange={(v) => updateSectionBridgeRow(i, { mpcProgramChange: v })}
-                />
-              </span>
-              <span role="cell">
-                <input
-                  className="text-input"
-                  type="text"
-                  maxLength={40}
-                  placeholder="e.g. verse"
-                  aria-label="Section name"
-                  value={row.label ?? ''}
-                  onChange={(e) => updateSectionBridgeRow(i, { label: e.target.value })}
-                />
-              </span>
-              <span role="cell">
-                <button type="button" className="send-remove" aria-label="Remove row" onClick={() => removeRow(i)}>
-                  ×
-                </button>
-              </span>
-            </div>
-          ))}
+        <h2>Section cards</h2>
+        <div className="section-cards" role="list" aria-label="Song section cards">
+          {bridge.rows.map((row, i) => {
+            const colour = snap.circuitProjects[row.projectIndex - 1]?.colour ?? '#9fdcc2';
+            const hit = last?.matched && last.index === row.projectIndex;
+            return (
+              <article
+                key={`${row.projectIndex}-${i}`}
+                className={`section-card${hit ? ' hit' : ''}${dragOver === i ? ' drag-over' : ''}${dragFrom === i ? ' dragging' : ''}`}
+                role="listitem"
+                draggable
+                onDragStart={() => setDragFrom(i)}
+                onDragEnd={() => {
+                  setDragFrom(null);
+                  setDragOver(null);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(i);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragFrom != null) reorderSectionBridgeRows(dragFrom, i);
+                  setDragFrom(null);
+                  setDragOver(null);
+                }}
+                style={{ borderTopColor: colour }}
+              >
+                <header className="section-card-head">
+                  <span className="section-card-grip" aria-hidden>
+                    ⋮⋮
+                  </span>
+                  <input
+                    className="text-input section-card-title"
+                    type="text"
+                    maxLength={40}
+                    placeholder="e.g. verse"
+                    aria-label="Section name"
+                    value={row.label ?? ''}
+                    onChange={(e) => updateSectionBridgeRow(i, { label: e.target.value })}
+                  />
+                  <button type="button" className="send-remove" aria-label="Remove section" onClick={() => removeRow(i)}>
+                    ×
+                  </button>
+                </header>
+                <label className="section-card-field">
+                  Circuit project
+                  <input
+                    className="num-input"
+                    type="number"
+                    min={1}
+                    max={64}
+                    aria-label="Circuit project"
+                    value={row.projectIndex}
+                    onChange={(e) =>
+                      updateSectionBridgeRow(i, {
+                        projectIndex: Math.max(1, Math.min(64, Math.round(Number(e.target.value) || 1))),
+                      })
+                    }
+                  />
+                </label>
+                <label className="section-card-field">
+                  SP pattern
+                  <PcInput
+                    value={row.spProgramChange}
+                    max={16}
+                    label="SP pattern"
+                    onChange={(v) => updateSectionBridgeRow(i, { spProgramChange: v })}
+                  />
+                </label>
+                <label className="section-card-field">
+                  MPC sequence
+                  <PcInput
+                    value={row.mpcProgramChange}
+                    max={128}
+                    label="MPC sequence"
+                    onChange={(v) => updateSectionBridgeRow(i, { mpcProgramChange: v })}
+                  />
+                </label>
+              </article>
+            );
+          })}
         </div>
         <button type="button" className="ghost" onClick={addRow} disabled={bridge.rows.length >= 64}>
-          + Add project
+          + Add section
         </button>
         {spInModeA ? (
           <p className="warn">SP Mode A (notes) — pattern PC on ch 13 may fail (bench e).</p>
@@ -177,7 +212,8 @@ export function SectionsWorkspace() {
           <p className="muted small">
             Empty box = send nothing. SP pattern PC on ch 13{' '}
             {pass('sp-pattern-pc') ? '(bench pass)' : '(bench e pending)'}. MPC sequence PC on ch 15{' '}
-            {pass('mpc-sequence-pc') ? '(bench pass)' : '(bench f pending)'}.
+            {pass('mpc-sequence-pc') ? '(bench pass)' : '(bench f pending)'}. Drag the grip to reorder —
+            order is for your setlist view only; matching still uses Circuit project number.
           </p>
         </MoreInfo>
       </div>

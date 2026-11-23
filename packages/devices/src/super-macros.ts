@@ -16,9 +16,15 @@ import {
   type CtrlDevice,
   type KnobTarget,
 } from './controller';
+import {
+  applySoftTakeover,
+  effectiveTakeoverMode,
+  type SoftTakeoverMode,
+  type SoftTakeoverState,
+} from './soft-takeover';
 
 export type MacroCurve = 'linear' | 'ease-in' | 'ease-out' | 's-curve';
-export type TakeoverMode = 'direct' | 'pickup' | 'relative';
+export type TakeoverMode = SoftTakeoverMode;
 export type MacroHonesty = 'docs-backed' | 'verified' | 'experimental';
 
 export type SuperMacroRoleId = 'mpc' | 'sp404' | 'fm1';
@@ -176,6 +182,8 @@ export interface SuperMacroSnapshot {
     cancelled: boolean;
   };
   lastSource: { track: number; knob: number; value: number; at: number } | null;
+  /** Phase 2 — Controller knob soft takeover (promotes direct → pickup). Off by default. */
+  controllerPickup: boolean;
 }
 
 export type SuperMacroListener = () => void;
@@ -276,6 +284,8 @@ export class SuperMacroEngine {
   private lastSource: SuperMacroSnapshot['lastSource'] = null;
   private activeTrack: number | null = null;
   private currentBar = 0;
+  /** Phase 2 Controller knob pickup — off by default; promotes direct → pickup. */
+  private controllerPickup = false;
   private cached: SuperMacroSnapshot | null = null;
   private listeners = new Set<SuperMacroListener>();
   private readonly now: () => number;
@@ -306,11 +316,12 @@ export class SuperMacroEngine {
     const destState: SuperMacroSnapshot['destState'] = {};
     for (const m of this.macros) {
       for (const d of m.destinations) {
-        const st = this.ensureDest(d.id, d.takeover);
+        const mode = effectiveTakeoverMode(d.takeover, this.controllerPickup);
+        const st = this.ensureDest(d.id, mode);
         destState[d.id] = {
           lastSent: st.lastSent,
           pickupLatched: st.pickupLatched,
-          mode: d.takeover,
+          mode,
         };
       }
     }
@@ -340,6 +351,7 @@ export class SuperMacroEngine {
         cancelled: this.morph.cancelled,
       },
       lastSource: this.lastSource ? { ...this.lastSource } : null,
+      controllerPickup: this.controllerPickup,
     };
   }
 
@@ -462,50 +474,38 @@ export class SuperMacroEngine {
     return intents;
   }
 
+  /** Phase 2 Controller soft takeover — off by default. */
+  setControllerPickup(on: boolean): void {
+    this.controllerPickup = on;
+    if (on) {
+      for (const st of this.destRuntime.values()) {
+        if (st.lastSent != null) st.pickupLatched = true;
+      }
+    }
+    this.emit();
+  }
+
+  getControllerPickup(): boolean {
+    return this.controllerPickup;
+  }
+
   private applyTakeover(dest: SuperMacroDestination, source: number, mapped: number): number | null {
-    const st = this.ensureDest(dest.id, dest.takeover);
-    if (dest.takeover === 'direct') {
-      st.pickupLatched = false;
-      st.lastSource = source;
-      st.prevMapped = mapped;
-      return mapped;
+    const mode = effectiveTakeoverMode(dest.takeover, this.controllerPickup);
+    const st = this.ensureDest(dest.id, mode);
+    const soft: SoftTakeoverState = {
+      lastSent: st.lastSent,
+      pickupLatched: st.pickupLatched,
+      prevMapped: st.prevMapped,
+      lastSource: st.lastSource,
+    };
+    const result = applySoftTakeover(mode, soft, source, mapped);
+    st.pickupLatched = result.state.pickupLatched;
+    st.prevMapped = result.state.prevMapped;
+    st.lastSource = result.state.lastSource;
+    if (result.value != null && mode === 'relative') {
+      st.lastSent = result.value;
     }
-    if (dest.takeover === 'pickup') {
-      if (st.lastSent == null) {
-        st.pickupLatched = false;
-        st.lastSource = source;
-        st.prevMapped = mapped;
-        return mapped;
-      }
-      if (st.pickupLatched) {
-        const prev = st.prevMapped;
-        const atTarget = Math.abs(mapped - st.lastSent) <= 1;
-        const crossed =
-          prev != null &&
-          prev !== mapped &&
-          (prev - st.lastSent) * (mapped - st.lastSent) < 0;
-        st.prevMapped = mapped;
-        st.lastSource = source;
-        if (!atTarget && !crossed) return null;
-        st.pickupLatched = false;
-      } else {
-        st.prevMapped = mapped;
-        st.lastSource = source;
-      }
-      return mapped;
-    }
-    // relative: delta from last source applied to lastSent
-    if (st.lastSource == null || st.lastSent == null) {
-      st.lastSource = source;
-      st.lastSent = mapped;
-      st.prevMapped = mapped;
-      return mapped;
-    }
-    const delta = source - st.lastSource;
-    st.lastSource = source;
-    const next = Math.min(127, Math.max(0, st.lastSent + delta));
-    st.prevMapped = next;
-    return next;
+    return result.value;
   }
 
   private rateLimitIntent(intent: CcOutIntent): CcOutIntent | null {

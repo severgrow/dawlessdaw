@@ -9,4 +9,7 @@ export * from './section-bridge';
 export * from './bench';
 export * from './controller';
 export * from './super-macros';
+export * from './soft-takeover';
+export * from './circuit-projects';
+export * from './circuit-setup';
 export * from './generic-profile';
