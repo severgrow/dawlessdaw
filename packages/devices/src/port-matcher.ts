@@ -170,6 +170,14 @@ export function rankPortsForRoleScored(
   return [...candidates]
     .filter((p) => !used.has(p.id))
     .filter((p) => !isClaimedByStrongerRole(p, role, midiRoles))
+    // Bare IAC / Network Session: never auto-assign to any role (picker only).
+    // Network ports that also name Akai/MPC may still score for the MPC role.
+    .filter((p) => !isBareVirtualMidiPort(p.name))
+    .filter((p) => {
+      // Network+Akai ports are first-class for MPC only — never steal for Circuit/SP/FM1.
+      if (looksLikeNetworkMidiPort(p.name) && role.id !== 'mpc') return false;
+      return true;
+    })
     .map((p) => ({ p, s: scorePortAgainstHints(p, hints) }))
     .filter((x) => x.s > 0)
     .sort((a, b) => b.s - a.s);
@@ -420,24 +428,90 @@ export function unmatchedConnectedPorts(
  */
 export function looksLikeMidiInterfaceOut(name: string | null | undefined): boolean {
   if (!name) return false;
+  // Virtual / Network MIDI must not look like a DIN-capable interface.
+  if (looksLikeIacPort(name) || looksLikeNetworkMidiPort(name)) return false;
   return /scarlett|focusrite|2i[24]|4i4|8i6|18i|mio\b|esi\b|motu|um.?one|umone|midisport|usb.?midi|interface/i.test(
     name,
   );
+}
+
+/** macOS IAC Driver virtual bus (notes/Learn only via user pick — never auto-claim). */
+export function looksLikeIacPort(name: string | null | undefined): boolean {
+  if (!name) return false;
+  return /\biac\b/i.test(name);
+}
+
+/**
+ * Akai Network MIDI / RTP-MIDI / Network Session style ports.
+ * Usable for notes/Learn when chosen; not a DIN clock substitute.
+ */
+export function looksLikeNetworkMidiPort(name: string | null | undefined): boolean {
+  if (!name) return false;
+  if (looksLikeIacPort(name)) return false;
+  return /network\s*midi|network\s*session|rtp.?midi|apple.?midi|akai.?remote|\bremote\b.*\bmidi\b/i.test(
+    name,
+  );
+}
+
+/** Bare virtual bus with no device tokens — never auto-assign to any studio role. */
+export function isBareVirtualMidiPort(name: string | null | undefined): boolean {
+  if (!name) return false;
+  if (looksLikeIacPort(name)) return true;
+  if (!looksLikeNetworkMidiPort(name)) return false;
+  // Network port that also names Akai/MPC can auto-bind to the MPC role only.
+  return !/\bmpc\b|akai/i.test(name);
 }
 
 /** Port name looks like the MPC's own USB class-compliant port (clock will not start the sequencer). */
 export function looksLikeAkaiMpcUsbPort(name: string | null | undefined): boolean {
   if (!name) return false;
   if (looksLikeMidiInterfaceOut(name)) return false;
+  if (looksLikeIacPort(name) || looksLikeNetworkMidiPort(name)) return false;
   return /\bmpc\b|akai/i.test(name);
+}
+
+export type MidiPortKind =
+  | 'interface-din'
+  | 'akai-usb'
+  | 'network'
+  | 'iac'
+  | 'unknown';
+
+/** Classify a Web MIDI port for picker labels / clock honesty (Phase B Network MIDI). */
+export function classifyMidiPort(name: string | null | undefined): MidiPortKind {
+  if (!name) return 'unknown';
+  if (looksLikeMidiInterfaceOut(name)) return 'interface-din';
+  if (looksLikeIacPort(name)) return 'iac';
+  if (looksLikeNetworkMidiPort(name)) return 'network';
+  if (looksLikeAkaiMpcUsbPort(name)) return 'akai-usb';
+  return 'unknown';
+}
+
+/**
+ * Picker label: raw name + honesty tag (Scarlett DIN vs USB-B no-clock vs Network/IAC).
+ */
+export function formatMidiPortPickerLabel(name: string): string {
+  switch (classifyMidiPort(name)) {
+    case 'interface-din':
+      return `${name} — Scarlett DIN · clock OK`;
+    case 'akai-usb':
+      return `${name} — USB-B · no clock`;
+    case 'network':
+      return `${name} — Network MIDI · notes/Learn · not DIN clock`;
+    case 'iac':
+      return `${name} — IAC · virtual · pick manually`;
+    default:
+      return name;
+  }
 }
 
 /**
  * Advice for the MPC Out slot when using "MPC follows Circuit Play".
  * Prefer a Scarlett / interface → DIN cable; never rely on MPC USB for clock.
+ * Network MIDI / IAC are first-class for notes — still not a DIN clock claim.
  */
 export function mpcClockPortAdvice(outputPortName: string | null | undefined): {
-  kind: 'ok-interface' | 'warn-akai-usb' | 'unset' | 'unknown';
+  kind: 'ok-interface' | 'warn-akai-usb' | 'warn-network' | 'warn-iac' | 'unset' | 'unknown';
   message: string;
 } {
   if (!outputPortName) {
@@ -447,13 +521,26 @@ export function mpcClockPortAdvice(outputPortName: string | null | undefined): {
         'Pick the Scarlett (or any USB-MIDI interface) as MPC Out — not the “MPC One” USB port. Cable that interface’s MIDI Out → MPC MIDI In (DIN / 3.5 mm).',
     };
   }
-  if (looksLikeAkaiMpcUsbPort(outputPortName)) {
+  const kind = classifyMidiPort(outputPortName);
+  if (kind === 'akai-usb') {
     return {
       kind: 'warn-akai-usb',
       message: `“${outputPortName}” looks like the MPC USB port. Akai USB-B does not accept MIDI Clock from a computer — the sequencer will not start. Switch MPC Out to Scarlett / a MIDI interface whose DIN Out feeds the MPC MIDI In.`,
     };
   }
-  if (looksLikeMidiInterfaceOut(outputPortName)) {
+  if (kind === 'network') {
+    return {
+      kind: 'warn-network',
+      message: `“${outputPortName}” is Network MIDI — fine for notes/Learn when you pick it, but not a Scarlett→DIN clock path. Keep sequencer follow on an interface Out → MPC MIDI In until Bench says otherwise.`,
+    };
+  }
+  if (kind === 'iac') {
+    return {
+      kind: 'warn-iac',
+      message: `“${outputPortName}” is an IAC virtual bus — use only if you intentionally bridge MIDI. It is not Scarlett→DIN clock. Prefer an interface Out → MPC MIDI In for sequencer follow.`,
+    };
+  }
+  if (kind === 'interface-din') {
     return {
       kind: 'ok-interface',
       message: `MPC Out = “${outputPortName}” — good for clock: interface MIDI Out → MPC MIDI In. Notes (ch9–12) and transport share this port but use separate routes.`,
@@ -463,6 +550,25 @@ export function mpcClockPortAdvice(outputPortName: string | null | undefined): {
     kind: 'unknown',
     message: `MPC Out = “${outputPortName}”. For sequencer follow, this must reach the MPC over DIN (not Akai USB-B). Confirm the cable goes interface MIDI Out → MPC MIDI In.`,
   };
+}
+
+/**
+ * Assigned output ports that were connected last sync and are gone now.
+ * Callers should `releaseNotesForPort` before rematching (Phase B disconnect panic).
+ */
+export function lostAssignedOutputPortIds(
+  previousConnectedIds: Iterable<string>,
+  nowConnectedIds: Iterable<string>,
+  assignments: ReadonlyArray<{ outputPortId: string | null | undefined }>,
+): string[] {
+  const prev = previousConnectedIds instanceof Set ? previousConnectedIds : new Set(previousConnectedIds);
+  const now = nowConnectedIds instanceof Set ? nowConnectedIds : new Set(nowConnectedIds);
+  const lost: string[] = [];
+  for (const a of assignments) {
+    const out = a.outputPortId;
+    if (out && prev.has(out) && !now.has(out)) lost.push(out);
+  }
+  return lost;
 }
 
 // Re-export for tests that still call the old private helper shape

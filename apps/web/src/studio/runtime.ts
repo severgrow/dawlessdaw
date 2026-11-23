@@ -47,6 +47,7 @@ import {
   buildPanicMessages,
   emptyBenchResults,
   latencyVerdict,
+  lostAssignedOutputPortIds,
   matchPortsToRoles,
   BUILTIN_PRESETS,
   CIRCUIT_MACRO_CCS,
@@ -508,6 +509,8 @@ export class StudioRuntime {
     outputPortId: null,
     connected: r.id === 'zed',
   }));
+  /** Connected Web MIDI port ids from the previous sync — used for disconnect panic. */
+  private lastConnectedPortIds = new Set<string>();
   private clockToMpc = false;
   private clockToSp = false;
   private fm1Firmware: Fm1Firmware = 'skiff';
@@ -2451,6 +2454,21 @@ export class StudioRuntime {
   // —— internals ——
 
   private syncLivePorts(ports: ReturnType<HardwareTransport['listPorts']>): void {
+    const connectedIds = new Set(
+      ports.filter((p) => p.state === 'connected').map((p) => p.id),
+    );
+    // Disconnect → release hanging notes on lost outs, then rematch.
+    // Manual picks keep remembered name/assignment (matchPortsToRoles).
+    const lostAssignedOuts = lostAssignedOutputPortIds(
+      this.lastConnectedPortIds,
+      connectedIds,
+      this.assignments,
+    );
+    for (const id of lostAssignedOuts) {
+      this.routing.releaseNotesForPort(id);
+    }
+    this.lastConnectedPortIds = connectedIds;
+
     // Empty / dash / mock previous slots must not block Felucca → FM1 (and peers).
     this.assignments = matchPortsToRoles(ports, this.assignments);
     // Role claims win so Felucca bound to FM1 is m-vave-fm1, not generic-midi.
@@ -2459,6 +2477,11 @@ export class StudioRuntime {
     this.refreshCustomBindings(ports);
     this.remapFocusPorts();
     this.persistSetup();
+    if (lostAssignedOuts.length > 0) {
+      this.setStatus(
+        'MIDI port unplugged — notes released; assignment remembered for reconnect',
+      );
+    }
   }
 
   private persistSetup(): void {
