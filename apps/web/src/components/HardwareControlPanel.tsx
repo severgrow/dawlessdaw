@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   DEFAULT_HW_BINDINGS,
   buildHardwareGuide,
@@ -8,28 +9,32 @@ import { useStudioActions, useStudioStore } from '../store/useStudioStore';
  * Circuit P2 — opt-in Hardware Control Mode + adaptive Hardware Guide.
  * Buttons stay Guide-only (no invented MIDI). Experimental until Bench.
  */
-export function HardwareControlPanel() {
-  const snap = useStudioStore();
+export const HardwareControlPanel = memo(function HardwareControlPanel() {
+  const hw = useStudioStore((state) => state.hardwareControl);
+  const hasSource = useStudioStore((state) => state.generative.hasSource);
+  const circuitIn = useStudioStore((state) =>
+    Boolean(state.assignments.find((assignment) => assignment.roleId === 'circuit')?.inputPortId),
+  );
   const a = useStudioActions();
-  const hw = snap.hardwareControl;
-  const circuitIn = Boolean(snap.assignments.find((x) => x.roleId === 'circuit')?.inputPortId);
   const guide = buildHardwareGuide({
     circuitInAssigned: circuitIn,
     modeEnabled: hw.prefs.enabled,
     mixerEnabled: hw.prefs.mixerEnabled,
-    hasSource: snap.generative.hasSource,
+    hasSource,
     ccTxHint: true,
   });
   const next = guide.find((s) => s.active) ?? guide[0];
 
   return (
-    <div className="hw-control panel">
-      <div className="hw-control-head">
-        <h2>Hardware control</h2>
-        <span className="ci-badge">experimental</span>
-      </div>
+    <details className="hw-control panel collapsed-chrome">
+      <summary className="hw-control-head">
+        <h2>Generative hardware controls</h2>
+        <span className={hw.prefs.enabled ? 'ci-badge hw-enabled' : 'ci-badge'}>
+          {hw.prefs.enabled ? 'On' : 'Off'}
+        </span>
+      </summary>
       <p className="muted small hw-control-lead">
-        Macros CC 21–28 drive Generate · buttons = Guide only · off leaves Ploe Live routes alone
+        Enable to control the generator from Circuit macros 1–8. Existing Controller mappings remain active.
       </p>
 
       <div className="hw-control-toggles" role="group" aria-label="Hardware control options">
@@ -39,7 +44,7 @@ export function HardwareControlPanel() {
           aria-pressed={hw.prefs.enabled}
           onClick={() => a.setHardwareControlEnabled(!hw.prefs.enabled)}
         >
-          {hw.prefs.enabled ? 'Mode ON' : 'Mode OFF'}
+          {hw.prefs.enabled ? 'Disable mode' : 'Enable mode'}
         </button>
         <button
           type="button"
@@ -53,7 +58,7 @@ export function HardwareControlPanel() {
         </button>
         {hw.lastAction ? (
           <span className="mono small hw-last">
-            last T{hw.lastAction.track} · CC{hw.lastAction.cc} · {hw.lastAction.action}
+            T{hw.lastAction.track} · CC{hw.lastAction.cc} · {hw.lastAction.action.replaceAll('-', ' ')}
           </span>
         ) : null}
       </div>
@@ -68,7 +73,7 @@ export function HardwareControlPanel() {
               <span className="hw-map-label">{b.label}</span>
               <span className="hw-map-action">{b.action.replace('set-', '')}</span>
               {b.kind === 'trigger' ? (
-                <span className="hw-map-kind mono">hyst</span>
+                <span className="hw-map-kind">Trigger</span>
               ) : null}
             </div>
           ))}
@@ -94,6 +99,6 @@ export function HardwareControlPanel() {
           </ul>
         </details>
       </div>
-    </div>
+    </details>
   );
-}
+});

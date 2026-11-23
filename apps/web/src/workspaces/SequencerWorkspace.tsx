@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { destBadge, parseNcsSession, summarizeSession } from '@dawlessdaw/devices';
 import {
   SCALES,
@@ -8,14 +8,15 @@ import {
   NOTE_NAMES,
   patternFromObservation,
   observationFromMirror,
-  rootLabel,
   type CircuitMirrorSnapshot,
   type MirrorCell,
   type ScaleId,
   type SequencerViewMode,
 } from '@dawlessdaw/sequencer';
 import { CircuitIntelligencePanel } from '../components/CircuitIntelligencePanel';
+import { CircuitPatternCapture } from '../components/CircuitPatternCapture';
 import { CircuitMirrorGrid } from '../components/CircuitMirrorGrid';
+import { EuclideanControls } from '../components/EuclideanControls';
 import { HardwareControlPanel } from '../components/HardwareControlPanel';
 import { MoreInfo } from '../components/MoreInfo';
 import { FlipLane } from '../flip/FlipLane';
@@ -120,6 +121,8 @@ export function SequencerWorkspace() {
   const selStep = pattern.tracks[selected.track - 1]?.steps[selected.step];
   const gen = snap.generative;
   const genSettings = gen.settings;
+  const auditionSide = snap.patternAudition;
+  const hearingOriginal = auditionSide === 'A';
   const locked =
     gen.locks[selected.track - 1]?.[selected.step] === true;
 
@@ -129,18 +132,7 @@ export function SequencerWorkspace() {
     // Pass D: playable Pattern by default (no Circuit jargon wall).
     return 'splot-pattern';
   });
-  const [userPickedMode, setUserPickedMode] = useState(() => loadModePref() != null);
-
-  // Offer Live only when Circuit is connected + active — never override a saved pick.
-  useEffect(() => {
-    if (userPickedMode) return;
-    if (circuitIn && (mirror.playing || mirror.lastNote || snap.estimatedBpm != null)) {
-      setMode('circuit-live');
-    }
-  }, [circuitIn, mirror.playing, mirror.lastNote, snap.estimatedBpm, userPickedMode]);
-
   const pickMode = (m: SequencerViewMode) => {
-    setUserPickedMode(true);
     setMode(m);
     saveModePref(m);
   };
@@ -225,32 +217,23 @@ export function SequencerWorkspace() {
 
   return (
     <div className="section-enter seq-page">
-      <div className="page-head">
+      <div className="page-head seq-workspace-head">
         <h1>{pageTitle}</h1>
-        <span className="seq-brand-chip" title="Product brand">
-          Splot MIDI Brain
-        </span>
-      </div>
-      <p className="lead">
-        {mode === 'splot-pattern'
-          ? 'Play · Stop · Record — tap pads · FLIP below transport.'
-          : 'Optional Circuit views — Pattern stays the playable grid.'}
-      </p>
-
-      <div className="cm-mode-row" role="tablist" aria-label="Sequencer mode">
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            role="tab"
-            aria-selected={mode === m.id}
-            className={`cm-mode-btn${mode === m.id ? ' on' : ''}`}
-            title={m.blurb}
-            onClick={() => pickMode(m.id)}
-          >
-            {m.label}
-          </button>
-        ))}
+        <div className="cm-mode-row" role="tablist" aria-label="Sequencer mode">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              role="tab"
+              aria-selected={mode === m.id}
+              className={`cm-mode-btn${mode === m.id ? ' on' : ''}`}
+              title={m.blurb}
+              onClick={() => pickMode(m.id)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {mode === 'circuit-live' ? (
@@ -376,15 +359,11 @@ export function SequencerWorkspace() {
 
       {mode === 'splot-pattern' ? (
         <>
-          <p className="callout seq-honesty" role="status">
-            <strong>Pattern · experimental</strong> — Splot grid + generate. Not Circuit RAM sync.
-            {gen.hasSource ? ` · source ${gen.sourceKind}` : ' · no source yet'}
-          </p>
-
           <div className="seq-transport seq-transport-dominant" role="toolbar" aria-label="Sequencer transport">
             <button
               type="button"
               className={seq.playing ? 'seq-btn on' : 'seq-btn'}
+              aria-pressed={seq.playing}
               onClick={() => a.seqPlay()}
             >
               PLAY
@@ -395,6 +374,8 @@ export function SequencerWorkspace() {
             <button
               type="button"
               className={seq.recording ? 'seq-btn rec on' : 'seq-btn rec'}
+              aria-pressed={seq.recording}
+              disabled={hearingOriginal}
               onClick={() => a.seqToggleRecord()}
             >
               RECORD
@@ -435,22 +416,6 @@ export function SequencerWorkspace() {
                 onChange={(e) => a.seqSetLength(Number(e.target.value))}
               />
             </label>
-            <button
-              type="button"
-              className="seq-btn"
-              disabled={seq.undoCount < 1 && gen.undoCount < 1}
-              onClick={() => (gen.undoCount > 0 ? a.genUndo() : a.seqUndo())}
-            >
-              UNDO
-            </button>
-            <button
-              type="button"
-              className="seq-btn ghost"
-              disabled={seq.redoCount < 1}
-              onClick={() => a.seqRedo()}
-            >
-              REDO
-            </button>
             <label className="seq-field">
               CLOCK
               <select
@@ -481,102 +446,129 @@ export function SequencerWorkspace() {
             </a>
           </div>
 
-          <div className="gen-strip" role="toolbar" aria-label="Generate and mutate">
-            <label className="seq-field">
-              Root
-              <select
-                value={genSettings.root}
-                onChange={(e) => a.genSetSettings({ root: Number(e.target.value) })}
-              >
-                {NOTE_NAMES.map((n, i) => (
-                  <option key={n} value={i}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="seq-field">
-              Scale
-              <select
-                value={genSettings.scaleId}
-                onChange={(e) => a.genSetSettings({ scaleId: e.target.value as ScaleId })}
-              >
-                {SCALES.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="seq-field gen-range">
-              Density
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round(genSettings.density * 100)}
-                onChange={(e) => a.genSetSettings({ density: Number(e.target.value) / 100 })}
-              />
-              <span className="mono small">{Math.round(genSettings.density * 100)}</span>
-            </label>
-            <label className="seq-field gen-range">
-              Mutate
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round(genSettings.mutation * 100)}
-                onChange={(e) => a.genSetSettings({ mutation: Number(e.target.value) / 100 })}
-              />
-              <span className="mono small">{Math.round(genSettings.mutation * 100)}</span>
-            </label>
-            <label className="seq-field">
-              Seed
-              <input
-                type="number"
-                min={0}
-                value={genSettings.seed}
-                onChange={(e) => a.genSetSettings({ seed: Number(e.target.value) >>> 0 })}
-              />
-            </label>
-            <button type="button" className="seq-btn" onClick={() => a.genCaptureFromPattern()}>
-              Source
-            </button>
-            <button type="button" className="seq-btn on" onClick={() => a.genGenerate()}>
-              Generate
-            </button>
-            <button type="button" className="seq-btn" onClick={() => a.genMutate()}>
-              Mutate
-            </button>
-            <button
-              type="button"
-              className="seq-btn ghost"
-              disabled={!gen.hasSource}
-              onClick={() => a.genResetToSource()}
-            >
-              Reset
-            </button>
-            <span className="gen-meta mono small">
-              {rootLabel(genSettings.root)} · {genSettings.scaleId}
-              {gen.hasSource ? ` · src ${gen.sourceKind}` : ''}
-            </span>
-          </div>
-
-          <HardwareControlPanel />
-
-          {/* Pass D: FLIP above the fold — not buried under the full grid */}
-          <FlipLane
-            bpm={pattern.bpm}
-            playhead={seq.playhead}
-            playing={seq.playing}
-            clockSource={seq.bank.clockSource}
-            trackMutes={pattern.tracks.map((t) => t.muted)}
-            setTrackMute={(track, muted) => a.seqSetTrackMute(track, muted)}
-          />
+          <section className="pattern-workflow" aria-label="Capture and vary a pattern">
+            <CircuitPatternCapture
+              key={seq.bank.activePatternIndex}
+              inputPort={circuitIn}
+              capture={(bars) => a.getRuntime().captureCircuitPattern(bars)}
+              usePattern={(captured) => a.getRuntime().genCapturePattern(captured, 'capture')}
+            />
+            <div className="pattern-variation">
+              <div className="pattern-controls">
+                <div className="pattern-audition" role="group" aria-label="Audition pattern">
+                  <button
+                    type="button"
+                    className={hearingOriginal ? 'seq-btn on' : 'seq-btn'}
+                    aria-pressed={hearingOriginal}
+                    disabled={!gen.hasSource}
+                    title={gen.source?.name}
+                    onClick={() => a.getRuntime().setPatternAudition('A')}
+                  >
+                    A · Original
+                  </button>
+                  <button
+                    type="button"
+                    className={hearingOriginal ? 'seq-btn' : 'seq-btn on'}
+                    aria-pressed={!hearingOriginal}
+                    onClick={() => a.getRuntime().setPatternAudition('B')}
+                  >
+                    B · Variation
+                  </button>
+                </div>
+                <button type="button" className="seq-btn pattern-primary" onClick={a.genMutate}>
+                  Mutate
+                </button>
+                <button type="button" className="seq-btn" onClick={a.genGenerate}>
+                  Generate
+                </button>
+                <button type="button" className="seq-btn ghost" disabled={!seq.undoCount} onClick={a.seqUndo}>
+                  Undo
+                </button>
+                <button type="button" className="seq-btn ghost" disabled={!seq.redoCount} onClick={a.seqRedo}>
+                  Redo
+                </button>
+              </div>
+              <p className="pattern-feedback small muted" aria-live="polite">
+                {seq.playing ? 'Playing' : 'Ready to play'} {auditionSide} · Editing B
+                {gen.hasSource ? ' · Switching stops playback. Press Play to hear your selection.' : ''}
+              </p>
+            </div>
+            <div className="pattern-settings-row">
+              <details className="pattern-settings">
+                <summary>Generator settings</summary>
+                <div className="gen-strip">
+                  <label className="seq-field">
+                    Root
+                    <select
+                      value={genSettings.root}
+                      onChange={(e) => a.genSetSettings({ root: Number(e.target.value) })}
+                    >
+                      {NOTE_NAMES.map((n, i) => (
+                        <option key={n} value={i}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="seq-field">
+                    Scale
+                    <select
+                      value={genSettings.scaleId}
+                      onChange={(e) => a.genSetSettings({ scaleId: e.target.value as ScaleId })}
+                    >
+                      {SCALES.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="seq-field gen-range">
+                    Density
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={Math.round(genSettings.density * 100)}
+                      onChange={(e) => a.genSetSettings({ density: Number(e.target.value) / 100 })}
+                    />
+                    <span className="mono small">{Math.round(genSettings.density * 100)}</span>
+                  </label>
+                  <label className="seq-field gen-range">
+                    Mutate
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={Math.round(genSettings.mutation * 100)}
+                      onChange={(e) => a.genSetSettings({ mutation: Number(e.target.value) / 100 })}
+                    />
+                    <span className="mono small">{Math.round(genSettings.mutation * 100)}</span>
+                  </label>
+                  <label className="seq-field">
+                    Seed
+                    <input
+                      type="number"
+                      min={0}
+                      value={genSettings.seed}
+                      onChange={(e) => a.genSetSettings({ seed: Number(e.target.value) >>> 0 })}
+                    />
+                  </label>
+                  <button type="button" className="seq-btn" onClick={a.genCaptureFromPattern}>
+                    Set grid as A
+                  </button>
+                  <button type="button" className="seq-btn ghost" disabled={!gen.hasSource} onClick={a.genResetToSource}>
+                    Reset B from A
+                  </button>
+                </div>
+              </details>
+              <EuclideanControls length={pattern.length} apply={(settings) => a.getRuntime().genApplyEuclidean(settings)} />
+            </div>
+          </section>
 
           <div className="seq-grid-wrap">
             <div className="seq-grid-label">
-              Pattern · T{selected.track}
+              Variation B · T{selected.track}
               {selStep ? ` · step ${selected.step + 1}` : ''}
             </div>
             <div className="seq-step-nums" aria-hidden="true">
@@ -584,7 +576,7 @@ export function SequencerWorkspace() {
               {Array.from({ length: 16 }, (_, i) => (
                 <span
                   key={i}
-                  className={`seq-step-num${i >= pattern.length ? ' dim' : ''}${seq.playhead === i ? ' play' : ''}`}
+                  className={`seq-step-num${i >= pattern.length ? ' dim' : ''}${!hearingOriginal && seq.playhead === i ? ' play' : ''}`}
                 >
                   {i + 1}
                 </span>
@@ -623,13 +615,14 @@ export function SequencerWorkspace() {
                         const outside = si >= pattern.length;
                         const selectedCell =
                           selected.track === trackNo && selected.step === si;
-                        const playing = seq.playhead === si && seq.playing;
+                        const playing = !hearingOriginal && seq.playhead === si && seq.playing;
                         const isLocked = gen.locks[ti]?.[si] === true;
                         return (
                           <button
                             key={si}
                             type="button"
                             role="gridcell"
+                            aria-selected={selectedCell}
                             aria-label={`Track ${trackNo} step ${si + 1}${st.on ? ' on' : ' off'}${isLocked ? ' locked' : ''}`}
                             className={[
                               'seq-pad',
@@ -730,15 +723,23 @@ export function SequencerWorkspace() {
               </div>
             </div>
           ) : null}
+          <HardwareControlPanel />
+          <FlipLane
+            bpm={pattern.bpm}
+            playhead={seq.playhead}
+            playing={seq.playing}
+            clockSource={seq.bank.clockSource}
+            trackMutes={pattern.tracks.map((t) => t.muted)}
+            setTrackMute={(track, muted) => a.seqSetTrackMute(track, muted)}
+          />
         </>
       ) : null}
 
-      <MoreInfo label="Circuit P1 limits">
+      <MoreInfo label="Circuit MIDI limits">
         <p className="small muted">
-          Live reconstructs performance MIDI (observed / inferred / empty) — not pattern RAM. Generate
-          and Mutate keep source separate from working; locks survive regenerate. Hear on Circuit sends
-          documented notes on channels 1–8 only — no SysEx, no invented buttons, no second clock, not
-          Guided Record. Status: <b>experimental / untested</b> until Bench.
+          Capture uses Circuit MIDI input on channels 1–8. Live shows observed and inferred activity.
+          Both depend on what Circuit sends. Hear Circuit auditions notes on Circuit MIDI Out.
+          Hardware verification is pending.
         </p>
       </MoreInfo>
     </div>

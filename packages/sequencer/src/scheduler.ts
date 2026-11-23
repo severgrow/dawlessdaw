@@ -43,6 +43,8 @@ export class SeqScheduler {
   private clockSource: 'circuit' | 'internal' = 'circuit';
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextStepAt = 0;
+  private lastNoteEndsAt = 0;
+  private resumeAt = 0;
   private readonly now: NowFn;
   private readonly onNote: NoteOutFn;
   private readonly onAllNotesOff?: AllNotesOffFn;
@@ -116,6 +118,8 @@ export class SeqScheduler {
     if (this.clockSource !== 'circuit') return;
     this.playing = false;
     this.lastFiredStep = -1;
+    // Let timestamped releases drain before a new pattern can retrigger a queued note.
+    this.resumeAt = this.lastNoteEndsAt;
     this.onAllNotesOff?.();
     this.onPlayhead?.(-1);
   }
@@ -123,6 +127,7 @@ export class SeqScheduler {
   /** One MIDI Timing Clock (0xF8) from Circuit. */
   onClockTick(timestamp?: number): void {
     if (this.clockSource !== 'circuit' || !this.playing || !this.pattern) return;
+    if ((timestamp ?? this.now()) < this.resumeAt) return;
     const within = this.tickCount % CLOCKS_PER_STEP;
     if (within === 0) {
       const len = this.pattern.length;
@@ -140,7 +145,7 @@ export class SeqScheduler {
     if (this.clockSource !== 'internal') return;
     this.playing = true;
     this.lastFiredStep = -1;
-    this.nextStepAt = this.now();
+    this.nextStepAt = Math.max(this.now(), this.resumeAt);
     this.startInternalLoop();
     this.onPlayhead?.(0);
   }
@@ -151,6 +156,8 @@ export class SeqScheduler {
     this.stopInternalLoop();
     this.tickCount = 0;
     this.lastFiredStep = -1;
+    // Let timestamped releases drain before a new pattern can retrigger a queued note.
+    this.resumeAt = this.lastNoteEndsAt;
     this.onAllNotesOff?.();
     this.onPlayhead?.(-1);
   }
@@ -199,6 +206,7 @@ export class SeqScheduler {
       const st = track.steps[step];
       if (!st?.on) return;
       const durationMs = Math.max(20, st.gate * stepMs);
+      this.lastNoteEndsAt = Math.max(this.lastNoteEndsAt, time + durationMs);
       this.onNote({
         track: i + 1,
         pitch: st.pitch,

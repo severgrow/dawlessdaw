@@ -43,6 +43,8 @@ export class SequencerEngine {
   private liveActivity: SeqEngineSnapshot['liveActivity'] = null;
   private listeners = new Set<SeqChangeListener>();
   private scheduler: SeqScheduler;
+  private audition: SeqPattern | null = null;
+  private awaitingAuditionPlay = false;
   private selectedTrack = 1;
   private selectedStep = 0;
   private readonly persistEnabled: boolean;
@@ -104,6 +106,8 @@ export class SequencerEngine {
 
   /** UI PLAY: Circuit mode arms wait-for-Start; internal mode starts immediately. */
   play(): void {
+    if (this.scheduler.isPlaying()) return;
+    this.awaitingAuditionPlay = false;
     this.syncSchedulerPattern();
     if (this.bank.clockSource === 'internal') {
       this.scheduler.playInternal();
@@ -138,7 +142,7 @@ export class SequencerEngine {
 
   /** Forward Circuit transport / clock into the scheduler (authority stays Circuit). */
   onMidiClockMessage(kind: string, timestamp?: number): void {
-    if (this.bank.clockSource !== 'circuit') return;
+    if (this.bank.clockSource !== 'circuit' || this.awaitingAuditionPlay) return;
     if (kind === 'start') {
       this.scheduler.onTransportStart();
       this.notify();
@@ -163,11 +167,27 @@ export class SequencerEngine {
     this.notify();
   }
 
+  /** A is a playback override. The bank and its edit history always belong to B. */
+  setAuditionPattern(pattern: SeqPattern | null): boolean {
+    if (pattern === this.audition) return false;
+    const wasPlaying = this.scheduler.isPlaying();
+    this.pauseForAudition();
+    this.audition = pattern;
+    this.syncSchedulerPattern();
+    return wasPlaying;
+  }
+
+  pauseForAudition(): void {
+    this.awaitingAuditionPlay = true;
+    if (this.scheduler.isPlaying() || this.recording) this.stop();
+  }
+
   // ─── Pattern edits ───────────────────────────────────────────
 
   setActivePattern(index: number): void {
     const i = Math.max(0, Math.min(SEQ_PATTERN_SLOTS - 1, index));
     if (i === this.bank.activePatternIndex) return;
+    this.awaitingAuditionPlay = false;
     this.bank = { ...this.bank, activePatternIndex: i };
     this.undoStack = [];
     this.redoStack = [];
@@ -186,7 +206,6 @@ export class SequencerEngine {
   setBpm(bpm: number): void {
     const v = Math.max(40, Math.min(300, Math.round(bpm)));
     this.mutatePattern((p) => ({ ...clonePattern(p), bpm: v }), false);
-    this.scheduler.setBpm(v);
     this.persistSoon();
     this.notify();
   }
@@ -316,9 +335,7 @@ export class SequencerEngine {
   }
 
   private syncSchedulerPattern(): void {
-    const p = activePattern(this.bank);
-    this.scheduler.setPattern(p);
-    this.scheduler.setBpm(p.bpm);
+    this.scheduler.setPattern(this.audition ?? activePattern(this.bank));
   }
 
   private notify(): void {

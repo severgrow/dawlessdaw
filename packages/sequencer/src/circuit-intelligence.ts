@@ -176,6 +176,11 @@ export class CircuitIntelligenceEngine {
     for (const fn of this.listeners) fn();
   }
 
+  /** MIDI consumers need the latest tick without subscribing the UI at clock rate. */
+  getMusicalPosition(): MusicalPositionSnapshot {
+    return this.position.getSnapshot();
+  }
+
   getSnapshot(): CircuitIntelligenceSnapshot {
     if (!this.cached) this.cached = this.build();
     return this.cached;

@@ -386,6 +386,7 @@ export class HardwareControlEngine {
     if (!on) {
       this.hyst.clear();
       this.lastAction = null;
+      this.lastTrack = null;
     }
     this.emit();
   }
@@ -418,6 +419,7 @@ export class HardwareControlEngine {
     if (!binding) return null;
     if (binding.mixerOptional && !this.prefs.mixerEnabled) return null;
 
+    const trackChanged = this.lastTrack !== track;
     this.lastTrack = track;
 
     if (binding.kind === 'continuous') {
@@ -435,14 +437,15 @@ export class HardwareControlEngine {
     }
 
     // Trigger with hysteresis
-    const prev = this.hyst.get(cc) ?? emptyHysteresis(true);
+    const key = track * 128 + cc;
+    const prev = this.hyst.get(key) ?? emptyHysteresis();
     const { fired, state } = applyTriggerHysteresis(prev, value, {
       low: this.prefs.hysteresisLow,
       high: this.prefs.hysteresisHigh,
     });
-    this.hyst.set(cc, state);
+    this.hyst.set(key, state);
     if (!fired) {
-      this.emit();
+      if (trackChanged) this.emit();
       return null;
     }
     const cmd = triggerCommand(binding.action);
@@ -459,8 +462,8 @@ export class HardwareControlEngine {
   }
 
   /** For tests: peek hysteresis armed state. */
-  isTriggerArmed(cc: number): boolean {
-    return (this.hyst.get(cc) ?? emptyHysteresis(true)).armed;
+  isTriggerArmed(cc: number, track = this.lastTrack ?? 1): boolean {
+    return (this.hyst.get(track * 128 + cc) ?? emptyHysteresis()).armed;
   }
 }
 

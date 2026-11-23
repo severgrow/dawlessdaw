@@ -15,10 +15,15 @@ import {
   HardwareControlEngine,
   SequencerEngine,
   adaptClockService,
+  activePattern,
+  applyEuclideanRhythm,
+  captureHintFromClockService,
+  sanitizePattern,
   patternFromMirror,
   type CircuitIntelligenceSnapshot,
   type ClockHealthSnapshot,
   type ClockService,
+  type EuclideanSettings,
   type GenerativeSettings,
   type GenerativeSnapshot,
   type GenerativeSourceKind,
@@ -32,10 +37,12 @@ import {
 } from '@dawlessdaw/sequencer';
 import { StudioEventBus } from '@dawlessdaw/events';
 import {
+  MidiEventRecorder,
   NativeBridgeTransport,
   WebMidiTransport,
   type HardwareTransport,
 } from '@dawlessdaw/midi';
+import { circuitPatternBars } from '../recorder/circuitPatternCapture';
 import { MidiRoutingEngine, type MidiRoute } from '@dawlessdaw/routing';
 import { FocusEngine } from '@dawlessdaw/focus';
 import {
@@ -335,6 +342,7 @@ export interface StudioRuntimeSnapshot {
    * Experimental until Bench. Not Guided Record / not .ncs write.
    */
   generative: GenerativeSnapshot;
+  patternAudition: 'A' | 'B';
   /**
    * Opt-in: also send sequencer notes to Circuit Out (documented ch 1–8).
    * Experimental / untested — needs Note Rx Bench. Never emits clock.
@@ -633,7 +641,7 @@ export class StudioRuntime {
    * Observation only; never enables app clock forwarding.
    */
   private clockService: ClockService = adaptClockService({
-    getMusicalTime: () => this.circuitIntel.getSnapshot().position,
+    getMusicalTime: () => this.circuitIntel.getMusicalPosition(),
     getHealthSnapshot: () => this.clockHealth.getSnapshot(),
     subscribe: (fn) => {
       const a = this.circuitIntel.subscribe(fn);
@@ -659,13 +667,28 @@ export class StudioRuntime {
   private spEffectSweep: StudioRuntimeSnapshot['spEffectSweep'] = null;
   private spEffectSweepTimers: ReturnType<typeof setTimeout>[] = [];
 
+  private patternAudition: 'A' | 'B' = 'B';
+  private readonly circuitCapture = new MidiEventRecorder({
+    getPosition: () => this.clockService.getMusicalTime(),
+  });
+
   constructor() {
+    this.circuitCapture.start();
     this.transport = new WebMidiTransport();
     this.routing = new MidiRoutingEngine(this.transport, this.bus);
     this.sequencer = new SequencerEngine({
       onNote: (note) => this.fireSequencerNote(note),
       onAllNotesOff: () => this.routing.allNotesOff(),
     });
+    try {
+      const saved = JSON.parse(localStorage.getItem('dawlessdaw.patternOriginal.v1') ?? 'null');
+      const original = sanitizePattern(saved?.pattern);
+      if (original && ['capture', 'mirror', 'ncs', 'pattern'].includes(saved.kind)) {
+        this.generative.captureSource(original, saved.kind);
+      }
+    } catch {
+      // Local storage may be unavailable.
+    }
     this.seqUnsub = this.sequencer.subscribe(() => this.notify());
     this.generativeUnsub = this.generative.subscribe(() => this.notify());
     this.hardwareControlUnsub = this.hardwareControl.subscribe(() => this.notify());
@@ -871,6 +894,7 @@ export class StudioRuntime {
       },
       spEffectSweep: this.spEffectSweep ? { ...this.spEffectSweep } : null,
       generative: this.generative.getSnapshot(),
+      patternAudition: this.patternAudition,
       hearOnCircuit: this.hearOnCircuit,
       hardwareControl: this.hardwareControl.getSnapshot(),
     };
@@ -904,7 +928,15 @@ export class StudioRuntime {
         this.logMidi(message);
         const deviceId = this.registry.deviceForPort(message.portId);
         this.bus.emit({ type: 'midi:in', message, deviceId });
-        this.handleIncoming(message, deviceId);
+        const circuitIn = portsForRoles(this.assignments).circuitIn;
+        const fromCircuit = circuitIn != null && message.portId === circuitIn;
+        const echo = fromCircuit && message.kind === 'note-on' && message.channel != null &&
+          message.note != null && this.circuitEchoGuard.shouldSuppressIncoming(message.channel, message.note);
+        if (fromCircuit && !echo && (isClockLike(message.kind) ||
+          message.kind === 'note-on' || message.kind === 'note-off')) {
+          this.circuitCapture.recordIncoming(message);
+        }
+        this.handleIncoming(message, deviceId, echo);
       }),
     );
 
@@ -1247,6 +1279,7 @@ export class StudioRuntime {
   }
 
   seqToggleRecord(): void {
+    if (this.patternAudition === 'A') return;
     this.sequencer.toggleRecording();
     const on = this.sequencer.getSnapshot().recording;
     this.setStatus(
@@ -1268,6 +1301,7 @@ export class StudioRuntime {
   }
 
   seqSetActivePattern(index: number): void {
+    if (this.patternAudition === 'A') this.setPatternAudition('B');
     this.sequencer.setActivePattern(index);
     this.notify();
   }
@@ -1331,9 +1365,10 @@ export class StudioRuntime {
   }
 
   /** Push generative working pattern into the playable sequencer slot. */
-  private applyGenerativeToSequencer(pushUndo = true): void {
+  private applyGenerativeToSequencer(): void {
     const working = this.generative.getSnapshot().working;
-    this.sequencer.replaceActivePattern(working, pushUndo);
+    const { id } = activePattern(this.sequencer.getSnapshot().bank);
+    this.sequencer.replaceActivePattern({ ...working, id });
   }
 
   setHearOnCircuit(on: boolean): void {
@@ -1352,63 +1387,102 @@ export class StudioRuntime {
     this.notify();
   }
 
+  captureCircuitPattern(bars: number) {
+    const port = portsForRoles(this.assignments).circuitIn;
+    if (!port) return null;
+    return circuitPatternBars(
+      this.circuitCapture.getEvents(),
+      port,
+      bars,
+      captureHintFromClockService(this.clockService),
+      this.clockService.now(),
+      activePattern(this.sequencer.getSnapshot().bank),
+    );
+  }
+
+  setPatternAudition(side: 'A' | 'B'): void {
+    if (side === this.patternAudition) return;
+    const source = this.generative.getSnapshot().source;
+    if (side === 'A' && !source) return;
+    this.patternAudition = side;
+    const stopped = this.sequencer.setAuditionPattern(side === 'A' ? source : null);
+    this.setStatus(stopped ? `Audition ${side} selected. Press Play to hear it.` : `Audition ${side} selected`);
+    this.notify();
+  }
+
   /** Capture Live Mirror → generative source + working, then load into Pattern. */
   genCaptureFromMirror(): void {
-    const pat = patternFromMirror(this.circuitMirror.getSnapshot(), {
+    const current = activePattern(this.sequencer.getSnapshot().bank);
+    const pattern = patternFromMirror(this.circuitMirror.getSnapshot(), {
       name: 'Observed Circuit',
-      bpm: this.estimatedBpm ?? this.sequencer.getSnapshot().bank.patterns[
-        this.sequencer.getSnapshot().bank.activePatternIndex
-      ]!.bpm,
+      bpm: this.estimatedBpm ?? current.bpm,
     });
-    this.generative.captureSource(pat, 'mirror');
-    this.applyGenerativeToSequencer(true);
-    this.setStatus('Captured Live observation as source · experimental (not pattern RAM)');
-    this.notify();
+    this.genCapturePattern(pattern, 'mirror');
   }
 
-  /** Capture current Splot Pattern as generative source. */
   genCaptureFromPattern(): void {
-    const snap = this.sequencer.getSnapshot();
-    const pat = snap.bank.patterns[snap.bank.activePatternIndex]!;
-    this.generative.captureSource(pat, 'pattern');
-    this.setStatus('Pattern captured as generative source');
+    this.setGenerativeSource(activePattern(this.sequencer.getSnapshot().bank), 'pattern');
+    this.setStatus('Current grid saved as Original A');
     this.notify();
   }
 
-  /** Capture a SeqPattern from Saved .ncs mapping. */
   genCapturePattern(pattern: SeqPattern, kind: GenerativeSourceKind = 'ncs'): void {
-    this.generative.captureSource(pattern, kind);
-    this.applyGenerativeToSequencer(true);
-    this.setStatus(`Captured ${kind} as generative source`);
+    // An explicit Play is required after replacing a working take.
+    this.sequencer.pauseForAudition();
+    this.setGenerativeSource(pattern, kind);
+    const current = activePattern(this.sequencer.getSnapshot().bank);
+    this.sequencer.replaceActivePattern({ ...pattern, id: current.id });
+    this.setStatus('Original A saved. Edit Variation B or press Play to audition.');
     this.notify();
+  }
+
+  private setGenerativeSource(pattern: SeqPattern, kind: GenerativeSourceKind): void {
+    this.setPatternAudition('B');
+    this.generative.captureSource(pattern, kind);
+    try {
+      localStorage.setItem('dawlessdaw.patternOriginal.v1', JSON.stringify({ pattern, kind }));
+    } catch {
+      // Original remains available in this session.
+    }
+  }
+
+  private syncGenerativeWorking(): void {
+    this.generative.adoptWorking(activePattern(this.sequencer.getSnapshot().bank), false);
   }
 
   genGenerate(): void {
+    this.syncGenerativeWorking();
     this.generative.generate();
-    this.applyGenerativeToSequencer(true);
-    this.setStatus('Generate — unlocked steps (source kept)');
+    this.applyGenerativeToSequencer();
+    this.setStatus('Generated variation B');
     this.notify();
   }
 
   genMutate(): void {
+    this.syncGenerativeWorking();
     this.generative.mutate();
-    this.applyGenerativeToSequencer(true);
-    this.setStatus('Mutate — unlocked steps (source kept)');
+    this.applyGenerativeToSequencer();
+    this.setStatus('Mutated variation B');
     this.notify();
   }
 
   genResetToSource(): void {
+    this.syncGenerativeWorking();
     this.generative.resetToSource();
-    this.applyGenerativeToSequencer(true);
-    this.setStatus('Reset working → source (locks kept)');
+    this.applyGenerativeToSequencer();
+    this.setStatus('Restored variation B from original A · locks kept');
     this.notify();
   }
 
+  genApplyEuclidean(settings: EuclideanSettings): { hits: number; blocked: number } {
+    const working = activePattern(this.sequencer.getSnapshot().bank);
+    const result = applyEuclideanRhythm(working, this.generative.getSnapshot().locks, settings);
+    this.sequencer.replaceActivePattern(result.pattern);
+    return { hits: result.hits, blocked: result.blocked };
+  }
+
   genUndo(): void {
-    this.generative.undo();
-    this.applyGenerativeToSequencer(false);
-    this.setStatus('Generative undo');
-    this.notify();
+    this.seqUndo();
   }
 
   genToggleLock(track: number, step: number): void {
@@ -1421,9 +1495,7 @@ export class StudioRuntime {
     step: number,
     patch: Partial<Pick<SeqStep, 'pitch' | 'velocity' | 'gate' | 'on'>>,
   ): void {
-    this.generative.editStep(track, step, patch);
-    this.applyGenerativeToSequencer(true);
-    this.notify();
+    this.seqSetStep(track, step, patch);
   }
 
   getGenerative(): GenerativeEngine {
@@ -1461,19 +1533,13 @@ export class StudioRuntime {
         this.generative.setSettings(cmd.patch);
         break;
       case 'generate':
-        this.generative.generate();
-        this.applyGenerativeToSequencer(true);
-        this.setStatus('HW Generate');
+        this.genGenerate();
         break;
       case 'mutate':
-        this.generative.mutate();
-        this.applyGenerativeToSequencer(true);
-        this.setStatus('HW Mutate');
+        this.genMutate();
         break;
       case 'reset':
-        this.generative.resetToSource();
-        this.applyGenerativeToSequencer(true);
-        this.setStatus('HW Reset → source');
+        this.genResetToSource();
         break;
       case 'toggle-lock': {
         const sel = this.sequencer.getSelected();
@@ -1482,9 +1548,7 @@ export class StudioRuntime {
         break;
       }
       case 'undo':
-        this.generative.undo();
-        this.applyGenerativeToSequencer(false);
-        this.setStatus('HW Undo');
+        this.genUndo();
         break;
     }
     this.notify();
@@ -2519,6 +2583,7 @@ export class StudioRuntime {
   }
 
   panic(): void {
+    this.sequencer.stop();
     const outs = [
       portsForRoles(this.assignments).mpcOut,
       portsForRoles(this.assignments).spOut,
@@ -2739,7 +2804,7 @@ export class StudioRuntime {
     });
   }
 
-  private handleIncoming(message: MidiMessage, deviceId?: string): void {
+  private handleIncoming(message: MidiMessage, deviceId?: string, circuitEcho = false): void {
     const circuitIn = portsForRoles(this.assignments).circuitIn;
     const fromCircuit = circuitIn && message.portId === circuitIn;
 
@@ -2821,7 +2886,7 @@ export class StudioRuntime {
         return;
       }
 
-      if (message.kind === 'note-on' && (message.velocity ?? 0) > 0 && message.channel) {
+      if (!circuitEcho && message.kind === 'note-on' && (message.velocity ?? 0) > 0 && message.channel) {
         if (message.channel >= 1 && message.channel <= 8) {
           this.trackActivity[message.channel] =
             typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -2835,23 +2900,8 @@ export class StudioRuntime {
             // Circuit Mirror Live: Circuit **input** only (fromCircuit gate above).
             // Echo guard: ignore notes we just sent to Circuit Out (no feedback loop).
             if (fromCircuit) {
-              const echo = this.circuitEchoGuard.shouldSuppressIncoming(
-                message.channel,
-                message.note,
-              );
-              if (!echo) {
-                this.circuitMirror.onNoteOn(
-                  message.channel,
-                  message.note,
-                  message.velocity ?? 0,
-                );
-                // Activity fingerprints — after routing path; analysis only.
-                this.circuitIntel.onNoteOn(
-                  message.channel,
-                  message.note,
-                  message.velocity ?? 0,
-                );
-              }
+              this.circuitMirror.onNoteOn(message.channel, message.note, message.velocity ?? 0);
+              this.circuitIntel.onNoteOn(message.channel, message.note, message.velocity ?? 0);
             }
           }
         }
