@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke": "node scripts/smoke.mjs",
+    "mpc-library": "node scripts/mpc-library-companion.mjs",
     "typecheck": "tsc -p apps/web/tsconfig.json --pretty false"
   },
   "devDependencies": {

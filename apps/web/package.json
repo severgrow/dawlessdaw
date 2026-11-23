@@ -16,6 +16,7 @@
     "@dawlessdaw/events": "*",
     "@dawlessdaw/focus": "*",
     "@dawlessdaw/midi": "*",
+    "@dawlessdaw/mpc-library": "*",
     "@dawlessdaw/routing": "*",
     "@dawlessdaw/scenes": "*",
     "@dawlessdaw/sequencer": "*",

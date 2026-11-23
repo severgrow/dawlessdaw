@@ -13,6 +13,7 @@ import {
   type StudioRoleDef,
 } from '@dawlessdaw/devices';
 import { MoreInfo } from '../components/MoreInfo';
+import { MpcLibraryPanel } from '../mpc-library/MpcLibraryPanel';
 import { resolveNextAction } from '../nav/nextAction';
 import {
   loadMpcDinCableConfirmed,
@@ -718,6 +719,7 @@ export function SetupWorkspace({
           ) : (
             <p className="muted small">Bench tests: <b>Tests</b> sub-tab.</p>
           )}
+          {experimental ? <MpcLibraryPanel /> : null}
         </div>
       </details>
 

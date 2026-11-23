@@ -9,6 +9,7 @@
       "@dawlessdaw/core": ["../../packages/core/src"],
       "@dawlessdaw/events": ["../../packages/events/src"],
       "@dawlessdaw/midi": ["../../packages/midi/src"],
+      "@dawlessdaw/mpc-library": ["../../packages/mpc-library/src"],
       "@dawlessdaw/routing": ["../../packages/routing/src"],
       "@dawlessdaw/focus": ["../../packages/focus/src"],
       "@dawlessdaw/devices": ["../../packages/devices/src"],
