@@ -46,6 +46,9 @@ export class MidiRoutingEngine {
   }
 
   setRoutes(routes: MidiRoute[]): void {
+    // MMT-8 lesson / Step 2: never leave sounding notes hung when the route
+    // table changes mid-hold (note-off would miss the old dest transform).
+    if (this.activeNotes.size > 0) this.allNotesOff();
     this.lastKnobProgram.clear();
     this.routes = routes.map((r) => ({
       ...r,

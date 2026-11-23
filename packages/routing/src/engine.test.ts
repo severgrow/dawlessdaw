@@ -288,3 +288,151 @@ describe('MidiRoutingEngine', () => {
     expect(transport.getSent()).toHaveLength(0);
   });
 });
+
+/**
+ * MMT-8 Step 2 — behavioural fixtures (MockMidiTransport + deterministic inject).
+ * No firmware / MMT-8 code copied. Strengthens Note On/Off, route-change safety,
+ * Start/Stop/Continue, clock authority, active-note cleanup.
+ */
+describe('MidiRoutingEngine behavioural (MMT-8 Step 2)', () => {
+  let transport: MockMidiTransport;
+  let engine: MidiRoutingEngine;
+
+  const noteRoute = (dest = 'mock-mpc-out'): MidiRoute => ({
+    id: 'notes',
+    name: 'notes',
+    enabled: true,
+    sourcePortId: 'mock-circuit-in',
+    destinations: [{ portId: dest }],
+    channel: { allow: [1], remap: { 1: 9 } },
+    forwardClock: false,
+  });
+
+  const clockRoute = (): MidiRoute => ({
+    id: 'clock',
+    name: 'clock',
+    enabled: true,
+    sourcePortId: 'mock-circuit-in',
+    destinations: [{ portId: 'mock-mpc-out' }, { portId: 'mock-sp404-out' }],
+    forwardClock: true,
+    blockKinds: ['note-on', 'note-off', 'cc', 'program-change'],
+  });
+
+  beforeEach(async () => {
+    transport = new MockMidiTransport();
+    await transport.start();
+    engine = new MidiRoutingEngine(transport);
+    engine.start();
+  });
+
+  it('routes Note On then matching Note Off to the remapped channel (no hang)', () => {
+    engine.setRoutes([noteRoute()]);
+    transport.inject('mock-circuit-in', [0x90, 60, 100]); // ch1 on
+    transport.inject('mock-circuit-in', [0x80, 60, 0]); // ch1 off
+    const sent = transport.getSent();
+    expect(sent).toHaveLength(2);
+    expect(Array.from(sent[0]!.data)).toEqual([0x98, 60, 100]); // note-on ch9
+    expect(Array.from(sent[1]!.data)).toEqual([0x88, 60, 0]); // note-off ch9
+  });
+
+  it('treats note-on velocity 0 as note-off for active-note tracking', () => {
+    engine.setRoutes([noteRoute()]);
+    transport.inject('mock-circuit-in', [0x90, 48, 90]);
+    transport.clearSent();
+    transport.inject('mock-circuit-in', [0x90, 48, 0]);
+    expect(Array.from(transport.getSent()[0]!.data)).toEqual([0x88, 48, 0]);
+    transport.clearSent();
+    engine.allNotesOff();
+    // already released — nothing left to hang
+    expect(transport.getSent()).toHaveLength(0);
+  });
+
+  it('releases held notes when routes change mid-hold (no hang)', () => {
+    engine.setRoutes([noteRoute('mock-mpc-out')]);
+    transport.inject('mock-circuit-in', [0x90, 60, 100]);
+    expect(transport.getSent()).toHaveLength(1);
+    transport.clearSent();
+    // Switch destination while note still held
+    engine.setRoutes([noteRoute('mock-sp404-out')]);
+    const released = transport.getSent();
+    expect(released.length).toBeGreaterThanOrEqual(1);
+    expect(released[0]!.portId).toBe('mock-mpc-out');
+    expect(released[0]!.data[0]! & 0xf0).toBe(0x80);
+    transport.clearSent();
+    // Late note-off on old mapping must not resurrect a hang on MPC
+    transport.inject('mock-circuit-in', [0x80, 60, 0]);
+    const after = transport.getSent();
+    expect(after.every((s) => s.portId === 'mock-sp404-out')).toBe(true);
+  });
+
+  it('forwards Start / Continue / Stop with clock under authority', () => {
+    engine.setClockAuthority('mock-circuit-in');
+    engine.setRoutes([noteRoute(), clockRoute()]);
+    transport.inject('mock-circuit-in', [0xfa]); // Start
+    transport.inject('mock-circuit-in', [0xf8]);
+    transport.inject('mock-circuit-in', [0xfb]); // Continue
+    transport.inject('mock-circuit-in', [0xf8]);
+    transport.inject('mock-circuit-in', [0xfc]); // Stop
+    const mpc = transport.getSent().filter((s) => s.portId === 'mock-mpc-out').map((s) => s.data[0]);
+    expect(mpc).toEqual([0xfa, 0xf8, 0xfb, 0xf8, 0xfc]);
+  });
+
+  it('stops forwarding clock when the clock route is disabled (forward-path loss)', () => {
+    // Authority null = unrestricted; “clock loss” here means the app stops the
+    // forward path (user toggles clock off) — not inventing a second clock master.
+    engine.setClockAuthority('mock-circuit-in');
+    engine.setRoutes([clockRoute()]);
+    transport.inject('mock-circuit-in', [0xfa]);
+    transport.inject('mock-circuit-in', [0xf8]);
+    expect(transport.getSent().length).toBeGreaterThan(0);
+    transport.clearSent();
+    engine.enableRoute('clock', false);
+    transport.inject('mock-circuit-in', [0xf8]);
+    transport.inject('mock-circuit-in', [0xfc]);
+    expect(transport.getSent()).toHaveLength(0);
+  });
+
+  it('ignores non-authority Start/Continue/Stop (no competing clock leader)', () => {
+    engine.setClockAuthority('mock-circuit-in');
+    engine.setRoutes([
+      {
+        id: 'clock-mpc',
+        name: 'from mpc',
+        enabled: true,
+        sourcePortId: 'mock-mpc-in',
+        destinations: [{ portId: 'mock-sp404-out' }],
+        forwardClock: true,
+      },
+    ]);
+    transport.inject('mock-mpc-in', [0xfa]);
+    transport.inject('mock-mpc-in', [0xf8]);
+    transport.inject('mock-mpc-in', [0xfb]);
+    expect(transport.getSent()).toHaveLength(0);
+  });
+
+  it('engine.stop() flushes active notes (disconnect / teardown cleanup)', () => {
+    engine.setRoutes([noteRoute()]);
+    transport.inject('mock-circuit-in', [0x90, 62, 110]);
+    transport.clearSent();
+    engine.stop();
+    const sent = transport.getSent();
+    expect(sent.length).toBeGreaterThanOrEqual(1);
+    expect(sent[0]!.data[0]! & 0xf0).toBe(0x80);
+    expect(sent[0]!.data[1]).toBe(62);
+  });
+
+  it('replaySync fixture drives Note On/Off deterministically', () => {
+    engine.setRoutes([noteRoute()]);
+    transport.replaySync({
+      id: 'pair',
+      name: 'on/off',
+      events: [
+        { at: 0, portId: 'mock-circuit-in', data: [0x90, 36, 100] },
+        { at: 50, portId: 'mock-circuit-in', data: [0x80, 36, 0] },
+      ],
+    });
+    expect(transport.getSent()).toHaveLength(2);
+    expect(transport.getSent()[0]!.data[1]).toBe(36);
+    expect(transport.getSent()[1]!.data[0]! & 0xf0).toBe(0x80);
+  });
+});
