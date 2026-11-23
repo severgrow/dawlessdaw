@@ -1,4 +1,4 @@
-# Build + publish Mac DMG/ZIP to GitHub Releases when a version tag is pushed.
+# Package a Mac installer for testing, or publish it when a version tag is pushed.
 # electron-updater consumes the ZIP (+ latest-mac.yml) for in-app updates.
 #
 # Tag example: git tag v0.1.0 && git push origin v0.1.0
@@ -14,12 +14,17 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
+    paths:
+      - '.github/workflows/desktop-release.yml'
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Build only — do not publish to Releases'
+        description: 'Build only and attach the installer to this workflow run'
         required: false
-        default: 'false'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -46,15 +51,19 @@ jobs:
       - name: Package Mac (DMG + ZIP)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISH_MODE: ${{ (github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)) && 'always' || 'never' }}
           # Pass through if set on the repo — unsigned builds still work for manual install.
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
-            npm run dist:mac -w @dawlessdaw/desktop -- --publish never
-          else
-            npm run dist:mac -w @dawlessdaw/desktop -- --publish always
-          fi
+        run: npm run dist:mac -w @dawlessdaw/desktop -- --arm64 --x64 --publish "$PUBLISH_MODE"
+
+      - name: Attach test installers
+        if: github.ref_type != 'tag' && (github.event_name != 'workflow_dispatch' || inputs.dry_run)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Splot-Mac-installers
+          path: apps/desktop/release/*.dmg
+          if-no-files-found: error

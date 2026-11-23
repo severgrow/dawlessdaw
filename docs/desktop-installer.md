@@ -4,7 +4,9 @@ Splot MIDI Brain ships as an **Electron** Mac app that loads the same Vite web U
 
 ## For you (download / update)
 
-See the short store note: download the `.dmg` from [GitHub Releases](https://github.com/severgrow/dawlessdaw/releases), install once, and let the app pull later updates. No Terminal / `npm` on each update.
+Download the `.dmg` from [GitHub Releases](https://github.com/severgrow/dawlessdaw/releases) when a release is available. Open the disk image and drag Splot MIDI Brain into Applications. Choose `arm64` for Apple silicon or `x64` for an Intel Mac.
+
+For a test build, run [Desktop release (Mac)](https://github.com/severgrow/dawlessdaw/actions/workflows/desktop-release.yml) with **dry_run** enabled, then download **Splot-Mac-installers** from the completed run. Unzip the download to get the disk images.
 
 ## Maintainers
 
