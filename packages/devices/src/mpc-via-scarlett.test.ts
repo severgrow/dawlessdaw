@@ -257,4 +257,9 @@ describe('MPC clock port advice (Scarlett DIN vs Akai USB)', () => {
     expect(mpcClockPortAdvice('MPC One').kind).toBe('warn-akai-usb');
     expect(mpcClockPortAdvice('Scarlett 2i4 USB').kind).toBe('ok-interface');
   });
+
+  it('mpcClockPortAdvice warns Network / IAC separately from USB-B', () => {
+    expect(mpcClockPortAdvice('Network Session 1').kind).toBe('warn-network');
+    expect(mpcClockPortAdvice('IAC Driver Bus 1').kind).toBe('warn-iac');
+  });
 });

@@ -19,6 +19,13 @@ Keep **Network MIDI** (Web MIDI / ports / Learn / opt-in transport) separate fro
 
 A Feasibility (this) → B Network MIDI first-class → C Library PoC → D UI → E Backup/WAV→FLIP → F Bench protocol.
 
+## Phase B (Network MIDI) — shipped in stack
+
+- Picker labels: Scarlett DIN · clock OK / USB-B · no clock / Network MIDI / IAC
+- Bare IAC & Network Session never auto-assign; Akai Network → MPC only
+- Disconnect releases hanging notes; manual assignment remembered
+- Clock follow stays opt-in (no default flip). No Library/companion.
+
 ## Related
 
 - `docs/mpc-via-scarlett.md` · `docs/limitations.md` · Setup DIN next-action (PR #79)

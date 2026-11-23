@@ -4,6 +4,7 @@ import {
   MPC_CHANNEL_ISOLATION_HINT,
   MY_STUDIO_ROLES,
   PROFILE_HONESTY_LABEL,
+  formatMidiPortPickerLabel,
   mpcClockPortAdvice,
   roleUsingPort,
   unmatchedConnectedPorts,
@@ -56,7 +57,7 @@ function PortSelect({
       ) : null}
       {ports.map((p) => (
         <option key={p.id} value={p.id}>
-          {p.name}
+          {formatMidiPortPickerLabel(p.name)}
         </option>
       ))}
     </select>
@@ -125,8 +126,10 @@ function UnknownDevicesPanel() {
       {(freeIns.length > 0 || freeOuts.length > 0) && (
         <p className="muted small">
           Free ports:{' '}
-          {[...freeIns.map((p) => `${p.name} (in)`), ...freeOuts.map((p) => `${p.name} (out)`)].join(' · ') ||
-            'none'}
+          {[
+            ...freeIns.map((p) => `${formatMidiPortPickerLabel(p.name)} (in)`),
+            ...freeOuts.map((p) => `${formatMidiPortPickerLabel(p.name)} (out)`),
+          ].join(' · ') || 'none'}
         </p>
       )}
 
@@ -178,7 +181,7 @@ function UnknownDevicesPanel() {
             <option value="">— none yet</option>
             {(freeIns.length ? freeIns : allIns).map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name}
+                {formatMidiPortPickerLabel(p.name)}
               </option>
             ))}
           </select>
@@ -189,7 +192,7 @@ function UnknownDevicesPanel() {
             <option value="">— none yet</option>
             {(freeOuts.length ? freeOuts : allOuts).map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name}
+                {formatMidiPortPickerLabel(p.name)}
               </option>
             ))}
           </select>
@@ -238,7 +241,7 @@ function UnknownDevicesPanel() {
                       <option value="">—</option>
                       {allIns.map((port) => (
                         <option key={port.id} value={port.id}>
-                          {port.name}
+                          {formatMidiPortPickerLabel(port.name)}
                         </option>
                       ))}
                     </select>
@@ -253,7 +256,7 @@ function UnknownDevicesPanel() {
                       <option value="">—</option>
                       {allOuts.map((port) => (
                         <option key={port.id} value={port.id}>
-                          {port.name}
+                          {formatMidiPortPickerLabel(port.name)}
                         </option>
                       ))}
                     </select>
@@ -505,7 +508,12 @@ export function SetupWorkspace({
             {unmatched.length > 0 ? (
               <p className="muted small">
                 Not assigned:{' '}
-                {unmatched.map((p) => `${p.name} (${p.type === 'input' ? 'in' : 'out'})`).join(' · ')}
+                {unmatched
+                  .map(
+                    (p) =>
+                      `${formatMidiPortPickerLabel(p.name)} (${p.type === 'input' ? 'in' : 'out'})`,
+                  )
+                  .join(' · ')}
                 {' — '}name below or assign above.
               </p>
             ) : null}
@@ -588,7 +596,15 @@ export function SetupWorkspace({
                 ? `MPC Out = ${mpc?.outputPortName ?? 'not assigned'}${mpc?.outputManual && !mpc.outputPortId ? ' (unplugged)' : ''}.`
                 : 'App sends MPC nothing — thru-box mode.'}
             </p>
-            <p className={clockAdvice.kind === 'warn-akai-usb' ? 'warn' : 'muted small'}>
+            <p
+              className={
+                clockAdvice.kind === 'warn-akai-usb' ||
+                clockAdvice.kind === 'warn-network' ||
+                clockAdvice.kind === 'warn-iac'
+                  ? 'warn'
+                  : 'muted small'
+              }
+            >
               {clockAdvice.message}
             </p>
             {snap.mpcNoteMode === 'usb' ? (
@@ -634,7 +650,17 @@ export function SetupWorkspace({
           {snap.mpcNoteMode === 'din-only' ? (
             <p className="warn">Switch to &quot;App sends notes&quot; first.</p>
           ) : null}
-          <p className={clockAdvice.kind === 'warn-akai-usb' ? 'warn' : 'muted small'}>{clockAdvice.message}</p>
+          <p
+            className={
+              clockAdvice.kind === 'warn-akai-usb' ||
+              clockAdvice.kind === 'warn-network' ||
+              clockAdvice.kind === 'warn-iac'
+                ? 'warn'
+                : 'muted small'
+            }
+          >
+            {clockAdvice.message}
+          </p>
           <MoreInfo label="Checklist">
             <ol className="steps">
               <li>
@@ -722,7 +748,7 @@ export function SetupWorkspace({
                   : 'not assigned';
               return (
                 <li key={`${p.type}-${p.id}`}>
-                  [{p.type === 'input' ? 'in' : 'out'}] {p.name}
+                  [{p.type === 'input' ? 'in' : 'out'}] {formatMidiPortPickerLabel(p.name)}
                   {p.manufacturer ? ` · ${p.manufacturer}` : ''} →{' '}
                   <span className={role || customName ? '' : 'warn'}>{label}</span>
                 </li>
