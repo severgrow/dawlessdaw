@@ -89,6 +89,10 @@ Settings → Macros. Opt-in Super Macros, soft takeover, A/B morph (Splot-owned)
 
 Sessions timeline + auto markers while recording; jump / rename / delete; Send trim to FLIP. Section Bridge event-actions **off by default**; no auto fills from inference. See [performance-memory.md](./performance-memory.md).
 
+## MIDI-guided FLIP (Milestone 5)
+
+FLIP lane: capture MIDI note-ons with audio; grid / MIDI / manual slice suggestions; latency from Timing Lab or labelled estimate; refine onsets; pack / SP WAV download / Samples — **no SP serial**. See [midi-guided-flip.md](./midi-guided-flip.md) and [five-features-overview.md](./five-features-overview.md).
+
 ## Phase 0 (stability + Splot rename) — software
 
 - Test-tab React #185: `deepSyncController.getSnapshot()` caches; rebuild only in `emit()` (see #38 + unit test). Other stores audited: StudioRuntime uses Zustand hydrate-on-notify (safe); Flip/capture use `subscribe`→`setState` (not `useSyncExternalStore`).

@@ -48,6 +48,7 @@ import {
   matchPortsToRoles,
   BUILTIN_PRESETS,
   CIRCUIT_MACRO_CCS,
+  DEVICE_NAME,
   SuperMacroEngine,
   buildControllerRoutes,
   clonePreset,
@@ -129,6 +130,8 @@ import {
 import { MemoryRepository } from '@dawlessdaw/storage';
 import { getPerformanceMemory } from '../recorder/performanceMemory';
 import type { PerformanceTimelineEvent } from '@dawlessdaw/sequencer';
+import { getFlipEngine } from '../flip/flipEngine';
+import { hardwareLabelForChannel } from '../flip/midiGuide';
 
 /** Rig · Controller · Sequencer · Samples · Sections · Sessions (audio) · Test · Setup · Timing. */
 export type WorkspaceId =
@@ -528,6 +531,10 @@ export class StudioRuntime {
       (window as unknown as { __splotSuperMacros?: SuperMacroEngine }).__splotSuperMacros =
         this.superMacros;
     }
+    getFlipEngine().setMidiLabelFn((channel, note) => {
+      const base = hardwareLabelForChannel(channel, this.controller.tracks, DEVICE_NAME);
+      return `${base} · n${note}`;
+    });
     const saved = loadSetup();
     if (saved?.assignments?.length) {
       // Strip mock / dash sentinels so Live sync can auto-bind Felucca → FM1.
@@ -1628,6 +1635,14 @@ export class StudioRuntime {
     const t = message.channel ?? 0;
     if (t < 1 || t > 8) return;
     const isNote = message.kind === 'note-on' && (message.velocity ?? 0) > 0;
+    // MIDI-guided FLIP: observe note-ons during capture (no MIDI playback).
+    if (isNote && message.note != null) {
+      getFlipEngine().ingestMidiNoteOn({
+        channel: t,
+        note: message.note,
+        velocity: message.velocity ?? 0,
+      });
+    }
     const knob =
       message.kind === 'cc' && message.controller != null
         ? CIRCUIT_MACRO_CCS.indexOf(message.controller as (typeof CIRCUIT_MACRO_CCS)[number])

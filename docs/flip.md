@@ -78,6 +78,10 @@ Reverse, fades, CHOP 4/8/16 equal slices, compact 16-step slice pad row (mono/ch
 - **Shipped:** “Replace MIDI tracks while FLIP plays” — mutes selected Dawlessdaw Pattern tracks for the duration of PLAY LOOP; STOP / UNDO MUTES restores prior mute flags. Stops outbound sequencer notes to Controller destinations for those tracks.
 - **Not shipped / not claimed:** Circuit internal mute, hardware mute CC maps, fake stem isolation from a stereo mix.
 
+### MIDI-guided FLIP (Milestone 5)
+
+See [midi-guided-flip.md](./midi-guided-flip.md). Note-ons captured with audio → grid / MIDI / manual slice suggestions + onset refine; pack / SP WAV download / Samples. **No** MIDI playback from guidance; **no** SP serial write.
+
 ## Hardware checklist (owner)
 
 | # | Check | Status |

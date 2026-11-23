@@ -5092,6 +5092,35 @@ button.send-add {
 
 .flip-slice-pad:hover { border-color: var(--alert-hi); }
 
+.flip-midi-guide {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.flip-midi-guide h3 {
+  margin: 0;
+}
+
+.flip-guided-list {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  max-height: 8rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.flip-guided-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line-soft, #2a2a2a);
+  padding: 0.15rem 0;
+}
+
 @media (max-width: 720px) {
   .seq-step-nums,
   .seq-row {

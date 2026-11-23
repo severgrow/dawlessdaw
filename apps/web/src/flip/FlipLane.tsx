@@ -14,7 +14,14 @@ import { stereoPeaks } from '../recorder/pcmMath';
 import { loadTakeAudio } from '../recorder/takeStore';
 import type { AudioInputDevice, StereoAudio } from '../recorder/types';
 import { PLAYBACK_REENGAGE_WARN } from './feedback';
-import { downloadFlipWav, exportChopWavs } from './exportFlip';
+import {
+  downloadFlipWav,
+  exportChopWavs,
+  exportFlipPack,
+  exportFlipSpWav,
+  exportGuidedSliceWavs,
+  sendGuidedSlicesToSamples,
+} from './exportFlip';
 import { FlipInputPreview } from './FlipInputPreview';
 import { getFlipEngine, type FlipEngineStatus } from './flipEngine';
 import {
@@ -24,6 +31,7 @@ import {
   toggleHandoffTrack,
   type FlipHandoffTrack,
 } from './handoff';
+import type { FlipSliceMode } from './midiGuide';
 import { FLIP_BAR_OPTIONS, type FlipBarCount } from './types';
 
 export interface FlipLaneProps {
@@ -150,6 +158,21 @@ export function FlipLane({
       }
       ctx.globalAlpha = 1;
     }
+    const guided = clip.midiGuide?.slices ?? [];
+    if (guided.length) {
+      ctx.strokeStyle = '#c4a574';
+      ctx.globalAlpha = 0.7;
+      ctx.setLineDash([3, 3]);
+      for (const s of guided) {
+        const x = (s.startFrame / audio.left.length) * w;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    }
   }, [audio, status.activeClip]);
 
   const onInput = useCallback(
@@ -190,12 +213,13 @@ export function FlipLane({
         <div className="flip-title-row">
           <h2 className="flip-title">FLIP</h2>
           <span className="flip-brand muted small">Splot MIDI Brain</span>
+          <span className="ci-badge">experimental</span>
           <span className={`flip-phase flip-phase-${status.phase}`}>{status.phaseLabel}</span>
         </div>
         <p className="flip-lead muted small">
           Captures the <b>stereo audio mix</b> from your interface — not a MIDI track, not stem
           isolation. Circuit USB audio is unused; feed Scarlett / ZED / MPC / SP / FM1 into the
-          selected input.
+          selected input. MIDI note-ons are logged for slice suggestions only (no MIDI playback).
         </p>
         <ol className="flip-steps" aria-label="FLIP workflow">
           <li>Input</li>
@@ -488,6 +512,65 @@ export function FlipLane({
               </div>
             ) : null}
           </div>
+
+          <div className="flip-midi-guide panel" aria-label="MIDI-guided slices">
+            <div className="flip-title-row" style={{ marginBottom: '0.35rem' }}>
+              <h3 className="flip-title" style={{ fontSize: '0.95rem' }}>
+                MIDI-guided slices
+              </h3>
+              <span className="ci-badge">experimental</span>
+            </div>
+            <p className="muted small">
+              Suggestions from captured Circuit notes (Controller labels = routing context, not
+              stems).               Latency:{' '}
+              {clip.midiGuide
+                ? `${clip.midiGuide.latencyMs} ms · ${
+                    clip.midiGuide.latencyCalibrated
+                      ? clip.midiGuide.latencySource
+                      : 'estimate'
+                  }`
+                : '—'}
+              {status.midiEventCount ? ` · ${status.midiEventCount} note(s)` : ''}
+            </p>
+            <div className="flip-chop-row" role="group" aria-label="Slice mode">
+              <span className="muted small">Mode</span>
+              {(['grid', 'midi', 'manual'] as FlipSliceMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={clip.midiGuide?.mode === mode ? 'seq-btn on' : 'seq-btn'}
+                  onClick={() => getFlipEngine().setSliceMode(mode, clip.chop?.slices ?? 8)}
+                >
+                  {mode}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="seq-btn ghost"
+                disabled={!clip.midiGuide?.slices.length}
+                onClick={() => getFlipEngine().refineGuidedSlicesNow()}
+              >
+                Refine onsets
+              </button>
+            </div>
+            {(clip.midiGuide?.slices.length ?? 0) > 0 ? (
+              <ul className="flip-guided-list mono small">
+                {clip.midiGuide!.slices.slice(0, 24).map((s, i) => (
+                  <li key={s.id}>
+                    <span>
+                      #{i + 1} {s.label}
+                    </span>
+                    <span className="muted">
+                      {s.startFrame}–{s.endFrame} · {s.source}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted small">No guided slices yet — capture with Circuit notes, or pick Grid.</p>
+            )}
+            <p className="muted small">{clip.midiGuide?.latencyNote}</p>
+          </div>
         </div>
       ) : null}
 
@@ -639,6 +722,68 @@ export function FlipLane({
                 >
                   EXPORT SLICES
                 </button>
+                <button
+                  type="button"
+                  className="seq-btn ghost"
+                  disabled={busy || !audio || !(clip.midiGuide?.slices.length)}
+                  onClick={() => {
+                    if (!audio || !clip?.midiGuide?.slices.length) return;
+                    setBusy(true);
+                    void exportGuidedSliceWavs(audio, clip, wavBits)
+                      .then((names) => setMsg(`Exported ${names.length} guided slices`))
+                      .finally(() => setBusy(false));
+                  }}
+                >
+                  EXPORT GUIDED
+                </button>
+                <button
+                  type="button"
+                  className="seq-btn"
+                  disabled={busy || !audio}
+                  onClick={() => {
+                    if (!audio || !clip) return;
+                    setBusy(true);
+                    void exportFlipPack(audio, clip, wavBits)
+                      .then((names) => setMsg(`Pack · ${names.length} files`))
+                      .finally(() => setBusy(false));
+                  }}
+                >
+                  EXPORT PACK
+                </button>
+                <button
+                  type="button"
+                  className="seq-btn ghost"
+                  disabled={busy || !audio}
+                  onClick={() => {
+                    if (!audio || !clip) return;
+                    setBusy(true);
+                    void exportFlipSpWav(audio, clip, null)
+                      .then((name) => setMsg(`SP WAV download ${name} — no serial write`))
+                      .finally(() => setBusy(false));
+                  }}
+                >
+                  SP WAV DOWNLOAD
+                </button>
+                <button
+                  type="button"
+                  className="seq-btn ghost"
+                  disabled={busy || !audio || !(clip.midiGuide?.slices.length)}
+                  onClick={() => {
+                    if (!audio || !clip?.midiGuide?.slices.length) return;
+                    setBusy(true);
+                    void sendGuidedSlicesToSamples(audio, clip)
+                      .then((r) =>
+                        setMsg(
+                          r.saved
+                            ? `Sent ${r.saved} slice(s) to Samples (${r.keys.join(', ')})`
+                            : 'No slices saved to Samples',
+                        ),
+                      )
+                      .finally(() => setBusy(false));
+                  }}
+                >
+                  → SAMPLES
+                </button>
               </div>
             </>
           ) : null}
@@ -647,9 +792,9 @@ export function FlipLane({
             <p className="muted small">
               FLIP records whatever arrives on the chosen audio input for N bars, then loops that
               clip in the browser. It does <b>not</b> convert a MIDI track into audio by itself —
-              hardware must be audible on that input. Phase C Circuit mute / stem APIs are not
-              claimed. Optional &quot;Replace MIDI tracks&quot; only mutes Dawlessdaw Pattern
-              tracks while PLAY LOOP runs (undo restores).
+              hardware must be audible on that input. MIDI-guided slices log Circuit note-ons for
+              cut suggestions only — no MIDI playback, no stem claim, no SP serial write (SP WAV is
+              a local download / Samples pad prep). Original take PCM stays intact.
             </p>
           </MoreInfo>
         </div>

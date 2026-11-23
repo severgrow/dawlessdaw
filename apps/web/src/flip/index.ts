@@ -6,7 +6,27 @@ export { barDurationMs, planCaptureWindow, buildTrimFromCapture, assessAlignment
 export { transition, initialFlipMachine, phaseLabel } from './stateMachine';
 export { renderFlipAudio, chopEqual } from './process';
 export { loadFlipSession, saveFlipSession, emptyFlipSession } from './flipStore';
-export { downloadFlipWav, exportFlipWav } from './exportFlip';
+export {
+  downloadFlipWav,
+  exportFlipWav,
+  exportChopWavs,
+  exportGuidedSliceWavs,
+  exportFlipPack,
+  exportFlipSpWav,
+  sendGuidedSlicesToSamples,
+} from './exportFlip';
+export {
+  resolveFlipLatency,
+  suggestSlicesForMode,
+  refineGuidedSlices,
+  hardwareLabelForChannel,
+} from './midiGuide';
+export type {
+  FlipSliceMode,
+  FlipMidiGuideState,
+  FlipGuidedSlice,
+  FlipMidiEvent,
+} from './midiGuide';
 export {
   applyHandoffMutes,
   restoreHandoffMutes,
