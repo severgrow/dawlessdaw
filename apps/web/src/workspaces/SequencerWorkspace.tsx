@@ -197,7 +197,7 @@ export function SequencerWorkspace() {
   return (
     <div className="section-enter seq-page">
       <div className="page-head">
-        <h1>sequencer</h1>
+        <h1>splot pattern</h1>
         <span className="seq-brand-chip" title="Product brand">
           Splot MIDI Brain
         </span>

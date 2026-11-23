@@ -274,7 +274,7 @@ export function SessionsWorkspace() {
     if (!canvas || !g || !audio || !selected) return;
     const { width, height } = canvas;
     const css = getComputedStyle(canvas);
-    const accent = css.getPropertyValue('--accent').trim() || '#9a2a45';
+    const accent = css.getPropertyValue('--accent').trim() || '#9fdcc2';
     const alert = css.getPropertyValue('--alert-hi').trim() || '#b5ead3';
     const dim = css.getPropertyValue('--line-hard').trim() || '#3a3a3a';
     g.clearRect(0, 0, width, height);
@@ -574,7 +574,9 @@ export function SessionsWorkspace() {
         <h1>sessions</h1>
         <span className="readout mono">{spaceHint}</span>
       </div>
-      <p className="lead">Record stereo from any USB input Chrome sees. Takes stay local — nothing uploaded.</p>
+      <p className="lead">
+        Record stereo from any USB input Chrome sees. Takes stay on this Mac — nothing uploaded.
+      </p>
 
       {recoverNote ? <p className="warn">{recoverNote}</p> : null}
       {msg ? <p className="mono small">{msg}</p> : null}

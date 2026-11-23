@@ -27,15 +27,16 @@ interface Place {
   sub?: string;
 }
 
+/** Left → right signal flow: Circuit → Mac → Scarlett/MPC · SP · FM1 (ZED audio bottom). */
 const PLACES: Record<string, Place> = {
-  circuit: { kind: 'circuit', x: 18, y: 110, w: 200, name: 'Circuit Rhythm', sub: 'tracks 1–8' },
-  thru: { kind: 'thru', x: 140, y: 310, w: 78, name: 'thru box' },
-  mac: { kind: 'mac', x: 335, y: 135, w: 150, name: 'Mac · this app' },
-  scarlett: { kind: 'scarlett', x: 568, y: 34, w: 104, name: 'Scarlett 2i4' },
-  mpc: { kind: 'mpc', x: 792, y: 6, w: 124, name: 'MPC One' },
-  sp: { kind: 'sp', x: 818, y: 148, w: 88, name: 'SP-404MKII' },
-  fm1: { kind: 'fm1', x: 760, y: 300, w: 180, name: 'FM1 · Skiff' },
-  zed: { kind: 'zed', x: 452, y: 268, w: 104, name: 'ZED-10FX' },
+  circuit: { kind: 'circuit', x: 12, y: 90, w: 190, name: 'Circuit Rhythm', sub: 'tracks 1–8' },
+  thru: { kind: 'thru', x: 48, y: 300, w: 72, name: 'thru box' },
+  mac: { kind: 'mac', x: 280, y: 120, w: 148, name: 'Mac · Splot', sub: 'this app' },
+  scarlett: { kind: 'scarlett', x: 520, y: 18, w: 100, name: 'Scarlett 2i4' },
+  mpc: { kind: 'mpc', x: 740, y: 8, w: 120, name: 'MPC One' },
+  sp: { kind: 'sp', x: 780, y: 155, w: 90, name: 'SP-404MKII' },
+  fm1: { kind: 'fm1', x: 700, y: 295, w: 170, name: 'FM1 · Skiff' },
+  zed: { kind: 'zed', x: 420, y: 275, w: 100, name: 'ZED-10FX' },
 };
 
 function boxStyle(p: Place) {
@@ -162,56 +163,56 @@ export function RigMap() {
         <RigMixerBackdrop active={backdrop} showDrawings={drawings} />
         <svg className="rig-cables" viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
           {/* audio first, under the MIDI */}
-          <Cable kind="audio" on d="M840 122 C 760 200, 640 250, 556 286" />
-          <Cable kind="audio" on d="M815 262 C 720 280, 640 296, 556 306" />
-          <Cable kind="audio" on d="M770 352 C 690 352, 620 330, 556 326" />
-          <Cable kind="audio" on d="M470 268 C 460 255, 440 248, 425 240" label="USB audio" lx={398} ly={276} />
+          <Cable kind="audio" on d="M800 120 C 720 190, 600 250, 520 290" />
+          <Cable kind="audio" on d="M790 250 C 700 270, 600 295, 520 305" />
+          <Cable kind="audio" on d="M740 345 C 660 345, 580 325, 520 320" />
+          <Cable kind="audio" on d="M430 275 C 420 255, 410 240, 400 220" label="USB audio" lx={370} ly={268} />
 
-          <Cable kind="midi" on={circuitOn} pulse={lastCircuit} d="M228 190 L 335 190" label="USB" lx={281} ly={182} />
-          <Cable kind="clock" on d="M120 244 C 120 280, 150 290, 165 300" label="DIN" lx={108} ly={286} />
+          <Cable kind="midi" on={circuitOn} pulse={lastCircuit} d="M202 175 L 280 175" label="USB" lx={240} ly={166} />
+          <Cable kind="clock" on d="M100 230 C 100 270, 90 290, 85 300" label="DIN" lx={70} ly={275} />
           <Cable
             kind="clock"
             on
-            d="M218 322 C 420 398, 980 398, 960 230 C 955 205, 930 200, 907 205"
-            label="clock via thru box"
-            lx={560}
-            ly={390}
-          />
-          <Cable
-            kind="midi"
-            on={mpcOn}
-            pulse={snap.destActivity.mpc}
-            d="M485 165 C 530 165, 530 61, 568 61"
-            label="USB"
+            d="M120 320 C 380 390, 920 390, 900 230 C 890 200, 860 195, 825 200"
+            label="clock via thru"
             lx={520}
-            ly={104}
+            ly={385}
           />
           <Cable
             kind="midi"
             on={mpcOn}
             pulse={snap.destActivity.mpc}
-            d="M672 61 L 792 61"
-            label={snap.clockToMpc ? 'DIN · notes+transport' : 'DIN · notes'}
-            lx={730}
-            ly={84}
+            d="M428 150 C 480 150, 490 55, 520 55"
+            label="USB"
+            lx={470}
+            ly={95}
+          />
+          <Cable
+            kind="midi"
+            on={mpcOn}
+            pulse={snap.destActivity.mpc}
+            d="M620 55 L 740 55"
+            label={snap.clockToMpc ? 'DIN · notes+clock' : 'DIN · notes'}
+            lx={680}
+            ly={42}
           />
           <Cable
             kind="midi"
             on={spOn && (sends('sp') || snap.clockToSp)}
             pulse={snap.destActivity.sp}
-            d="M485 195 C 640 195, 700 205, 815 205"
+            d="M428 185 C 580 185, 680 200, 780 200"
             label="USB"
-            lx={650}
-            ly={190}
+            lx={620}
+            ly={176}
           />
           <Cable
             kind="midi"
             on={fm1On}
             pulse={snap.destActivity.fm1}
-            d="M485 222 C 600 222, 640 336, 770 336"
-            label={snap.forwardClockToFm1 ? 'USB · notes + clock' : 'USB'}
-            lx={700}
-            ly={296}
+            d="M428 210 C 560 220, 620 320, 700 330"
+            label={snap.forwardClockToFm1 ? 'USB · notes+clock' : 'USB'}
+            lx={600}
+            ly={285}
           />
         </svg>
 

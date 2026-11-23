@@ -109,7 +109,7 @@ export function FlipLane({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const css = getComputedStyle(document.documentElement);
-    const accent = css.getPropertyValue('--accent').trim() || '#9a2a45';
+    const accent = css.getPropertyValue('--accent').trim() || '#9fdcc2';
     const mint = css.getPropertyValue('--alert-hi').trim() || '#b5ead3';
     const dim = css.getPropertyValue('--line-hard').trim() || '#3a3a3a';
     const bone = css.getPropertyValue('--bone').trim() || '#e8e1d2';

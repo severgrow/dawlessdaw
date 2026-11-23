@@ -80,7 +80,7 @@ export function FlipInputPreview({
       const w = canvas.width;
       const h = canvas.height;
       const css = getComputedStyle(document.documentElement);
-      const accent = css.getPropertyValue('--accent').trim() || '#9a2a45';
+      const accent = css.getPropertyValue('--accent').trim() || '#9fdcc2';
       const dim = css.getPropertyValue('--line-hard').trim() || '#3a3a3a';
       const mint = css.getPropertyValue('--alert-hi').trim() || '#b5ead3';
       const k = kindRef.current;

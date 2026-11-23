@@ -1,11 +1,8 @@
 /*
- * Splot MIDI Brain visual system
- * Two pastel colours on black:
- *   ON    (deep burgundy)   = on / live / OK / MIDI / selected
- *   ALERT (pastel mint)     = stop / fail / warn / clip / audio
- * Everything else is greyscale. A fine film grain sits over everything
- * (same SVG noise as severgrow-01's Soil texture). Rounded, playful hardware
- * shapes (OP-1-ish) on tidy Ableton-style grids.
+ * Splot MIDI Brain visual system (Phase 1 palette)
+ * Near-black + bone type. Mint shades = primary colour language.
+ * Burgundy = accents only (not large active fills).
+ * Greyscale for structure. Film grain over everything.
  */
 :root {
   --bg-0: #0a0a0a; /* page */
@@ -16,46 +13,65 @@
   --line: #262626;
   --line-soft: #1a1a1a;
   --line-hard: #363636;
-  --text: #ecebe6;
+  --text: #ecebe6; /* bone typography */
   --text-dim: #a09d96;
   --text-mute: #64615c;
 
-  /* ON — deep, dark burgundy (light text on its fills) */
-  --on: #9a2a45;
-  --on-2: #7c1f36;
-  --on-dim: #3a131e;
-  --on-glow: rgba(154, 42, 69, 0.5);
-  --on-wash: rgba(154, 42, 69, 0.14);
+  /* Mint scale — main colour language */
+  --mint-0: #152822;
+  --mint-1: #1e3a32;
+  --mint-2: #2f5a4c;
+  --mint-3: #5aa890;
+  --mint-4: #9fdcc2;
+  --mint-5: #b5ead3;
+  --mint-6: #d4f5e6;
 
-  /* ALERT — pastel mint */
-  --alert: #9fdcc2; /* fills */
-  --alert-hi: #b5ead3; /* text and lines on black */
-  --alert-dim: #24443a;
-  --alert-glow: rgba(181, 234, 211, 0.36);
+  /* Burgundy — accents only (small chips, SP device, rare emphasis) */
+  --burgundy: #9a2a45;
+  --burgundy-2: #7c1f36;
+  --burgundy-dim: #3a131e;
+  --burgundy-glow: rgba(154, 42, 69, 0.45);
+  --burgundy-wash: rgba(154, 42, 69, 0.12);
+  --burgundy-ink: #f5e9ec;
+
+  /* ON / selected / live — mint (not burgundy) */
+  --on: var(--mint-4);
+  --on-2: var(--mint-3);
+  --on-dim: var(--mint-1);
+  --on-glow: rgba(159, 220, 194, 0.45);
+  --on-wash: rgba(159, 220, 194, 0.12);
+
+  /* ALERT / warn / audio — lighter mint shades */
+  --alert: var(--mint-5);
+  --alert-hi: var(--mint-6);
+  --alert-dim: var(--mint-0);
+  --alert-glow: rgba(181, 234, 211, 0.4);
   --alert-wash: rgba(181, 234, 211, 0.1);
 
-  /* Device colours (Controller / Rig track summary) */
+  /* Device colours */
   --bone: #e8e1d2; /* MPC */
   --bone-dim: #3a372f;
   --bone-wash: rgba(232, 225, 210, 0.14);
+  --sp-accent: var(--burgundy); /* SP stays burgundy accent */
+  --fm1-accent: var(--mint-4);
 
   /* Roles */
   --accent: var(--on);
   --accent-dim: var(--on-dim);
   --accent-glow: var(--on-glow);
-  --accent-ink: #f5e9ec; /* text on burgundy fills */
-  --alert-ink: #0a0a0a; /* text on mint fills */
+  --accent-ink: #0a0a0a; /* dark text on mint fills (AA) */
+  --alert-ink: #0a0a0a;
   --ok: var(--on);
   --ok-glow: var(--on-glow);
-  --warn: var(--alert-hi);
-  --err: var(--alert-hi);
-  --cyan: var(--on);
+  --warn: var(--mint-5);
+  --err: var(--burgundy); /* errors = burgundy accent, not a mint flood */
+  --cyan: var(--mint-4);
 
   /* kept for older inline styles */
   --amber: var(--accent);
   --amber-dim: var(--accent-dim);
   --amber-glow: var(--accent-glow);
-  --focus: var(--accent);
+  --focus: var(--mint-5);
 
   --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-ui: 'Inter', 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
@@ -123,7 +139,7 @@ body::after {
 
 .app {
   display: grid;
-  grid-template-rows: var(--bar-h) var(--strip-h) 1fr var(--foot-h);
+  grid-template-rows: var(--bar-h) var(--strip-h) auto 1fr var(--foot-h);
   grid-template-columns: minmax(0, 1fr);
   height: 100%;
   min-height: 100vh;
@@ -192,15 +208,16 @@ button.ghost {
   background: transparent;
 }
 
+/* Danger = burgundy accent (not a mint flood) */
 button.danger {
-  border-color: var(--alert);
-  color: var(--alert-ink);
-  background: var(--alert);
+  border-color: var(--burgundy);
+  color: var(--burgundy-ink);
+  background: var(--burgundy-dim);
 }
 button.danger:hover:not(:disabled) {
-  background: var(--alert-hi);
-  color: var(--alert-ink);
-  border-color: var(--alert-hi);
+  background: var(--burgundy);
+  color: var(--burgundy-ink);
+  border-color: var(--burgundy);
 }
 
 /* Bench verdict pads */
@@ -211,10 +228,10 @@ button.verdict-pass.active {
 }
 button.verdict-fail.active,
 button.verdict-fail.active:hover:not(:disabled) {
-  background: var(--alert);
-  border-color: var(--alert-hi);
-  color: var(--alert-ink);
-  box-shadow: 0 0 14px -2px var(--alert-glow);
+  background: var(--burgundy-dim);
+  border-color: var(--burgundy);
+  color: var(--burgundy-ink);
+  box-shadow: 0 0 14px -2px var(--burgundy-glow);
 }
 /* Unsure = neutral: a white outline, no colour */
 button.verdict-unsure.active,
@@ -502,7 +519,7 @@ label {
 
 @media (max-width: 720px) {
   .app {
-    grid-template-rows: var(--bar-h) auto 1fr var(--foot-h);
+    grid-template-rows: var(--bar-h) auto auto 1fr var(--foot-h);
   }
   .shell {
     grid-template-columns: minmax(0, 1fr);
@@ -2210,7 +2227,7 @@ button.ap-clip.on {
   stroke-width: 1.5;
 }
 
-/* ZED-10FX side cheeks — deep maroon like the real mixer (brand --on) */
+/* ZED-10FX side cheeks — burgundy accent (hardware cheek colour) */
 .art-side {
   fill: var(--on);
   stroke: none;
@@ -2998,12 +3015,12 @@ button.send-add {
 }
 
 .ct-track.dev-sp .ct-pad {
-  background: var(--on);
-  color: var(--accent-ink);
+  background: var(--burgundy);
+  color: var(--burgundy-ink);
 }
 .ct-track.dev-fm1 .ct-pad {
-  background: var(--alert);
-  color: var(--alert-ink);
+  background: var(--mint-4);
+  color: var(--accent-ink);
 }
 .ct-track.dev-mpc .ct-pad {
   background: var(--bone);
@@ -4497,11 +4514,12 @@ button.send-add {
 }
 
 .seq-pad.lit.dev-sp {
-  background: var(--on);
+  background: var(--burgundy);
+  border-color: var(--burgundy-2);
 }
 .seq-pad.lit.dev-fm1 {
-  background: color-mix(in srgb, var(--alert) 70%, var(--on));
-  border-color: var(--alert-dim);
+  background: color-mix(in srgb, var(--mint-4) 80%, var(--mint-2));
+  border-color: var(--mint-2);
 }
 .seq-pad.lit.dev-mpc {
   background: color-mix(in srgb, var(--bone) 55%, var(--on));
@@ -4686,14 +4704,14 @@ button.send-add {
 }
 
 .cm-pad.cm-dim {
-  background: var(--on-dim);
-  border-color: #5a1a2c;
-  box-shadow: inset 0 0 0 1px rgba(154, 42, 69, 0.35);
+  background: var(--mint-1);
+  border-color: var(--mint-2);
+  box-shadow: inset 0 0 0 1px rgba(159, 220, 194, 0.28);
 }
 
 .cm-pad.cm-bright {
-  background: var(--on);
-  border-color: #c44a66;
+  background: var(--mint-4);
+  border-color: var(--mint-5);
   box-shadow: 0 0 10px var(--on-glow);
 }
 
@@ -4922,7 +4940,7 @@ button.send-add {
   display: block;
   height: 100%;
   width: 0;
-  background: var(--on, #9a2a45);
+  background: var(--on);
 }
 
 .flip-live-meter.clip .flip-live-track i {
@@ -5175,4 +5193,311 @@ button.send-add {
 
 .err {
   color: var(--err);
+}
+
+/* ─── Phase 1: transport, wizard, jam, howto, subnav ───────── */
+
+.transport-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  padding: 0.4rem 0.85rem;
+  min-height: 36px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.ts-btn {
+  font-size: 11px !important;
+}
+
+.ts-btn.on {
+  background: var(--mint-4) !important;
+  border-color: var(--mint-4) !important;
+  color: var(--accent-ink) !important;
+}
+
+.ts-btn.jam {
+  border-color: var(--mint-3);
+  color: var(--mint-5);
+}
+
+.ts-key {
+  display: inline-block;
+  margin-left: 0.25rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--line-hard);
+  border-radius: 2px;
+  font-size: 9px;
+  color: var(--text-mute);
+}
+
+.ts-meta {
+  color: var(--text-dim);
+}
+
+.ts-status {
+  flex: 1;
+  min-width: 12rem;
+  color: var(--text-dim);
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.85rem;
+}
+
+.panel-subnav-btn {
+  font-size: 11px !important;
+  text-transform: none !important;
+  letter-spacing: 0.02em !important;
+}
+
+.panel-subnav-btn.on {
+  background: var(--mint-1) !important;
+  border-color: var(--mint-4) !important;
+  color: var(--mint-5) !important;
+  box-shadow: none !important;
+}
+
+.howto {
+  margin: 0 0 1rem;
+}
+
+.howto-lead {
+  margin-bottom: 0.35rem;
+}
+
+.howto-q {
+  display: inline-grid !important;
+  place-items: center;
+  width: 1.35rem !important;
+  height: 1.35rem !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  vertical-align: middle;
+  border-color: var(--mint-3) !important;
+  color: var(--mint-5) !important;
+  background: var(--mint-0) !important;
+}
+
+.howto-body {
+  padding: 0.55rem 0.75rem;
+  border-left: 2px solid var(--mint-3);
+  background: var(--mint-0);
+  border-radius: 0 6px 6px 0;
+}
+
+.wizard-scrim,
+.jam-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(0, 0, 0, 0.72);
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+}
+
+.wizard-card {
+  width: min(32rem, 100%);
+  max-height: min(90vh, 40rem);
+  overflow: auto;
+  padding: 1.25rem 1.35rem;
+  background: var(--bg-2);
+  border: 1px solid var(--line-hard);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+
+.wizard-steps {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.wizard-steps li {
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-3);
+}
+
+.wizard-steps li.current {
+  border-color: var(--mint-3);
+  background: var(--mint-0);
+}
+
+.wizard-steps li.done {
+  border-color: var(--mint-2);
+}
+
+.wizard-status {
+  margin: 0 0 0.85rem;
+}
+
+.jam-stage {
+  width: min(56rem, 100%);
+  max-height: min(92vh, 48rem);
+  overflow: auto;
+  padding: 1.25rem 1.5rem 1.5rem;
+  background: var(--bg-1);
+  border: 1px solid var(--mint-2);
+  border-radius: var(--radius-lg);
+}
+
+.jam-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.jam-head h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mint-5);
+}
+
+.jam-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 1.25rem;
+}
+
+.jam-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  min-height: 5.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--line-hard);
+  background: var(--bg-3);
+  transition: border-color 120ms ease, box-shadow 160ms ease;
+}
+
+.jam-tile.active {
+  border-color: var(--mint-4);
+  box-shadow: 0 0 0 1px var(--mint-4);
+}
+
+.jam-tile.flash {
+  animation: jam-flash 0.28s ease-out;
+}
+
+@keyframes jam-flash {
+  from { box-shadow: 0 0 18px var(--on-glow); }
+  to { box-shadow: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jam-tile.flash,
+  .cm-pad.cm-playhead,
+  .cable-hit,
+  .act-led.flash {
+    animation: none !important;
+  }
+}
+
+.jam-pad {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.jam-tile.dev-sp .jam-pad { color: var(--burgundy-ink); }
+.jam-tile.dev-sp { background: var(--burgundy-dim); border-color: var(--burgundy); }
+.jam-tile.dev-fm1 { background: var(--mint-1); border-color: var(--mint-3); }
+.jam-tile.dev-mpc { background: var(--bone-dim); border-color: var(--bone); color: var(--bone); }
+
+.jam-knobs h2 {
+  font-size: 0.85rem;
+  margin: 0 0 0.65rem;
+  color: var(--mint-5);
+}
+
+.jam-knob-row {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.jam-knob {
+  text-align: center;
+}
+
+.jam-knob-dial {
+  --v: 0;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin: 0 auto 0.25rem;
+  border-radius: 50%;
+  border: 2px solid var(--mint-2);
+  background:
+    conic-gradient(var(--mint-4) calc(var(--v) * 1turn), var(--bg-4) 0);
+  display: grid;
+  place-items: center;
+}
+
+.jam-knob-dial span {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--bg-2);
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+}
+
+.jam-knob-name {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  line-height: 1.2;
+}
+
+.jam-knob.moved .jam-knob-dial {
+  box-shadow: 0 0 12px var(--on-glow);
+}
+
+.sounds-loop-catcher {
+  margin-bottom: 1rem;
+}
+
+/* Readability floor */
+.main {
+  font-size: 13px;
+}
+
+.main .lead,
+.main .muted.small,
+.howto-lead {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+@media (max-width: 900px) {
+  .jam-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .jam-knob-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1280px) {
+  .main { max-width: none; }
 }

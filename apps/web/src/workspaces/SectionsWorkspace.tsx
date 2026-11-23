@@ -54,7 +54,7 @@ export function SectionsWorkspace() {
   return (
     <div className="section-enter">
       <div className="page-head">
-        <h1>sections</h1>
+        <h1>song sections</h1>
         <button
           type="button"
           className={bridge.enabled ? 'active' : ''}
@@ -64,7 +64,8 @@ export function SectionsWorkspace() {
         </button>
       </div>
       <p className="lead">
-        Circuit Project → SP pattern + MPC sequence. Needs Circuit <strong>Program Change Tx</strong> on (ch 16).
+        When you change Project on the Circuit, jump SP pattern + MPC sequence together. Needs Circuit{' '}
+        <strong>Program Change Tx</strong> on (ch 16).
       </p>
 
       <div className="panel">

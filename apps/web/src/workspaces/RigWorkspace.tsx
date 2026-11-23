@@ -1,5 +1,6 @@
 import { destBadge } from '@dawlessdaw/devices';
 import { AudioPreview } from '../components/AudioPreview';
+import { HowTo } from '../components/HowTo';
 import { MoreInfo } from '../components/MoreInfo';
 import { RigMap } from '../components/RigMap';
 import { WorkspaceErrorBoundary } from '../components/WorkspaceErrorBoundary';
@@ -13,10 +14,8 @@ function ActivityLed({ at, label }: { at: number; label: string }) {
 export function RigWorkspace() {
   const snap = useStudioStore();
   const { setClockToMpc, setClockToSp, setForwardClockToFm1, panic, setWorkspace } = useStudioActions();
-  const circuitIn = snap.assignments.find((a) => a.roleId === 'circuit')?.inputPortId;
   const presetName = snap.controllerPresets.find((p) => p.id === snap.controllerSavedId)?.name ?? '—';
   const noteHits = snap.trackActivity.slice(1, 9).filter((t) => t > 0).length;
-  const showOnboard = snap.onboarding.step !== 'play';
 
   return (
     <div className="section-enter">
@@ -26,28 +25,15 @@ export function RigWorkspace() {
           Panic · all notes off
         </button>
       </div>
-      <p className="lead">What&apos;s connected — edit destinations in Controller.</p>
-
-      {showOnboard ? (
-        <p className="callout warn-callout">
-          <strong>{snap.onboarding.step}</strong> — {snap.onboarding.message}{' '}
-          {snap.onboarding.step !== 'play' ? (
-            <button type="button" className="linklike" onClick={() => setWorkspace('setup')}>
-              Open Setup
-            </button>
-          ) : null}
-        </p>
-      ) : null}
-
-      {!circuitIn && !showOnboard ? (
-        <p className="callout warn-callout">
-          No Circuit input — pick its port in{' '}
-          <button type="button" className="linklike" onClick={() => setWorkspace('setup')}>
-            Setup
+      <HowTo sentence="Left → right picture of your studio. Status lives in the top strip — use Connect… if something’s missing.">
+        <p>
+          Click a box to open Ports &amp; devices. Edit where Circuit tracks play under{' '}
+          <button type="button" className="linklike" onClick={() => setWorkspace('controller')}>
+            Live controller
           </button>
-          .
+          . Press <kbd>J</kbd> for Jam mode.
         </p>
-      ) : null}
+      </HowTo>
 
       <WorkspaceErrorBoundary workspace="Rig art" onReset={() => setWorkspace('rig')}>
         <RigMap />

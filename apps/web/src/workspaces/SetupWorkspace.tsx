@@ -54,30 +54,6 @@ function PortSelect({
   );
 }
 
-function OnboardingBanner() {
-  const snap = useStudioStore();
-  if (snap.onboarding.step === 'play') return null;
-  const steps = [
-    { id: 'connect' as const, label: 'Connect' },
-    { id: 'identify' as const, label: 'Identify' },
-    { id: 'assign' as const, label: 'Assign' },
-    { id: 'play' as const, label: 'Play' },
-  ];
-  const idx = steps.findIndex((s) => s.id === snap.onboarding.step);
-  return (
-    <div className="callout warn-callout onboard-banner">
-      <ol className="onboard-steps" aria-label="First-run steps">
-        {steps.map((s, i) => (
-          <li key={s.id} className={i === idx ? 'current' : i < idx ? 'done' : ''}>
-            {s.label}
-          </li>
-        ))}
-      </ol>
-      <p>{snap.onboarding.message}</p>
-    </div>
-  );
-}
-
 function UnknownDevicesPanel() {
   const snap = useStudioStore();
   const a = useStudioActions();
@@ -373,7 +349,15 @@ function UnknownDevicesPanel() {
   );
 }
 
-export function SetupWorkspace() {
+export function SetupWorkspace({
+  onReopenWizard,
+  experimental = false,
+  setExperimental,
+}: {
+  onReopenWizard?: () => void;
+  experimental?: boolean;
+  setExperimental?: (on: boolean) => void;
+} = {}) {
   const snap = useStudioStore();
   const {
     rescanMidiPorts,
@@ -395,21 +379,41 @@ export function SetupWorkspace() {
   return (
     <div className="section-enter">
       <div className="page-head">
-        <h1>setup</h1>
+        <h1>ports &amp; devices</h1>
         <button type="button" onClick={() => void rescanMidiPorts()}>
           Rescan ports
         </button>
       </div>
       <p className="lead">
-        Ports auto-match; pick by hand when a name isn&apos;t recognised. Hand-picks remember by name.
+        Tell Splot which USB port is which. Status is in the top strip — reopen the connect guide anytime.
       </p>
-      <OnboardingBanner />
-      {snap.midiError ? <p className="callout warn-callout">{snap.midiError}</p> : null}
-      {!snap.midiError && connected.length === 0 && snap.midiReady ? (
-        <p className="callout warn-callout">
-          MIDI is allowed, but Chrome sees no ports. Plug a device in, check Audio MIDI Setup, then Rescan.
+      <div className="row" style={{ marginBottom: '0.85rem' }}>
+        {onReopenWizard ? (
+          <button type="button" onClick={onReopenWizard}>
+            Connect your rig…
+          </button>
+        ) : null}
+        {setExperimental ? (
+          <label className="row" style={{ gap: '0.4rem', alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={experimental}
+              onChange={(e) => setExperimental(e.target.checked)}
+            />
+            <span className="small">Show experimental tools (Deep Sync, SP USB)</span>
+          </label>
+        ) : null}
+      </div>
+      {!experimental ? (
+        <p className="muted small">
+          Bench tests: open the <b>Tests</b> sub-tab. Deep Sync stays behind the experimental toggle.
         </p>
-      ) : null}
+      ) : (
+        <p className="callout seq-honesty">
+          Experimental on — Circuit Deep Sync (Test tab) and SP USB tools may stop playback or change
+          device state; use carefully.
+        </p>
+      )}
 
       <div className="panel">
         <h2>Ports</h2>

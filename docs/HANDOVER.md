@@ -61,13 +61,17 @@ Stale remote branches that are already merged can be deleted by the owner on the
 
 Full table: [DECISIONS.md](./DECISIONS.md).
 
-## Palette
+## Palette (Phase 1)
 
-- Black background. Two colours only, plus greyscale (+ bone for MPC device chrome).
-  - **ON** = **deep, dark burgundy** `#9a2a45` (`--accent-ink #f5e9ec`).
-  - **ALERT** = pastel mint `#9fdcc2` / `#b5ead3`.
-  - **Bone** = `#e8e1d2` (`--bone`) for MPC.
-- Tokens in `apps/web/src/styles/studio.css`. Film grain: `body::after`, 16%.
+- Near-black backgrounds + bone typography (`#ecebe6`).
+- **Mint shades** = primary colour language (selected / live / nav accents).
+- **Burgundy** = accents only (SP device, danger, fail) — not large active fills.
+- **Bone** = `#e8e1d2` for MPC.
+- Tokens in `apps/web/src/styles/studio.css`. Film grain: `body::after`.
+
+## Phase 1 UI
+
+Five tabs: Play / Build / Sounds / Record / Settings. Keys 1–8 still deep-link old panels. Jam (**J**). Connect wizard. Circuit Mirror modes stay under Build → Splot pattern. See [first-run-walkthrough.md](./first-run-walkthrough.md).
 
 ## Phase 0 (stability + Splot rename) — software
 

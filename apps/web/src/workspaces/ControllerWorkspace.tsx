@@ -448,7 +448,7 @@ export function ControllerWorkspace() {
   return (
     <div className="section-enter controller">
       <div className="page-head">
-        <h1>controller</h1>
+        <h1>live controller</h1>
         <span className="readout">
           Circuit {circuitIn ? <b>connected</b> : 'not connected'}
           {circuitTrack ? (
@@ -460,7 +460,8 @@ export function ControllerWorkspace() {
         </span>
       </div>
       <p className="lead">
-        Circuit tracks → SP / FM1 / MPC. Unmapped knobs drop. <strong>Advanced</strong> = channels &amp; CCs.
+        Circuit tracks play SP / FM1 / MPC. Twist macros — named knobs flash live. Unmapped knobs are
+        dropped. <strong>Advanced</strong> shows MIDI numbers.
       </p>
 
       <PresetBar advanced={advanced} setAdvanced={setAdvanced} />

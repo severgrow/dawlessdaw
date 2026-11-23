@@ -24,9 +24,11 @@ import {
   type FsDirectoryHandle,
   type SdVolumeScanResult,
 } from '../sp404/sdVolume';
+import { HowTo } from '../components/HowTo';
 import { MoreInfo } from '../components/MoreInfo';
+import { FlipLane } from '../flip/FlipLane';
 import { SpUsbPanel, spUsbPanelEnabled } from '../sp404/usb';
-import { useStudioStore } from '../store/useStudioStore';
+import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 type Slots = Record<string, StoredPad>;
 
@@ -103,7 +105,7 @@ function Waveform({ audio, edit }: { audio: PadAudio; edit: PadEdit }) {
     if (!canvas || !g) return;
     const { width, height } = canvas;
     const css = getComputedStyle(canvas);
-    const accent = css.getPropertyValue('--accent').trim() || '#9a2a45';
+    const accent = css.getPropertyValue('--accent').trim() || '#9fdcc2';
     const dim = css.getPropertyValue('--line-hard').trim() || '#3a3a3a';
     const dur = durationSeconds(audio) || 1;
     const x0 = (edit.trimStart / dur) * width;
@@ -137,7 +139,7 @@ function useBankTracks(): Record<string, number[]> {
   }, [plan]);
 }
 
-export function SamplesWorkspace() {
+export function SamplesWorkspace({ showLoopCatcher = false }: { showLoopCatcher?: boolean } = {}) {
   const [bank, setBank] = useState<SpBank>('A');
   const [selected, setSelected] = useState(1);
   const [slots, setSlots] = useState<Slots>({});
@@ -396,10 +398,15 @@ export function SamplesWorkspace() {
       : 0;
   const selectedSd = sdByKey[key];
 
+  const seqSnap = useStudioStore();
+  const { seqSetTrackMute } = useStudioActions();
+  const seq = seqSnap.sequencer;
+  const pattern = seq.bank.patterns[seq.bank.activePatternIndex]!;
+
   return (
     <div className="section-enter samples">
       <div className="page-head">
-        <h1>samples</h1>
+        <h1>SP samples</h1>
         <span className="readout">
           loaded <b>{all.length}</b>/160 · {restored ? 'saved in this browser' : 'loading…'}
           {sdProject ? (
@@ -411,7 +418,26 @@ export function SamplesWorkspace() {
         </span>
       </div>
 
-      <p className="lead">Load → trim → save 48 kHz WAVs for the SP. Optional: read occupied pads from the SD card.</p>
+      <HowTo sentence="Load, trim, and save WAVs for the SP-404. Optional: peek at pads already on the SD card.">
+        <p>Pick a bank, drop audio on a pad, trim, then export. Clearing a bank asks first.</p>
+      </HowTo>
+
+      {showLoopCatcher ? (
+        <div className="panel sounds-loop-catcher">
+          <h2>
+            Loop catcher <span className="muted small">(FLIP)</span>
+          </h2>
+          <p className="muted small">Catch a stereo loop from Scarlett / ZED / any input — not a 9th MIDI track.</p>
+          <FlipLane
+            bpm={pattern.bpm}
+            playhead={seq.playhead}
+            playing={seq.playing}
+            clockSource={seq.bank.clockSource}
+            trackMutes={pattern.tracks.map((t) => t.muted)}
+            setTrackMute={(track, muted) => seqSetTrackMute(track, muted)}
+          />
+        </div>
+      ) : null}
 
       <div className="panel">
         <h2>Pads already on the SP</h2>

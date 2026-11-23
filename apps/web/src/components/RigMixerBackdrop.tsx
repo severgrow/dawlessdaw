@@ -27,10 +27,10 @@ interface Ghost {
 }
 
 const GHOSTS: Ghost[] = [
-  { kind: 'circuit', x: -2, y: 8, w: 34, i: 0, tone: 'burgundy' },
+  { kind: 'circuit', x: -2, y: 8, w: 34, i: 0, tone: 'mint' },
   { kind: 'mpc', x: 68, y: -6, w: 24, i: 1, tone: 'bone' },
-  { kind: 'sp', x: 82, y: 42, w: 18, i: 2, tone: 'mint' },
-  { kind: 'fm1', x: 48, y: 72, w: 32, i: 3, tone: 'burgundy' },
+  { kind: 'sp', x: 82, y: 42, w: 18, i: 2, tone: 'burgundy' },
+  { kind: 'fm1', x: 48, y: 72, w: 32, i: 3, tone: 'mint' },
   { kind: 'zed', x: 28, y: 52, w: 22, i: 4, tone: 'mint' },
   { kind: 'scarlett', x: 42, y: 2, w: 18, i: 5, tone: 'bone' },
 ];
