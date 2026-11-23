@@ -219,18 +219,46 @@ export async function beginDraft(meta: TakeMeta): Promise<void> {
 }
 
 export async function appendChunk(takeId: string, index: number, samples: Float32Array): Promise<void> {
-  await withStore('chunks', 'readwrite', (s) => {
-    s.put({
-      takeId,
-      index,
-      samples: samples.buffer.slice(samples.byteOffset, samples.byteOffset + samples.byteLength),
+  await appendChunksBatch(takeId, [{ index, samples }]);
+}
+
+/**
+ * One IndexedDB transaction for many chunks (P3 batched persist).
+ * Updates draft nextChunkIndex to max(index)+1 when a draft is active.
+ */
+export async function appendChunksBatch(takeId: string, chunks: PcmChunk[]): Promise<void> {
+  if (!chunks.length) return;
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction([CHUNKS, DRAFT], 'readwrite');
+      const chunkStore = tx.objectStore(CHUNKS);
+      let maxIndex = -1;
+      for (const c of chunks) {
+        maxIndex = Math.max(maxIndex, c.index);
+        const samples = c.samples;
+        chunkStore.put({
+          takeId,
+          index: c.index,
+          samples: samples.buffer.slice(samples.byteOffset, samples.byteOffset + samples.byteLength),
+        });
+      }
+      const draftReq = tx.objectStore(DRAFT).get('active');
+      draftReq.onsuccess = () => {
+        const draft = draftReq.result as DraftState | undefined;
+        if (draft && draft.takeId === takeId && maxIndex >= 0) {
+          tx.objectStore(DRAFT).put({
+            ...draft,
+            nextChunkIndex: Math.max(draft.nextChunkIndex, maxIndex + 1),
+          });
+        }
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error('appendChunksBatch failed'));
+      tx.onabort = () => reject(tx.error ?? new Error('appendChunksBatch aborted'));
     });
-  });
-  const draft = await getDraft();
-  if (draft && draft.takeId === takeId) {
-    await withStore('draft', 'readwrite', (s) => {
-      s.put({ ...draft, nextChunkIndex: index + 1 });
-    });
+  } finally {
+    db.close();
   }
 }
 

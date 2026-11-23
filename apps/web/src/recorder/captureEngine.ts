@@ -17,7 +17,7 @@ import {
   type TakePerformanceEvent,
 } from './types';
 import {
-  appendChunk,
+  appendChunksBatch,
   beginDraft,
   makeTakeId,
   finalizeCompleteTake,
@@ -33,6 +33,13 @@ import {
   planCaptureGraph,
 } from './captureGraph';
 import { buildCaptureConstraints } from './captureSettings';
+import {
+  CapturePersistBuffer,
+  emptyCaptureBufferStats,
+  estimatePersistChunkRate,
+  estimateWorkletMsgRate,
+  type CaptureBufferStats,
+} from './captureBuffer';
 
 export type CaptureState = 'idle' | 'recording' | 'stopping';
 
@@ -41,6 +48,12 @@ export interface MeterLevels {
   right: number;
   clipLeft: boolean;
   clipRight: boolean;
+}
+
+export interface CaptureBufferReport extends CaptureBufferStats {
+  /** Cheap derived rates (0 while elapsed is tiny). */
+  workletMsgsPerSec: number;
+  persistChunksPerSec: number;
 }
 
 export interface CaptureStatus {
@@ -52,6 +65,8 @@ export interface CaptureStatus {
   takeId: string | null;
   /** Speaker monitoring of the live input (default off). */
   monitorInput: boolean;
+  /** P3: batched persist / drop counters (honesty for recovery). */
+  buffer: CaptureBufferReport;
 }
 
 type StatusListener = (s: CaptureStatus) => void;
@@ -87,9 +102,12 @@ export class CaptureEngine {
   private meters: MeterLevels = { left: 0, right: 0, clipLeft: false, clipRight: false };
   private clipLeftUntil = 0;
   private clipRightUntil = 0;
-  private persistQueue: Promise<void> = Promise.resolve();
   private listeners = new Set<StatusListener>();
   private raf = 0;
+  private persistBuffer = new CapturePersistBuffer({
+    appendBatch: (takeId, chunks) => appendChunksBatch(takeId, chunks),
+  });
+  private lastBufferStats: CaptureBufferStats = emptyCaptureBufferStats();
 
   subscribe(fn: StatusListener): () => void {
     this.listeners.add(fn);
@@ -98,14 +116,27 @@ export class CaptureEngine {
   }
 
   status(): CaptureStatus {
+    const elapsedMs =
+      this.state === 'recording' || this.state === 'stopping'
+        ? Date.now() - this.startedAt
+        : 0;
+    const snap =
+      this.state === 'recording' || this.state === 'stopping'
+        ? this.persistBuffer.snapshot()
+        : this.lastBufferStats;
     return {
       state: this.state,
-      elapsedMs: this.state === 'recording' ? Date.now() - this.startedAt : 0,
+      elapsedMs,
       frames: this.frames,
       sampleRate: this.ctx?.sampleRate ?? 48000,
       meters: { ...this.meters },
       takeId: this.takeId,
       monitorInput: this.monitorInput,
+      buffer: {
+        ...snap,
+        workletMsgsPerSec: estimateWorkletMsgRate(snap, elapsedMs),
+        persistChunksPerSec: estimatePersistChunkRate(snap, elapsedMs),
+      },
     };
   }
 
@@ -210,6 +241,8 @@ export class CaptureEngine {
     this.markers = [];
     this.startedAt = Date.now();
     this.state = 'recording';
+    this.lastBufferStats = emptyCaptureBufferStats();
+    this.persistBuffer.begin(takeId);
 
     await beginDraft(this.meta);
 
@@ -241,12 +274,8 @@ export class CaptureEngine {
       this.chunks.push({ index, samples: copy });
       this.frames += frames;
 
-      const tid = this.takeId!;
-      this.persistQueue = this.persistQueue
-        .then(() => appendChunk(tid, index, copy))
-        .catch(() => {
-          // keep recording in RAM if IDB fails
-        });
+      // P3: sync enqueue only — IndexedDB via batched flush (no SAB).
+      this.persistBuffer.push({ index, samples: copy });
     };
 
     // Mic → worklet only (PCM + meters). Never mic → destination unless monitor ON.
@@ -332,7 +361,7 @@ export class CaptureEngine {
     this.stream = null;
     this.ctx = null;
 
-    await this.persistQueue;
+    this.lastBufferStats = await this.persistBuffer.end();
 
     const audio = stitchChunks(this.chunks, this.meta.sampleRate);
     const meta: TakeMeta = {
