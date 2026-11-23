@@ -599,8 +599,6 @@ export class StudioRuntime {
   private clockUiNotifyAt = 0;
   private clockLogSample = 0;
   /** Timestamps of recent F8 clocks from Circuit (for BPM). */
-  private clockTickTimes: number[] = [];
-  private estimatedBpm: number | null = null;
   private activeBenchId: string | null = null;
   private customProfiles: GenericDeviceProfile[] = loadCustomProfiles();
   private customBindings: StudioRuntimeSnapshot['customBindings'] = {};
@@ -857,7 +855,7 @@ export class StudioRuntime {
         forwarding: this.anyClockForwarding(),
         hint: this.clockHint(),
       },
-      estimatedBpm: this.estimatedBpm,
+      estimatedBpm: this.clockHealth.getSnapshot().bpm,
       customProfiles: this.customProfiles.map((p) => ({
         ...p,
         capabilities: p.capabilities.map((c) => ({ ...c })),
@@ -969,18 +967,22 @@ export class StudioRuntime {
 
     this.unsubs.push(
       this.bus.on('midi:clock', (event) => {
-        if (event.type !== 'midi:clock') return;
-        this.recordClockActivity(event.message);
+        if (event.type !== 'midi:clock' || !event.direction) return;
+        this.recordClockActivity(event.message, event.direction);
+        if (event.direction === 'out') return;
         const circuitIn = portsForRoles(this.assignments).circuitIn;
         // Follow Circuit in only — never the forwarded OUT clock (no second competing clock).
         if (circuitIn && event.message.portId === circuitIn) {
+          this.clockHealth.onMidiTransport(
+            event.message.kind,
+            event.message.portId,
+            event.message.timestamp,
+          );
           this.sequencer.onMidiClockMessage(event.message.kind, event.message.timestamp);
           // Circuit Mirror: same Circuit-in filter — never forwarded OUT clock.
           this.circuitMirror.onMidiMessage(event.message.kind);
           // Intelligence analysis after mirror — still Circuit-in only; no outbound.
-          this.circuitIntel.onMidiTransport(event.message.kind);
-          // Clock Health (Timing Lab) — passive; never becomes clock master.
-          this.clockHealth.onMidiTransport(event.message.kind, event.message.portId);
+          this.circuitIntel.onMidiTransport(event.message.kind, event.message.timestamp);
           const pos = this.circuitIntel.getSnapshot().position;
           this.clockHealth.setPosition({
             transport: pos.transport,
@@ -1266,7 +1268,7 @@ export class StudioRuntime {
     const src = this.sequencer.getSnapshot().bank.clockSource;
     this.setStatus(
       src === 'circuit'
-        ? 'Sequencer Play — following Circuit clock (Start/Stop/Continue forwarded as usual)'
+        ? 'Splot pattern enabled — playing on Circuit clock'
         : 'Sequencer Play — internal BPM (no MIDI clock out)',
     );
     this.notify();
@@ -1413,7 +1415,7 @@ export class StudioRuntime {
     const current = activePattern(this.sequencer.getSnapshot().bank);
     const pattern = patternFromMirror(this.circuitMirror.getSnapshot(), {
       name: 'Observed Circuit',
-      bpm: this.estimatedBpm ?? current.bpm,
+      bpm: this.clockHealth.getSnapshot().bpm ?? current.bpm,
     });
     this.genCapturePattern(pattern, 'mirror');
   }
@@ -3185,21 +3187,22 @@ export class StudioRuntime {
     this.notify();
   }
 
-  private recordClockActivity(message: MidiMessage): void {
+  private recordClockActivity(message: MidiMessage, direction: 'in' | 'out'): void {
     const now = Date.now();
     const circuitIn = portsForRoles(this.assignments).circuitIn;
     const mpcOut = portsForRoles(this.assignments).mpcOut;
     const spOut = portsForRoles(this.assignments).spOut;
     const fm1Out = portsForRoles(this.assignments).fm1Out;
-    const isIn = circuitIn != null && message.portId === circuitIn;
+    const isIn = direction === 'in' && circuitIn != null && message.portId === circuitIn;
     if (isIn && (message.kind === 'clock' || message.kind === 'start' || message.kind === 'continue')) {
       // Throttle clock tick UI bumps — F8 is 24 PPQN; count every tick but notify sparsely via clock path.
       this.circuitLiveTicks = bumpCircuitTick(this.circuitLiveTicks, 'clock', now);
     }
     const isOut =
-      (mpcOut != null && message.portId === mpcOut) ||
-      (spOut != null && message.portId === spOut) ||
-      (fm1Out != null && message.portId === fm1Out);
+      direction === 'out' &&
+      ((mpcOut != null && message.portId === mpcOut) ||
+        (spOut != null && message.portId === spOut) ||
+        (fm1Out != null && message.portId === fm1Out));
     const transport =
       message.kind === 'start' ||
       message.kind === 'stop' ||
@@ -3210,24 +3213,6 @@ export class StudioRuntime {
       this.bumpKind(this.clockInByKind, message.kind);
       this.lastClockInKind = message.kind;
       this.lastClockInAt = now;
-      if (message.kind === 'clock') {
-        const t = typeof performance !== 'undefined' ? performance.now() : now;
-        this.clockTickTimes = [...this.clockTickTimes.slice(-47), t];
-        if (this.clockTickTimes.length >= 24) {
-          const first = this.clockTickTimes[0]!;
-          const last = this.clockTickTimes[this.clockTickTimes.length - 1]!;
-          const ticks = this.clockTickTimes.length - 1;
-          const msPerTick = (last - first) / ticks;
-          // 24 MIDI clocks per quarter note
-          const bpm = 60_000 / (msPerTick * 24);
-          if (Number.isFinite(bpm) && bpm > 20 && bpm < 400) {
-            this.estimatedBpm = Math.round(bpm * 10) / 10;
-          }
-        }
-      }
-      if (message.kind === 'stop') {
-        this.clockTickTimes = [];
-      }
       if (this.activeBenchId === 'usb-app-clock' && transport) {
         const hex =
           message.kind === 'start' ? 'FA' : message.kind === 'stop' ? 'FC' : 'FB';

@@ -83,6 +83,9 @@ describe('StudioEventBus', () => {
     }
     expect(ui).not.toHaveBeenCalled();
     expect(typedClock).toHaveBeenCalledTimes(8);
+    expect(typedClock.mock.calls.map(([event]) => event.direction)).toEqual([
+      'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out',
+    ]);
     bus.emit({ type: 'studio:status', message: 'ok', level: 'info' });
     expect(ui).toHaveBeenCalledTimes(1);
   });

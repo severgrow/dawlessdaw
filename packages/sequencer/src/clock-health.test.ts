@@ -32,6 +32,28 @@ describe('ClockHealthMonitor', () => {
     expect(snap.jitterMs!).toBeLessThan(1);
   });
 
+  it('reads MIDI timestamps when clock callbacks arrive in bursts', () => {
+    vi.useFakeTimers();
+    let t = 0;
+    const m = new ClockHealthMonitor({ now: () => t });
+    const interval = 60_000 / (94 * PPQN);
+    for (let i = 0; i < 96; i++) {
+      // Six ticks can arrive together after the main thread catches up.
+      t = Math.ceil((i + 1) / 6) * 6 * interval;
+      m.onMidiTransport('clock', 'circuit', i * interval);
+    }
+    expect(m.getSnapshot()).toMatchObject({
+      bpm: 94,
+      status: 'STABLE',
+      lastClockPortId: 'circuit',
+      clockDetected: true,
+    });
+    m.onMidiTransport('stop', 'circuit');
+    t += 500;
+    vi.advanceTimersByTime(500);
+    expect(m.getSnapshot().status).toBe('CLOCK LOST');
+  });
+
   it('flags VARIABLE when intervals jitter heavily', () => {
     let t = 0;
     const m = new ClockHealthMonitor({ now: () => t });

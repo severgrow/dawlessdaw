@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import desktopPackage from '../desktop/package.json';
 
 // Desktop (Electron) loads the SPA from disk — relative asset URLs required.
 const desktopShell = process.env.SPLOT_DESKTOP === '1';
@@ -8,6 +9,7 @@ const desktopShell = process.env.SPLOT_DESKTOP === '1';
 export default defineConfig({
   base: desktopShell ? './' : '/',
   plugins: [react()],
+  define: { __SPLOT_VERSION__: JSON.stringify(desktopPackage.version) },
   resolve: {
     alias: {
       '@dawlessdaw/audio': path.resolve(__dirname, '../../packages/audio/src'),

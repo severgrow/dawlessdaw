@@ -133,7 +133,6 @@ export class ClockHealthMonitor {
 
   onStop(_portId?: string): void {
     this.wasStopped = true;
-    this.clearLossTimer();
     this.emit();
   }
 
@@ -141,10 +140,12 @@ export class ClockHealthMonitor {
    * One MIDI Timing Clock (F8).
    * @param portId — input port id for duplicate-source hint
    */
-  onClock(portId?: string): void {
-    const t = this.now();
-    if (this.lastClockAt != null) {
-      const interval = t - this.lastClockAt;
+  onClock(portId?: string, timestamp?: number): void {
+    const receivedAt = this.now();
+    const t = timestamp !== undefined && Number.isFinite(timestamp) ? timestamp : receivedAt;
+    const previousTick = this.tickTimes.at(-1);
+    if (previousTick !== undefined) {
+      const interval = t - previousTick;
       const expected =
         this.bpm != null && this.bpm > 0 ? EXPECTED_MS_AT(this.bpm) : this.lastIntervalMs;
       if (expected != null && interval > expected * GAP_FACTOR) {
@@ -152,9 +153,11 @@ export class ClockHealthMonitor {
       }
       this.lastIntervalMs = interval;
     }
-    this.lastClockAt = t;
+    this.lastClockAt = receivedAt;
     this.lastClockPortId = portId ?? this.lastClockPortId;
-    this.tickTimes = [...this.tickTimes.slice(-95), t];
+    if (previousTick === undefined || t > previousTick) {
+      this.tickTimes = [...this.tickTimes.slice(-95), t];
+    }
     if (portId) this.notePort(portId);
 
     if (this.tickTimes.length >= 24) {
@@ -174,8 +177,8 @@ export class ClockHealthMonitor {
     if (this.tickTimes.length < 8 || this.tickTimes.length % 6 === 0) this.emit();
   }
 
-  onMidiTransport(kind: string, portId?: string): void {
-    if (kind === 'clock') this.onClock(portId);
+  onMidiTransport(kind: string, portId?: string, timestamp?: number): void {
+    if (kind === 'clock') this.onClock(portId, timestamp);
     else if (kind === 'start') this.onStart(portId);
     else if (kind === 'continue') this.onContinue(portId);
     else if (kind === 'stop') this.onStop(portId);

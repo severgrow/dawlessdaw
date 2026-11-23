@@ -18,7 +18,7 @@ The **Sequencer** tab has three modes. See [circuit-mirror.md](./circuit-mirror.
 
 ## Clock
 
-- **Default:** follow Circuit as clock master (Start / Stop / Continue + Timing Clock). The app still forwards transport to MPC/SP/FM1 only when those switches are already on — the sequencer does **not** emit a second MIDI clock.
+- **Default:** Splot listens to Circuit clock and routes the hardware performance. Press **Play in Splot** to layer the selected Splot pattern on the Circuit clock. Once enabled, the pattern follows Circuit Start, Stop and Continue. Press **Stop in Splot** to disable the pattern while Circuit routing stays live. Transport forwarding to hardware is controlled separately.
 - **Internal BPM:** look-ahead scheduler using `performance.now()` + Web MIDI output timestamps. Useful without Circuit running. **Never** sends MIDI clock out.
 
 ## Routing

@@ -295,10 +295,10 @@ export class CircuitIntelligenceEngine {
     this.invalidate();
   }
 
-  onClock(): void {
+  onClock(timestamp?: number): void {
     if (!this.playing) return;
     this.tickCount += 1;
-    this.position.onClock();
+    this.position.onClock(timestamp);
     const clocksPerLoop = this.loopLength * CLOCKS_PER_STEP;
     if (this.tickCount > 0 && this.tickCount % clocksPerLoop === 0) {
       this.endCycle();
@@ -471,8 +471,8 @@ export class CircuitIntelligenceEngine {
   }
 
   /** Convenience for raw kind strings from StudioRuntime clock bus. */
-  onMidiTransport(kind: string): void {
-    if (kind === 'clock') this.onClock();
+  onMidiTransport(kind: string, timestamp?: number): void {
+    if (kind === 'clock') this.onClock(timestamp);
     else if (kind === 'start') this.onTransportStart();
     else if (kind === 'continue') this.onTransportContinue();
     else if (kind === 'stop') this.onTransportStop();

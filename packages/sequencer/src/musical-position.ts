@@ -111,10 +111,10 @@ export class MusicalPositionModel {
     this.emit();
   }
 
-  onClock(): void {
+  onClock(timestamp?: number): void {
     if (this.transport !== 'playing') return;
     this.tickCount += 1;
-    const t = this.now();
+    const t = timestamp !== undefined && Number.isFinite(timestamp) ? timestamp : this.now();
     this.clockTickTimes = [...this.clockTickTimes.slice(-47), t];
     if (this.clockTickTimes.length >= 24) {
       const first = this.clockTickTimes[0]!;

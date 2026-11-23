@@ -45,7 +45,7 @@ export class SequencerEngine {
   private scheduler: SeqScheduler;
   private audition: SeqPattern | null = null;
   private pendingAudition: { pattern: SeqPattern | null } | null = null;
-  private awaitingAuditionPlay = false;
+  private circuitPlaybackArmed = false;
   private selectedTrack = 1;
   private selectedStep = 0;
   private readonly persistEnabled: boolean;
@@ -60,6 +60,7 @@ export class SequencerEngine {
     this.scheduler = new SeqScheduler({
       now: opts.now,
       onNote: opts.onNote,
+      shouldPlayNotes: () => this.bank.clockSource === 'internal' || this.circuitPlaybackArmed,
       onAllNotesOff: opts.onAllNotesOff,
       onBarBoundary: () => this.applyQueuedAudition(),
       onPlayhead: (step) => {
@@ -108,26 +109,23 @@ export class SequencerEngine {
 
   // ─── Transport ───────────────────────────────────────────────
 
-  /** UI PLAY: Circuit mode arms wait-for-Start; internal mode starts immediately. */
+  /** UI Play enables pattern playback on Circuit ticks or starts the internal clock. */
   play(): void {
+    if (this.bank.clockSource === 'circuit') this.circuitPlaybackArmed = true;
     if (this.scheduler.isPlaying()) return;
-    this.awaitingAuditionPlay = false;
     this.syncSchedulerPattern();
     if (this.bank.clockSource === 'internal') {
       this.scheduler.playInternal();
       this.notify();
       return;
     }
-    // Circuit master: wait for hardware Start (or user can still Stop).
-    // If already playing via Circuit, no-op.
-    if (!this.scheduler.isPlaying()) {
-      // Soft-arm: treat UI Play as Start when no Circuit transport yet
-      this.scheduler.onTransportStart();
-      this.notify();
-    }
+    // The Circuit may already be running. The next clock tick starts the pattern.
+    this.scheduler.onTransportStart();
+    this.notify();
   }
 
   stop(): void {
+    this.circuitPlaybackArmed = false;
     this.scheduler.stop();
     this.applyQueuedAudition();
     this.recording = false;
@@ -138,6 +136,10 @@ export class SequencerEngine {
   setRecording(on: boolean): void {
     this.recording = on;
     if (on) this.pendingAudition = null;
+    if (!on && this.bank.clockSource === 'circuit' && !this.circuitPlaybackArmed &&
+        this.scheduler.isPlaying()) {
+      this.scheduler.onTransportStop();
+    }
     this.notify();
   }
 
@@ -147,7 +149,7 @@ export class SequencerEngine {
 
   /** Forward Circuit transport / clock into the scheduler (authority stays Circuit). */
   onMidiClockMessage(kind: string, timestamp?: number): void {
-    if (this.bank.clockSource !== 'circuit' || this.awaitingAuditionPlay) return;
+    if (this.bank.clockSource !== 'circuit' || (!this.circuitPlaybackArmed && !this.recording)) return;
     if (kind === 'start') {
       this.scheduler.onTransportStart();
       this.notify();
@@ -166,6 +168,7 @@ export class SequencerEngine {
 
   setClockSource(source: SeqClockSource): void {
     if (this.bank.clockSource === source) return;
+    this.circuitPlaybackArmed = false;
     this.scheduler.stop();
     this.applyQueuedAudition();
     this.bank = { ...this.bank, clockSource: source };
@@ -204,7 +207,7 @@ export class SequencerEngine {
   }
 
   pauseForAudition(): void {
-    this.awaitingAuditionPlay = true;
+    this.circuitPlaybackArmed = false;
     this.pendingAudition = null;
     if (this.scheduler.isPlaying() || this.recording) this.stop();
   }
@@ -214,7 +217,6 @@ export class SequencerEngine {
   setActivePattern(index: number): void {
     const i = Math.max(0, Math.min(SEQ_PATTERN_SLOTS - 1, index));
     if (i === this.bank.activePatternIndex) return;
-    this.awaitingAuditionPlay = false;
     this.bank = { ...this.bank, activePatternIndex: i };
     this.undoStack = [];
     this.redoStack = [];

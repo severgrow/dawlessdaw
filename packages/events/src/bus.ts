@@ -4,7 +4,7 @@ import { isClockLike } from '@dawlessdaw/core';
 export type StudioEvent =
   | { type: 'midi:in'; message: MidiMessage; deviceId?: DeviceId }
   | { type: 'midi:out'; message: MidiMessage; deviceId?: DeviceId; routeId?: string }
-  | { type: 'midi:clock'; message: MidiMessage; deviceId?: DeviceId }
+  | { type: 'midi:clock'; message: MidiMessage; deviceId?: DeviceId; direction?: 'in' | 'out' }
   | { type: 'device:connected'; deviceId: DeviceId }
   | { type: 'device:disconnected'; deviceId: DeviceId }
   | { type: 'focus:changed'; focus: FocusState; reason: string }
@@ -76,6 +76,7 @@ export class StudioEventBus {
           ? event
           : {
               type: 'midi:clock',
+              direction: event.type === 'midi:out' ? 'out' : 'in',
               message: (event as Extract<StudioEvent, { type: 'midi:in' | 'midi:out' }>).message,
               deviceId: (event as Extract<StudioEvent, { type: 'midi:in' | 'midi:out' }>).deviceId,
             };
