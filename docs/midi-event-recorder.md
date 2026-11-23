@@ -37,7 +37,7 @@ Default capacity **4096**; oldest events drop. `getDropped()` counts overflows.
 
 ## Related
 
-Performance Memory / Circuit Intelligence stay higher-level musical logs. This recorder is the generic MIDI byte timeline underneath future “capture last N bars” (plan step 8).
+Performance Memory / Circuit Intelligence stay higher-level musical logs. This recorder is the generic MIDI byte timeline under [capture last N bars](./capture-last-n-bars.md) (plan step 8).
 
 ## Checks
 

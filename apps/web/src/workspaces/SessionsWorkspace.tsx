@@ -69,6 +69,7 @@ import {
   restorePersistedSpVolumeHandle,
   writeWavToImport,
 } from '../sp404/spVolumeHandle';
+import { CaptureLastBars } from '../components/CaptureLastBars';
 
 function formatTime(sec: number): string {
   const s = Math.max(0, sec);
@@ -651,6 +652,7 @@ export function SessionsWorkspace() {
 
       <div className="panel rec-capture">
         <h2>Record</h2>
+        <CaptureLastBars />
         <label className="field">
           <span>Audio input</span>
           <select

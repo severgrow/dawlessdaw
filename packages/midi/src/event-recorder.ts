@@ -153,6 +153,16 @@ export class MidiEventRecorder {
     this.cached = null;
   }
 
+  /** Drop the oldest `n` events (for dual event/byte bounds). Returns how many removed. */
+  dropOldest(n: number): number {
+    if (n <= 0 || this.buf.length === 0) return 0;
+    const remove = Math.min(n, this.buf.length);
+    this.buf.splice(0, remove);
+    this.dropped += remove;
+    this.cached = null;
+    return remove;
+  }
+
   size(): number {
     return this.buf.length;
   }
