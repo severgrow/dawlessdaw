@@ -46,9 +46,9 @@ export interface MpcLibraryBrowserProps {
 }
 
 /**
- * MPC Library — premium showcase (v2).
- * Library list is the hero; Probe / Fixtures live under Diagnostics.
- * Connected only after real companion /health. Never fake Connected.
+ * MPC Library — premium showcase (v3).
+ * Full-bleed browser: section rail + dense rows fill the stage.
+ * Probe / Fixtures stay under Diagnostics. Never fake Connected.
  */
 export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
   const [snap, setSnap] = useState<MpcLibraryClientSnapshot>(() =>
@@ -126,13 +126,13 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
   return (
     <div
       className={`mpc-lib-browser${compact ? ' mpc-lib-browser--compact' : ''}`}
-      data-mpc-library-phase="premium-v2"
+      data-mpc-library-phase="premium-v3"
       data-status={snap.status}
     >
       <header className="mpc-lib-head">
         <div className="mpc-lib-title-row">
           <h2 className="mpc-lib-title">Library</h2>
-          <span className="ci-badge">experimental</span>
+          <span className="ci-badge mpc-lib-exp">Experimental</span>
           <span
             className={`mpc-lib-status mpc-lib-status--${statusTone}`}
             data-testid="mpc-lib-status"
@@ -140,10 +140,16 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
             <span className="mpc-lib-status-led" aria-hidden />
             {statusLabel(snap.status)}
           </span>
+          {showingFixturesOnly && useFixturesWhileOffline ? (
+            <span className="mpc-lib-fixture-inline" data-testid="mpc-lib-fixture-banner">
+              Fixtures · offline
+            </span>
+          ) : null}
         </div>
         <div className="mpc-lib-toolbar" role="toolbar" aria-label="Library actions">
           <button
             type="button"
+            className="mpc-lib-primary"
             disabled={!canImportFlip || busy}
             title={canImportFlip ? 'Import sample → FLIP (gain 1)' : 'Select an Audio WAV'}
             onClick={() => void runImportFlip()}
@@ -164,15 +170,9 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
         </div>
       </header>
 
-      {showingFixturesOnly && useFixturesWhileOffline ? (
-        <p className="mpc-lib-fixture-banner" data-testid="mpc-lib-fixture-banner">
-          Fixtures · still Offline
-        </p>
-      ) : null}
-
       {!useFixturesWhileOffline && snap.status !== 'connected' ? (
         <p className="mpc-lib-hint muted small">
-          Offline · open Diagnostics → Probe after <code className="mono">npm run mpc-library</code>
+          Offline · Diagnostics → Probe after <code className="mono">npm run mpc-library</code>
         </p>
       ) : null}
 
@@ -191,8 +191,7 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
 
       {snap.error ? <p className="warn small mono mpc-lib-err">{snap.error}</p> : null}
 
-      {/* Hero: section rail + list + detail — edge-to-edge functional */}
-      <div className="mpc-lib-body">
+      <div className={`mpc-lib-body${selected ? ' has-detail' : ''}`}>
         <div className="mpc-lib-sections" role="tablist" aria-label="Library sections">
           {MPC_LIBRARY_SECTIONS.map((s) => (
             <button
@@ -236,6 +235,7 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
             )}
           </ul>
 
+          {/* Detail only when selected — no empty dead bar */}
           {selected ? (
             <div className="mpc-lib-detail">
               <div className="mpc-lib-detail-name">{selected.name}</div>
@@ -243,6 +243,7 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
               <div className="mpc-lib-detail-actions">
                 <button
                   type="button"
+                  className="mpc-lib-primary"
                   disabled={!canImportFlip || busy}
                   onClick={() => void runImportFlip()}
                 >
@@ -258,13 +259,10 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
                 </button>
               </div>
             </div>
-          ) : (
-            <div className="mpc-lib-detail mpc-lib-detail--empty muted small">Select a row</div>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {/* Diagnostics demoted — Probe / Fixtures are not the hero */}
       <details className="mpc-lib-diag">
         <summary>Diagnostics</summary>
         <div className="mpc-lib-diag-body">

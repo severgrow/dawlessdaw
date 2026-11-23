@@ -2,16 +2,19 @@ import { resolveNextAction } from '../nav/nextAction';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 /**
- * Header chrome (Pass B). One status signal + optional next-action CTA.
- * Does not repeat long “No MIDI — allow in Chrome” strings across the app.
+ * Brand + midi honesty chip. v3 compact: sits in the single chrome baseline.
+ * Does not repeat Connect when Transport owns the CTA.
  */
 export function StatusBar({
   onOpenConnect,
   connectOpen,
+  compact = false,
 }: {
   onOpenConnect?: () => void;
   /** When Connect wizard is open, hide competing CTA (wizard owns it). */
   connectOpen?: boolean;
+  /** v3: brand + badge only — CTA lives on Transport. */
+  compact?: boolean;
 }) {
   const snap = useStudioStore();
   const { rescanMidiPorts, start } = useStudioActions();
@@ -34,10 +37,10 @@ export function StatusBar({
     }
   };
 
-  const showChromeCta = next.kind !== 'ready' && !connectOpen;
+  const showChromeCta = !compact && next.kind !== 'ready' && !connectOpen;
 
   return (
-    <header className="status-bar">
+    <header className={`status-bar${compact ? ' status-bar--compact' : ''}`}>
       <div className="brand" aria-label="Splot MIDI Brain">
         <svg className="brand-mark" viewBox="0 0 20 20" aria-hidden="true">
           <rect x="1" y="1" width="8" height="8" rx="2.5" className="bm-a" />
@@ -46,7 +49,6 @@ export function StatusBar({
           <rect x="11" y="11" width="8" height="8" rx="2.5" className="bm-c" />
         </svg>
         splot<span className="brand-slash"> / </span>midi brain
-        <span className="cursor" aria-hidden="true" />
       </div>
       <div
         className={snap.midiReady ? 'sim-badge live-badge' : 'sim-badge error-badge'}
@@ -65,12 +67,12 @@ export function StatusBar({
           clk <b>{snap.clockActivity.inTicks}</b>↓ <b>{snap.clockActivity.outTicks}</b>↑
         </span>
       ) : null}
-      {snap.midiReady && snap.statusLine ? (
+      {!compact && snap.midiReady && snap.statusLine ? (
         <span className="status-line" title={snap.statusLine}>
           {snap.statusLine.length > 64 ? `${snap.statusLine.slice(0, 61)}…` : snap.statusLine}
         </span>
       ) : null}
-      <span className="spacer" />
+      {!compact ? <span className="spacer" /> : null}
       {showChromeCta ? (
         <button
           type="button"
@@ -80,7 +82,7 @@ export function StatusBar({
         >
           {next.cta}
         </button>
-      ) : next.kind === 'ready' ? (
+      ) : !compact && next.kind === 'ready' ? (
         <button
           type="button"
           onClick={() => void rescanMidiPorts()}

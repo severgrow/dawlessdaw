@@ -49,6 +49,9 @@ export function App() {
   useBindStudio();
   const workspace = useStudioStore((s) => s.workspace);
   const midiReady = useStudioStore((s) => s.midiReady);
+  const assignedMidi = useStudioStore(
+    (s) => s.assignments.filter((a) => a.connected).length,
+  );
   const { start, setWorkspace } = useStudioActions();
   const backToRig = () => setWorkspace('rig');
   const [jam, setJam] = useState(false);
@@ -82,16 +85,27 @@ export function App() {
     setWizardForce(true);
   };
 
+  /** Device strip only when roles are live — never an empty chrome row */
+  const showDeviceStrip = assignedMidi > 0;
+
   return (
-    <div className={`app app-phase1 app-premium-v2${jam ? ' jam-open' : ''}`}>
-      {/* Compact chrome: brand + transport share one band; workspace dominates */}
-      <div className="chrome">
-        <StatusBar onOpenConnect={openConnect} connectOpen={wizardOpen} />
-        <DeviceStrip onOpenConnect={openConnect} />
-        <TransportStrip onOpenJam={() => setJam(true)} onOpenConnect={openConnect} />
+    <div className={`app app-phase1 app-premium-v2 app-premium-v3${jam ? ' jam-open' : ''}`}>
+      {/*
+        v3: one horizontal chrome baseline —
+        brand · tabs · transport · midi CTA. No stacked toolbars.
+      */}
+      <div className="chrome chrome--single">
+        <StatusBar onOpenConnect={openConnect} connectOpen={wizardOpen} compact />
+        <Nav orientation="horizontal" />
+        <TransportStrip
+          onOpenJam={() => setJam(true)}
+          onOpenConnect={openConnect}
+          compact
+          hideConnect={wizardOpen}
+        />
       </div>
-      <div className="shell">
-        <Nav />
+      {showDeviceStrip ? <DeviceStrip onOpenConnect={openConnect} /> : null}
+      <div className="shell shell--bleed">
         <main className="main">
           <PanelSubnav workspace={workspace} />
 
@@ -158,7 +172,6 @@ export function App() {
         <span className="mono footer-keys" title="Tabs 1–5 · menu QAZ/WSX/EDC · Jam J">
           1–5 · QAZ · J
         </span>
-        {/* Pass B: don't repeat “no midi” — StatusBar owns that signal */}
         {midiReady ? <span className="mono live">● midi</span> : null}
       </footer>
     </div>

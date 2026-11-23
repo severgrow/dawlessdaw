@@ -8,10 +8,11 @@ import {
 } from '../nav/shortcuts';
 
 /**
- * Horizontal top tabs. Keys **1–N** match visible order (Play=1 … Setup=5).
+ * Top tabs. Keys **1–N** match visible order (Play=1 … Setup=5).
  * Vertical panel keys live on PanelSubnav (QAZ/WSX/EDC).
+ * v3: horizontal in chrome baseline (Ableton-like).
  */
-export function Nav() {
+export function Nav({ orientation = 'vertical' }: { orientation?: 'vertical' | 'horizontal' }) {
   const workspace = useStudioStore((s) => s.workspace);
   const { setWorkspace } = useStudioActions();
   const activeTop = topTabFor(workspace);
@@ -38,13 +39,19 @@ export function Nav() {
   }, []);
 
   return (
-    <nav className="nav" aria-label="Tabs">
+    <nav
+      className={`nav nav--${orientation}`}
+      aria-label="Tabs"
+      role="tablist"
+    >
       {TOP_TABS.map((item, i) => (
         <button
           key={item.id}
           type="button"
+          role="tab"
           className={activeTop === item.id ? 'active' : ''}
           aria-current={activeTop === item.id ? 'page' : undefined}
+          aria-selected={activeTop === item.id}
           title={`${item.label} · ${item.hint} (${digitLabelForTopTabIndex(i)})`}
           onClick={() => {
             if (activeTop === item.id) return;
@@ -54,17 +61,9 @@ export function Nav() {
           <span className="key nav-key-ghost" aria-hidden="true">
             {digitLabelForTopTabIndex(i)}
           </span>
-          <span className="nav-text">
-            {item.label}
-            <span className="nav-sub">{item.hint}</span>
-          </span>
+          <span className="nav-text">{item.label}</span>
         </button>
       ))}
-      <div className="nav-hint">
-        {digitLabelForTopTabIndex(0)}–{digitLabelForTopTabIndex(TOP_TABS.length - 1)} tabs
-        <br />
-        QAZ menu · J jam
-      </div>
     </nav>
   );
 }
