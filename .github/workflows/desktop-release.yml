@@ -1,0 +1,60 @@
+# Build + publish Mac DMG/ZIP to GitHub Releases when a version tag is pushed.
+# electron-updater consumes the ZIP (+ latest-mac.yml) for in-app updates.
+#
+# Tag example: git tag v0.1.0 && git push origin v0.1.0
+#
+# Optional secrets for smoother Gatekeeper / auto-update:
+#   CSC_LINK, CSC_KEY_PASSWORD — Apple Developer ID Application cert (base64 p12)
+#   APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID — notarization
+# Without signing, the DMG still publishes; first open may need Right-click → Open.
+
+name: Desktop release (Mac)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build only — do not publish to Releases'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build web for desktop shell
+        run: npm run build:desktop
+
+      - name: Package Mac (DMG + ZIP)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Pass through if set on the repo — unsigned builds still work for manual install.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
+            npm run dist:mac -w @dawlessdaw/desktop -- --publish never
+          else
+            npm run dist:mac -w @dawlessdaw/desktop -- --publish always
+          fi

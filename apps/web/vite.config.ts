@@ -2,7 +2,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
+// Desktop (Electron) loads the SPA from disk — relative asset URLs required.
+const desktopShell = process.env.SPLOT_DESKTOP === '1';
+
 export default defineConfig({
+  base: desktopShell ? './' : '/',
   plugins: [react()],
   resolve: {
     alias: {

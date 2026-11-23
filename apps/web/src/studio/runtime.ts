@@ -172,6 +172,7 @@ import { getPerformanceMemory } from '../recorder/performanceMemory';
 import type { PerformanceTimelineEvent } from '@dawlessdaw/sequencer';
 import { getFlipEngine } from '../flip/flipEngine';
 import { hardwareLabelForChannel } from '../flip/midiGuide';
+import { isSplotDesktop } from '../desktop/env';
 
 /** Rig · Controller · Sequencer · Samples · Sections · Circuit · Sessions · Test · Setup · Timing. */
 export type WorkspaceId =
@@ -912,8 +913,10 @@ export class StudioRuntime {
       this.midiReady = false;
       this.midiError =
         err instanceof Error && /not available/i.test(err.message)
-          ? 'This browser has no Web MIDI. Open the app in Chrome.'
-          : 'Chrome did not allow MIDI access. Click the icon at the left of the address bar, allow MIDI devices, then reload.';
+          ? 'Web MIDI is not available here. Use the Splot desktop app or Chrome.'
+          : isSplotDesktop()
+            ? 'MIDI access was denied. Quit and reopen Splot MIDI Brain, then click Allow MIDI.'
+            : 'Chrome did not allow MIDI access. Click the icon at the left of the address bar, allow MIDI devices, then reload.';
       this.started = false;
       this.setStatus(`No MIDI — ${this.midiError}`);
       this.notify();

@@ -1,6 +1,8 @@
 node_modules/
 dist/
 apps/web/dist/
+apps/desktop/release/
+apps/desktop/dist/
 *.log
 .DS_Store
 .npm/

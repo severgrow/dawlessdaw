@@ -1,0 +1,73 @@
+{
+  "name": "@dawlessdaw/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Splot MIDI Brain — Mac desktop shell (Electron) with GitHub Releases auto-update",
+  "author": "severgrow",
+  "main": "main.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:mac": "electron-builder --mac dmg zip"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  },
+  "devDependencies": {
+    "electron": "^35.1.2",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.severgrow.splot-midi-brain",
+    "productName": "Splot MIDI Brain",
+    "copyright": "Copyright © severgrow",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.mjs",
+      "preload.cjs",
+      "lib/**/*.mjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../web/dist",
+        "to": "web",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Splot MIDI Brain records session and FLIP audio from your audio interface (not built-in Mac/iPhone mics).",
+        "NSBluetoothAlwaysUsageDescription": "Splot MIDI Brain may use Bluetooth MIDI devices when available."
+      },
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "dmg": {
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "severgrow",
+        "repo": "dawlessdaw",
+        "releaseType": "release"
+      }
+    ]
+  }
+}
