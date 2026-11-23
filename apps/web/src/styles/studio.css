@@ -2,16 +2,18 @@
  * =============================================================================
  * Splot MIDI Brain — PREMIUM DESIGN SYSTEM
  * =============================================================================
- * Mix: ~70% Ableton precision · 20% TE restraint · 10% RC-20 tactile.
+ * Mix: Ableton functional precision × TE industrial restraint × terminal type.
+ * Matte dark glass — no glossy plastic, no harsh top-light gradients, no bevel.
  * No copy of proprietary assets. Visual / IA only — never MIDI, DSP, clock,
  * or persistence logic in this file.
  *
  * FUTURE UI MUST FOLLOW THESE TOKENS (do not invent one-off colors/radii):
  *   Surfaces  — ≤3 levels: --surface-0 / --surface-1 / --surface-2 (+ glass fills)
  *   Accent    — soft mint (--mint-*) primary; quiet burgundy accents only
- *   Type      — --font-ui for chrome; --font-mono ONLY for technical values
+ *   Type      — --font-ui (Plex Sans) chrome; --font-mono (Plex Mono) values/BPM/ports
  *   Geometry  — machined radii (--radius-*); never pills (999px)
  *   Borders   — focus / selected / error only — hierarchy via glass fill + blur
+ *   Buttons   — flat / near-flat matte glass; optical-centre labels; no bevel/glow
  *   Rhythm    — --space-* · --ctrl-h* · --track-row-h · --shell-gutter
  *   Align     — --align-ctrl · --align-gap · --align-col (baselines / equal widths)
  * Showcase: MPC Library browser (Sounds → MPC) is the reference implementation.
@@ -27,15 +29,17 @@
   --surface-0: var(--bg-0);
   --surface-1: var(--bg-1);
   --surface-2: var(--bg-2);
-  /* Dark glass fills — hierarchy via opacity/blur, not opaque blocks (v4) */
-  --glass-1: color-mix(in srgb, #1a1c1a 62%, transparent);
-  --glass-2: color-mix(in srgb, #222522 55%, transparent);
-  --glass-3: color-mix(in srgb, #2a2e2a 48%, transparent);
-  --glass-blur: blur(18px) saturate(1.08);
-  /* Tactile press — inset only, never neon / plastic bevel */
-  --press-rest: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent),
-    inset 0 -1px 0 color-mix(in srgb, #000 28%, transparent);
-  --press-down: inset 0 2px 4px color-mix(in srgb, #000 45%, transparent);
+  /* Dark glass — matte hierarchy; chrome buttons stay near-opaque so page
+     atmosphere does not read as a cheap top-light bevel through the fill */
+  --glass-1: color-mix(in srgb, #1a1c1a 78%, transparent);
+  --glass-2: color-mix(in srgb, #222522 84%, transparent);
+  --glass-3: color-mix(in srgb, #2a2e2a 88%, transparent);
+  --glass-btn: color-mix(in srgb, #1e211e 92%, transparent); /* chrome controls */
+  --glass-blur: blur(14px) saturate(1.02);
+  /* Press — matte, no top-light bevel / plastic shine */
+  --press-rest: none;
+  --press-down: none;
+  --press-fill: color-mix(in srgb, #000 18%, var(--glass-3));
   --line: #2a2c2a; /* reserved for state / hairline separators */
   --line-soft: #1c1e1c;
   --line-hard: #3a3c3a;
@@ -142,7 +146,7 @@
   --selection-fill: color-mix(in srgb, var(--mint-2) 62%, transparent);
   --selection-ink: var(--mint-6);
   --inset-well: color-mix(in srgb, var(--bg-0) 55%, transparent);
-  --elev-press: translateY(1px); /* RC-20 tactile press — use on :active */
+  --elev-press: none; /* matte — no bounce / bevel press */
 
   /* Symmetry / alignment — future rows & grids MUST share these */
   --align-ctrl: 32px; /* shared control baseline height */
@@ -250,7 +254,7 @@ button:hover:not(:disabled) {
 }
 
 button:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: none;
 }
 
 button:focus-visible,
@@ -6951,7 +6955,7 @@ button.setup-cta {
 
 .ts-btn:active:not(:disabled),
 .panel-subnav-btn:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: none;
 }
 
 /* ─── Circuit tempo follow (display only) ───────────────── */
@@ -8261,11 +8265,11 @@ textarea:focus-visible,
   min-width: 3.5rem !important;
   min-height: 28px !important;
   padding: 0 0.85rem !important;
-  border-radius: var(--radius-panel) !important; /* softer than Play, not a SaaS pill */
-  background: transparent !important;
-  border: 1px solid color-mix(in srgb, var(--mint-3) 40%, transparent) !important;
+  border-radius: var(--radius-compact) !important;
+  background: var(--glass-2) !important;
+  border: 1px solid transparent !important;
   color: var(--mint-5) !important;
-  font-style: italic;
+  font-style: normal;
 }
 
 .app-premium-v2 .ts-connect {
@@ -8996,7 +9000,8 @@ textarea:focus-visible,
   background: var(--selection-fill) !important;
   color: var(--selection-ink) !important;
   border-left: none !important;
-  box-shadow: inset 0 -2px 0 var(--mint-4);
+  border: 1px solid color-mix(in srgb, var(--mint-3) 40%, transparent) !important;
+  box-shadow: none !important;
 }
 
 /* Transport on same baseline */
@@ -9091,8 +9096,8 @@ textarea:focus-visible,
 .app-premium-v3 .ts-jam {
   width: 3.25rem !important;
   min-width: 3.25rem !important;
-  background: transparent !important;
-  border: 1px solid color-mix(in srgb, var(--mint-3) 35%, transparent) !important;
+  background: var(--glass-2) !important;
+  border: 1px solid transparent !important;
   color: var(--mint-5) !important;
   border-radius: var(--radius-tech) !important;
 }
@@ -9569,9 +9574,10 @@ textarea:focus-visible,
 }
 
 .app-premium-v3 .nav.nav--horizontal button {
-  min-width: 4.5rem !important;
-  width: 4.5rem !important; /* equal tab widths */
-  flex: 0 0 4.5rem;
+  min-width: 5rem !important;
+  width: 5rem !important; /* equal tab widths — room for “Sounds” + key */
+  flex: 0 0 5rem;
+  padding-inline: 0.45rem !important;
 }
 
 .app-premium-v3 .chrome .transport-strip--compact {
@@ -9610,14 +9616,14 @@ textarea:focus-visible,
   background: var(--glass-1) !important;
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  box-shadow: var(--press-rest);
+  box-shadow: none !important;
   border: 1px solid transparent !important;
 }
 
 .app-premium-v3 .panel-subnav-btn.on {
   background: var(--selection-fill) !important;
-  box-shadow: var(--press-rest);
-  border-color: transparent !important;
+  box-shadow: none !important;
+  border-color: color-mix(in srgb, var(--mint-3) 45%, transparent) !important;
 }
 
 .app-premium-v3 .main > .section-enter,
@@ -9668,16 +9674,15 @@ textarea:focus-visible,
   border: 1px solid transparent !important; /* selection state only */
 }
 
-/* —— Physical button feel (machined, not plastic) —— */
+/* —— Matte machined controls (flat glass, not plastic) —— */
 .app-premium-v3 .ts-btn,
 .app-premium-v3 .mpc-lib-toolbar button,
 .app-premium-v3 .mpc-lib-detail-actions button,
 .app-premium-v3 .mpc-lib-primary,
 .app-premium-v3 .nav.nav--horizontal button {
   border-radius: var(--radius-compact) !important; /* ~4px machined */
-  box-shadow: var(--press-rest) !important;
-  transition: background 100ms ease, box-shadow 90ms ease, transform 80ms ease,
-    color 100ms ease;
+  box-shadow: none !important;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
 }
 
 .app-premium-v3 .ts-stop {
@@ -9692,19 +9697,21 @@ textarea:focus-visible,
 .app-premium-v3 .nav.nav--horizontal button:active:not(:disabled),
 .app-premium-v3 .mpc-lib-row:active:not(:disabled),
 .app-premium-v3 .mpc-lib-section:active:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow: var(--press-down) !important;
+  transform: none;
+  background: var(--press-fill) !important;
+  box-shadow: none !important;
 }
 
 .app-premium-v3 .ts-play {
-  background: color-mix(in srgb, var(--mint-3) 32%, var(--glass-2)) !important;
+  background: color-mix(in srgb, var(--mint-3) 28%, var(--glass-2)) !important;
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .app-premium-v3 .ts-play.on {
   background: var(--mint-4) !important;
-  box-shadow: var(--press-rest);
+  box-shadow: none !important;
+  border-color: color-mix(in srgb, var(--mint-3) 50%, transparent) !important;
 }
 
 .app-premium-v3 .ts-stop,
@@ -9712,36 +9719,38 @@ textarea:focus-visible,
   background: var(--glass-2) !important;
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid transparent !important;
 }
 
 .app-premium-v3 .ts-panic {
-  background: var(--glass-1) !important;
+  background: color-mix(in srgb, var(--burgundy-dim) 70%, var(--glass-1)) !important;
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid color-mix(in srgb, var(--burgundy) 45%, transparent) !important;
-  box-shadow: var(--press-rest);
+  box-shadow: none !important;
 }
 
 .app-premium-v3 .ts-connect,
 .app-premium-v3 .mpc-lib-primary:not(:disabled) {
-  background: color-mix(in srgb, var(--mint-4) 88%, transparent) !important;
+  background: color-mix(in srgb, var(--mint-4) 86%, transparent) !important;
   color: var(--accent-ink) !important;
   border-radius: var(--radius-compact) !important;
-  box-shadow: var(--press-rest);
-  border: none !important;
+  box-shadow: none !important;
+  border: 1px solid transparent !important;
 }
 
-/* Kill glow / multi-border noise */
+/* Focus / selected — state contour only */
 .app-premium-v3 button:focus-visible,
 .app-premium-v3 .mpc-lib-row:focus-visible,
 .app-premium-v3 .mpc-lib-section:focus-visible {
   outline: 1px solid var(--focus) !important;
   outline-offset: 1px;
-  box-shadow: var(--press-rest) !important;
+  box-shadow: none !important;
 }
 
 .app-premium-v3 .nav.nav--horizontal button.active {
-  box-shadow: var(--press-rest), inset 0 -2px 0 var(--mint-4);
+  box-shadow: none !important;
+  border: 1px solid color-mix(in srgb, var(--mint-3) 40%, transparent) !important;
 }
 
 /* Library column snap — rail + stage share track-row baseline */
@@ -9779,154 +9788,155 @@ textarea:focus-visible,
   }
 }
 
-/* v4 tactile — win over earlier box-shadow:none !important on .ts-btn */
-.app-premium-v4 .ts-btn,
-.app-premium-v4 .ts-play,
-.app-premium-v4 .ts-stop,
-.app-premium-v4 .ts-panic,
-.app-premium-v4 .ts-jam,
-.app-premium-v4 .ts-connect,
+/* =============================================================================
+ * Button form — matte · dark glass · optical centre (Patryk)
+ * Kill harsh vertical gradients / bevel edges. Flat glass. Type first.
+ * ============================================================================= */
+
+.app-premium-v4 button.ts-btn,
 .app-premium-v4 .nav.nav--horizontal button,
-.app-premium-v4 .panel-subnav-btn,
+.app-premium-v4 button.panel-subnav-btn,
 .app-premium-v4 .mpc-lib-toolbar button,
-.app-premium-v4 .mpc-lib-primary {
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent),
-    inset 0 -1px 0 color-mix(in srgb, #000 30%, transparent) !important;
+.app-premium-v4 button.mpc-lib-primary,
+.app-premium-v4 button.status-cta,
+.app-premium-v4 .chrome .status-bar > button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.35rem;
+  line-height: 1 !important;
+  /* optical: Plex caps sit high — 1px top pad centres the glyph box */
+  padding-block: 1px 0 !important;
+  box-shadow: none !important;
+  background-image: none !important;
+  background-blend-mode: normal !important;
+  border-style: solid !important;
+  border-width: 1px !important;
+  border-color: transparent !important;
+  backdrop-filter: blur(10px) saturate(1.02);
+  -webkit-backdrop-filter: blur(10px) saturate(1.02);
+  font-family: var(--font-ui) !important;
+  font-weight: var(--fw-medium) !important;
+  transform: none !important;
 }
 
-.app-premium-v4 .ts-btn:active:not(:disabled),
-.app-premium-v4 .nav.nav--horizontal button:active:not(:disabled),
-.app-premium-v4 .panel-subnav-btn:active:not(:disabled),
-.app-premium-v4 .mpc-lib-toolbar button:active:not(:disabled),
-.app-premium-v4 .mpc-lib-primary:active:not(:disabled) {
-  box-shadow: inset 0 2px 4px color-mix(in srgb, #000 48%, transparent) !important;
-  transform: translateY(1px);
-}
-
-/* v4 tactile — gradient + edge borders (box-shadow inset unreliable here) */
-.app-premium-v4 .ts-btn,
-.app-premium-v4 .nav.nav--horizontal button,
-.app-premium-v4 .panel-subnav-btn,
-.app-premium-v4 .mpc-lib-toolbar button,
-.app-premium-v4 .mpc-lib-primary {
-  border: 1px solid transparent !important;
-  border-top-color: color-mix(in srgb, #fff 10%, transparent) !important;
-  border-bottom-color: color-mix(in srgb, #000 38%, transparent) !important;
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, #fff 7%, transparent),
-    transparent 42%
-  ) !important;
-  background-blend-mode: soft-light;
-}
-
-.app-premium-v4 .ts-play:not(.on) {
-  background-color: color-mix(in srgb, var(--mint-3) 32%, var(--glass-2)) !important;
-}
-
-.app-premium-v4 .ts-play.on {
-  background-color: var(--mint-4) !important;
-  border-top-color: color-mix(in srgb, #fff 14%, transparent) !important;
-}
-
-.app-premium-v4 .ts-panic {
-  border-left-color: color-mix(in srgb, var(--burgundy) 45%, transparent) !important;
-  border-right-color: color-mix(in srgb, var(--burgundy) 45%, transparent) !important;
-  border-top-color: color-mix(in srgb, var(--burgundy) 35%, #fff 8%) !important;
-  border-bottom-color: color-mix(in srgb, var(--burgundy) 55%, #000 20%) !important;
-}
-
-.app-premium-v4 .ts-btn:active:not(:disabled),
-.app-premium-v4 .nav.nav--horizontal button:active:not(:disabled),
-.app-premium-v4 .panel-subnav-btn:active:not(:disabled),
-.app-premium-v4 .mpc-lib-toolbar button:active:not(:disabled),
-.app-premium-v4 .mpc-lib-primary:active:not(:disabled) {
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, #000 22%, transparent),
-    transparent 55%
-  ) !important;
-  border-top-color: color-mix(in srgb, #000 40%, transparent) !important;
-  border-bottom-color: color-mix(in srgb, #fff 6%, transparent) !important;
-  transform: translateY(1px);
-}
-
-/* v4 tactile — full shorthand wins over earlier background/border !important */
+/* Flat matte fills — no top-light gradient, near-opaque so atmosphere stays behind */
 .app-premium-v4 button.ts-btn.ts-play:not(.on),
 .app-premium-v4 button.ts-btn.ts-stop,
 .app-premium-v4 button.ts-btn.ts-jam,
-.app-premium-v4 button.ts-btn.ts-panic,
-.app-premium-v4 button.ts-btn.ts-connect,
 .app-premium-v4 .nav.nav--horizontal button:not(.active),
 .app-premium-v4 button.panel-subnav-btn:not(.on),
-.app-premium-v4 .mpc-lib-toolbar button,
-.app-premium-v4 button.mpc-lib-primary:not(:disabled) {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, #fff 8%, transparent), transparent 45%),
-    var(--glass-2) !important;
-  border-style: solid !important;
-  border-width: 1px !important;
-  border-color:
-    color-mix(in srgb, #fff 12%, transparent)
-    color-mix(in srgb, #000 25%, transparent)
-    color-mix(in srgb, #000 40%, transparent)
-    color-mix(in srgb, #000 25%, transparent) !important;
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+.app-premium-v4 .mpc-lib-toolbar button {
+  background: var(--glass-btn) !important;
+  color: var(--text) !important;
 }
 
 .app-premium-v4 button.ts-btn.ts-play:not(.on) {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, #fff 10%, transparent), transparent 45%),
-    color-mix(in srgb, var(--mint-3) 36%, var(--glass-2)) !important;
+  background: color-mix(in srgb, var(--mint-3) 22%, var(--glass-btn)) !important;
+  color: var(--mint-6) !important;
 }
 
 .app-premium-v4 button.ts-btn.ts-play.on {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, #fff 12%, transparent), transparent 40%),
-    var(--mint-4) !important;
-  border-color:
-    color-mix(in srgb, #fff 18%, transparent)
-    color-mix(in srgb, var(--mint-2) 50%, transparent)
-    color-mix(in srgb, #000 35%, transparent)
-    color-mix(in srgb, var(--mint-2) 50%, transparent) !important;
+  background: var(--mint-4) !important;
   color: var(--accent-ink) !important;
+  border-color: color-mix(in srgb, var(--mint-3) 55%, transparent) !important;
 }
 
 .app-premium-v4 button.ts-btn.ts-panic {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, #fff 6%, transparent), transparent 45%),
-    var(--glass-1) !important;
-  border-color: color-mix(in srgb, var(--burgundy) 50%, transparent) !important;
-  color: color-mix(in srgb, var(--burgundy) 72%, var(--text-dim)) !important;
+  background: color-mix(in srgb, var(--burgundy-dim) 88%, var(--glass-btn)) !important;
+  border-color: color-mix(in srgb, var(--burgundy) 48%, transparent) !important;
+  color: color-mix(in srgb, var(--burgundy) 70%, var(--text-dim)) !important;
 }
 
 .app-premium-v4 button.ts-btn.ts-connect,
-.app-premium-v4 button.mpc-lib-primary:not(:disabled) {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, #fff 14%, transparent), transparent 40%),
-    color-mix(in srgb, var(--mint-4) 92%, transparent) !important;
-  border-color:
-    color-mix(in srgb, #fff 16%, transparent)
-    color-mix(in srgb, var(--mint-3) 40%, transparent)
-    color-mix(in srgb, #000 30%, transparent)
-    color-mix(in srgb, var(--mint-3) 40%, transparent) !important;
+.app-premium-v4 button.mpc-lib-primary:not(:disabled),
+.app-premium-v4 button.status-cta {
+  background: color-mix(in srgb, var(--mint-4) 94%, #0c0e0c) !important;
   color: var(--accent-ink) !important;
+  border-color: transparent !important;
 }
 
+.app-premium-v4 .nav.nav--horizontal button.active,
+.app-premium-v4 button.panel-subnav-btn.on {
+  background: var(--selection-fill) !important;
+  color: var(--selection-ink) !important;
+  border-color: color-mix(in srgb, var(--mint-3) 45%, transparent) !important;
+  box-shadow: none !important;
+}
+
+/* Subtle pressed — darker glass only, no bevel invert */
 .app-premium-v4 button.ts-btn:active:not(:disabled),
 .app-premium-v4 .nav.nav--horizontal button:active:not(:disabled),
 .app-premium-v4 button.panel-subnav-btn:active:not(:disabled),
 .app-premium-v4 .mpc-lib-toolbar button:active:not(:disabled),
-.app-premium-v4 button.mpc-lib-primary:active:not(:disabled) {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, #000 25%, transparent), transparent 50%),
-    var(--glass-3) !important;
-  border-color:
-    color-mix(in srgb, #000 42%, transparent)
-    color-mix(in srgb, #000 20%, transparent)
-    color-mix(in srgb, #fff 8%, transparent)
-    color-mix(in srgb, #000 20%, transparent) !important;
-  transform: translateY(1px);
+.app-premium-v4 button.mpc-lib-primary:active:not(:disabled),
+.app-premium-v4 button.status-cta:active:not(:disabled) {
+  background: var(--press-fill) !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.app-premium-v4 button.ts-btn.ts-play.on:active:not(:disabled) {
+  background: color-mix(in srgb, var(--mint-4) 82%, #000) !important;
+  border-color: color-mix(in srgb, var(--mint-3) 55%, transparent) !important;
+}
+
+.app-premium-v4 button.ts-btn.ts-panic:active:not(:disabled) {
+  background: color-mix(in srgb, var(--burgundy-dim) 88%, #000) !important;
+  border-color: color-mix(in srgb, var(--burgundy) 48%, transparent) !important;
+}
+
+/* Optical centre — glyphs / labels / shortcut keys */
+.app-premium-v4 .ts-play .ts-glyph,
+.app-premium-v4 .ts-stop .ts-glyph {
+  margin-top: 0 !important;
+  flex: 0 0 auto;
+}
+
+.app-premium-v4 .ts-label,
+.app-premium-v4 .nav.nav--horizontal button .nav-text,
+.app-premium-v4 .panel-subnav-btn {
+  line-height: 1 !important;
+}
+
+.app-premium-v4 .nav.nav--horizontal button .key,
+.app-premium-v4 .panel-subnav-key {
+  display: inline-grid !important;
+  place-items: center;
+  line-height: 1 !important;
+  height: 1em;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-mono) !important;
+}
+
+.app-premium-v4 .chrome .circuit-tempo-bpm,
+.app-premium-v4 .chrome .circuit-tempo-unit,
+.app-premium-v4 .chrome .circuit-tempo-bar,
+.app-premium-v4 .chrome .readout,
+.app-premium-v4 .chrome .readout b {
+  font-family: var(--font-mono) !important;
+  line-height: 1 !important;
+}
+
+.app-premium-v4 .chrome .brand {
+  font-family: var(--font-display) !important;
+  letter-spacing: 0.01em;
+}
+
+/* Kill jam contour — glass fill only (border reserved for state) */
+.app-premium-v4 button.ts-btn.ts-jam {
+  border-color: transparent !important;
+  background: var(--glass-2) !important;
+  color: var(--mint-5) !important;
+}
+
+/* Library rows — matte, no bevel */
+.app-premium-v4 .mpc-lib-section,
+.app-premium-v4 .mpc-lib-row,
+.app-premium-v4 .mpc-lib-detail-actions button {
+  box-shadow: none !important;
+  background-image: none !important;
 }
