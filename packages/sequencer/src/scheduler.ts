@@ -23,6 +23,7 @@ export type PlayheadFn = (step: number) => void;
 export interface SchedulerOptions {
   now?: NowFn;
   onNote: NoteOutFn;
+  shouldPlayNotes?: () => boolean;
   onAllNotesOff?: AllNotesOffFn;
   onPlayhead?: PlayheadFn;
   onBarBoundary?: () => boolean;
@@ -53,6 +54,7 @@ export class SeqScheduler {
   private resumeAt = 0;
   private readonly now: NowFn;
   private readonly onNote: NoteOutFn;
+  private readonly shouldPlayNotes?: () => boolean;
   private readonly onAllNotesOff?: AllNotesOffFn;
   private readonly onPlayhead?: PlayheadFn;
   private readonly onBarBoundary?: () => boolean;
@@ -63,6 +65,7 @@ export class SeqScheduler {
     this.now =
       opts.now ?? (() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
     this.onNote = opts.onNote;
+    this.shouldPlayNotes = opts.shouldPlayNotes;
     this.onAllNotesOff = opts.onAllNotesOff;
     this.onPlayhead = opts.onPlayhead;
     this.onBarBoundary = opts.onBarBoundary;
@@ -223,7 +226,7 @@ export class SeqScheduler {
   }
 
   private fireStep(step: number, time: number): void {
-    if (!this.pattern) return;
+    if (!this.pattern || this.shouldPlayNotes?.() === false) return;
     const len = this.pattern.length;
     if (step < 0 || step >= len) return;
     const audible = audibleTracks(this.pattern);

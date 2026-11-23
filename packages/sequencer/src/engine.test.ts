@@ -20,18 +20,33 @@ describe('SequencerEngine', () => {
     eng.dispose();
   });
 
-  it('follows Circuit start/clock/stop without a second clock', () => {
+  it('plays on Circuit clock only after Splot Play and disarms on Splot Stop', () => {
     const notes: SeqScheduledNote[] = [];
     const eng = new SequencerEngine({
       onNote: (n) => notes.push(n),
       persist: false,
     });
-    eng.setClockSource('circuit');
     eng.clickToggle(3, 0);
     eng.onMidiClockMessage('start', 100);
     eng.onMidiClockMessage('clock', 100);
-    expect(notes.some((n) => n.track === 3)).toBe(true);
+    expect(notes).toEqual([]);
+    expect(eng.getSnapshot().playing).toBe(false);
+
+    eng.play();
+    eng.onMidiClockMessage('start', 120);
+    eng.onMidiClockMessage('clock', 120);
+    expect(notes.map((note) => note.track)).toEqual([3]);
     eng.onMidiClockMessage('stop');
+    expect(eng.getSnapshot().playing).toBe(false);
+
+    eng.onMidiClockMessage('start', 1000);
+    eng.onMidiClockMessage('clock', 1000);
+    expect(notes.map((note) => note.track)).toEqual([3, 3]);
+
+    eng.stop();
+    eng.onMidiClockMessage('start', 2000);
+    eng.onMidiClockMessage('clock', 2000);
+    expect(notes.map((note) => note.track)).toEqual([3, 3]);
     expect(eng.getSnapshot().playing).toBe(false);
     eng.dispose();
   });
@@ -131,12 +146,14 @@ describe('SequencerEngine', () => {
     }
   });
 
-  it('records observed Circuit notes onto the playhead step', () => {
+  it('records Circuit notes onto the playhead with pattern playback off', () => {
+    const onNote = vi.fn();
     const eng = new SequencerEngine({
-      onNote: () => {},
+      onNote,
       persist: false,
     });
     eng.setClockSource('circuit');
+    eng.setStep(1, 0, { on: true });
     eng.setRecording(true);
     eng.onMidiClockMessage('start');
     eng.onMidiClockMessage('clock', 0);
@@ -145,6 +162,7 @@ describe('SequencerEngine', () => {
     expect(step.on).toBe(true);
     expect(step.pitch).toBe(42);
     expect(step.velocity).toBe(88);
+    expect(onNote).not.toHaveBeenCalled();
     eng.dispose();
   });
 

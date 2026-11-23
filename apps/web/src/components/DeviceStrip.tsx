@@ -35,7 +35,7 @@ function midiStripStatus(
  * Device strip (Pass B/C). Empty → one quiet chip. Assigned → chips with
  * activity pulse; click carries role into Setup Ports.
  */
-export function DeviceStrip({ onOpenConnect }: { onOpenConnect?: () => void }) {
+export function DeviceStrip() {
   const snap = useStudioStore();
   const sel = useUiSelection();
   const { setWorkspace } = useStudioActions();
@@ -68,7 +68,7 @@ export function DeviceStrip({ onOpenConnect }: { onOpenConnect?: () => void }) {
   }
 
   return (
-    <div className="device-strip" role="list">
+    <div className="device-strip" role="group" aria-label="Hardware ports">
       {MY_STUDIO_ROLES.map((role) => {
         const assignment = snap.assignments.find((a) => a.roleId === role.id);
         const connected = Boolean(assignment?.connected);
@@ -93,8 +93,7 @@ export function DeviceStrip({ onOpenConnect }: { onOpenConnect?: () => void }) {
           <button
             key={role.id}
             type="button"
-            role="listitem"
-            className={`device-chip${role.midi && connected ? '' : ' disconnected'}${focus ? ' focus' : ''}`}
+            className={`device-chip${!role.midi || connected ? '' : ' disconnected'}${focus ? ' focus' : ''}`}
             onClick={() => {
               carrySetupRole(role.id, `Ports · ${role.label}`);
               setWorkspace('setup');

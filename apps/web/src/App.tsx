@@ -100,7 +100,7 @@ export function App() {
           <TransportStrip onOpenJam={() => setJam(true)} compact hideConnect />
         </div>
       </div>
-      {showDeviceStrip ? <DeviceStrip onOpenConnect={openConnect} /> : null}
+      {showDeviceStrip ? <DeviceStrip /> : null}
       <div className="shell shell--bleed">
         <main className="main">
           <WorkspacePanel id="rig" workspace={workspace} onReset={backToRig}>
@@ -162,7 +162,7 @@ export function App() {
       />
       {jam ? <JamMode onClose={() => setJam(false)} /> : null}
       <footer className="footer-bar">
-        <span>Splot MIDI Brain · local</span>
+        <span>Splot MIDI Brain · v{__SPLOT_VERSION__} · local</span>
         <span className="mono footer-keys" title="Tabs 1–5 · menu QAZ/WSX/EDC · Jam J">
           1–5 · QAZ · J
         </span>

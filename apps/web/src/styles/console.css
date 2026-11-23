@@ -400,14 +400,58 @@
   border-color: var(--mint-4) !important;
 }
 
+/* Keep the hardware rack clear of transport and make both lines readable. */
+.app-premium-v3.app-premium-v4:has(> .device-strip) {
+  grid-template-rows: var(--chrome-h) auto minmax(0, 1fr) 20px;
+}
+
+.app-premium-v3.app-premium-v4 > .device-strip {
+  height: auto;
+  max-height: none;
+  padding: var(--control-gap) var(--shell-gutter) !important;
+  grid-auto-columns: minmax(174px, 1fr);
+  overflow-x: auto;
+}
+
+.app-premium-v4 > .device-strip .device-chip {
+  min-height: 52px !important;
+  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: center;
+  column-gap: var(--control-gap);
+  row-gap: 2px;
+  padding: 6px 10px !important;
+  box-shadow: inset 0 0 0 1px var(--control-border);
+}
+
+.app-premium-v4 > .device-strip .device-chip:hover:not(:disabled),
+.app-premium-v4 > .device-strip .device-chip.focus {
+  box-shadow: inset 0 0 0 1px var(--mint-4);
+}
+
+.app-premium-v4 > .device-strip .device-chip:focus-visible {
+  outline-offset: -2px;
+}
+
+.app-premium-v4 > .device-strip .device-chip .chip-art {
+  width: 42px;
+  height: 34px;
+}
+
+.app-premium-v4 > .device-strip .device-chip .meta {
+  color: var(--control-idle-ink);
+  font-size: 11px;
+  letter-spacing: normal;
+  text-transform: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 860px) {
   .app-premium-v3.app-premium-v4 {
     --chrome-h: auto;
     grid-template-rows: auto minmax(0, 1fr) 20px;
-  }
-
-  .app-premium-v4:has(> .device-strip) {
-    grid-template-rows: auto 28px minmax(0, 1fr) 20px;
   }
 
   .console-navigation,
