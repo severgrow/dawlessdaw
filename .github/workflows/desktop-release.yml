@@ -18,6 +18,7 @@ on:
       - main
     paths:
       - '.github/workflows/desktop-release.yml'
+      - 'apps/desktop/package.json'
   workflow_dispatch:
     inputs:
       dry_run:
