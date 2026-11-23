@@ -135,6 +135,8 @@ export function useStudioActions() {
       step: number,
       patch: Partial<{ pitch: number; velocity: number; gate: number; on: boolean }>,
     ) => runtime.genEditStep(track, step, patch),
+    setHardwareControlEnabled: (on: boolean) => runtime.setHardwareControlEnabled(on),
+    setHardwareControlMixer: (on: boolean) => runtime.setHardwareControlMixer(on),
     loadControllerPreset: (id: string) => runtime.loadControllerPreset(id),
     saveControllerPreset: () => runtime.saveControllerPreset(),
     saveControllerPresetAs: (name: string) => runtime.saveControllerPresetAs(name),
