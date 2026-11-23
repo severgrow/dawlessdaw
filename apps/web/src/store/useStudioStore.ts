@@ -28,6 +28,7 @@ const TABS: readonly WorkspaceId[] = [
   'sessions',
   'test',
   'setup',
+  'timing',
 ];
 try {
   const last = localStorage.getItem(LAST_TAB_KEY) as WorkspaceId | null;

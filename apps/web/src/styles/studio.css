@@ -5662,3 +5662,107 @@ button.send-add {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ─── Timing Lab (Milestone 2) ─────────────────────────── */
+
+.timing-page .page-head {
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.tl-clock-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.35rem;
+}
+
+.tl-clock-head h2,
+.tl-latency h2,
+.tl-result h3,
+.tl-cals h3 {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mint-5);
+}
+
+.tl-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid var(--line-hard);
+}
+
+.tl-status-stable {
+  border-color: var(--mint-3);
+  background: var(--mint-0);
+  color: var(--mint-5);
+}
+
+.tl-status-variable {
+  border-color: var(--mint-5);
+  color: var(--mint-5);
+  background: var(--bg-3);
+}
+
+.tl-status-lost {
+  border-color: var(--burgundy);
+  background: var(--burgundy-dim);
+  color: var(--burgundy-ink);
+}
+
+.tl-status-unknown {
+  color: var(--text-dim);
+}
+
+.tl-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0.65rem 0;
+}
+
+.tl-metrics > div {
+  padding: 0.45rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-3);
+}
+
+.tl-k {
+  display: block;
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  margin-bottom: 0.15rem;
+}
+
+.tl-latency-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.tl-result,
+.tl-cals {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.tl-cals ul {
+  margin: 0.35rem 0 0.55rem;
+  padding-left: 1.1rem;
+}
+
+@media (max-width: 900px) {
+  .tl-metrics,
+  .tl-latency-form {
+    grid-template-columns: 1fr 1fr;
+  }
+}

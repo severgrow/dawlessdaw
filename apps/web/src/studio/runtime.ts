@@ -9,8 +9,10 @@ import {
 import {
   CircuitIntelligenceEngine,
   CircuitMirrorEngine,
+  ClockHealthMonitor,
   SequencerEngine,
   type CircuitIntelligenceSnapshot,
+  type ClockHealthSnapshot,
   type SeqClockSource,
   type SeqEngineSnapshot,
   type SeqScheduledNote,
@@ -121,7 +123,7 @@ import {
 } from '@dawlessdaw/sessions';
 import { MemoryRepository } from '@dawlessdaw/storage';
 
-/** Rig · Controller · Sequencer · Samples · Sections · Sessions (audio) · Test · Setup. */
+/** Rig · Controller · Sequencer · Samples · Sections · Sessions (audio) · Test · Setup · Timing. */
 export type WorkspaceId =
   | 'rig'
   | 'controller'
@@ -130,7 +132,8 @@ export type WorkspaceId =
   | 'sections'
   | 'sessions'
   | 'test'
-  | 'setup';
+  | 'setup'
+  | 'timing';
 
 export interface StudioRuntimeSnapshot {
   /** True once Chrome granted Web MIDI access. */
@@ -250,6 +253,11 @@ export interface StudioRuntimeSnapshot {
    * Experimental until Patryk confirms on hardware. Never drives outbound MIDI.
    */
   circuitIntelligence: CircuitIntelligenceSnapshot;
+  /**
+   * Clock Health (Timing Lab Stage A) — passive MIDI clock quality.
+   * Not a clock master. Experimental until hardware confirm.
+   */
+  clockHealth: ClockHealthSnapshot;
 }
 
 type Listener = () => void;
@@ -431,6 +439,9 @@ export class StudioRuntime {
     autoFocus: loadCircuitIntelAutoFocus(),
   });
   private intelUnsub: (() => void) | null = null;
+  /** Passive Clock Health — Timing Lab Stage A. */
+  private clockHealth = new ClockHealthMonitor();
+  private clockHealthUnsub: (() => void) | null = null;
 
   constructor() {
     this.transport = new WebMidiTransport();
@@ -441,12 +452,15 @@ export class StudioRuntime {
     });
     this.seqUnsub = this.sequencer.subscribe(() => this.notify());
     this.intelUnsub = this.circuitIntel.subscribe(() => this.notify());
+    this.clockHealthUnsub = this.clockHealth.subscribe(() => this.notify());
     // Dev/smoke helper: drive Circuit Mirror from Playwright without outbound MIDI.
     if (typeof window !== 'undefined') {
       (window as unknown as { __splotCircuitMirror?: CircuitMirrorEngine }).__splotCircuitMirror =
         this.circuitMirror;
       (window as unknown as { __splotCircuitIntel?: CircuitIntelligenceEngine }).__splotCircuitIntel =
         this.circuitIntel;
+      (window as unknown as { __splotClockHealth?: ClockHealthMonitor }).__splotClockHealth =
+        this.clockHealth;
     }
     const saved = loadSetup();
     if (saved?.assignments?.length) {
@@ -597,6 +611,7 @@ export class StudioRuntime {
       sequencer: this.sequencer.getSnapshot(),
       sequencerSelected: this.sequencer.getSelected(),
       circuitIntelligence: this.circuitIntel.getSnapshot(),
+      clockHealth: this.clockHealth.getSnapshot(),
     };
   }
 
@@ -671,6 +686,22 @@ export class StudioRuntime {
           this.circuitMirror.onMidiMessage(event.message.kind);
           // Intelligence analysis after mirror — still Circuit-in only; no outbound.
           this.circuitIntel.onMidiTransport(event.message.kind);
+          // Clock Health (Timing Lab) — passive; never becomes clock master.
+          this.clockHealth.onMidiTransport(event.message.kind, event.message.portId);
+          const pos = this.circuitIntel.getSnapshot().position;
+          this.clockHealth.setPosition({
+            transport: pos.transport,
+            bar: pos.bar,
+            beat: pos.beat,
+            bpm: pos.bpm,
+          });
+        } else if (
+          event.message.kind === 'clock' &&
+          event.message.portId &&
+          (!circuitIn || event.message.portId !== circuitIn)
+        ) {
+          // Second input clocking? Hint only for duplicate-source (no BPM from this path).
+          this.clockHealth.observeOtherClockPort(event.message.portId);
         }
       }),
     );
@@ -1049,6 +1080,31 @@ export class StudioRuntime {
     saveCircuitIntelAutoFocus(on);
     this.setStatus(`Circuit auto-focus ${on ? 'on' : 'off'} (macros CC 21–28)`);
     this.notify();
+  }
+
+  getClockHealth(): ClockHealthMonitor {
+    return this.clockHealth;
+  }
+
+  resetClockHealth(): void {
+    this.clockHealth.reset();
+    this.notify();
+  }
+
+  exportClockHealthDiagnostic(): string {
+    return JSON.stringify(this.clockHealth.exportDiagnostic(), null, 2);
+  }
+
+  /**
+   * User-triggered Latency Lab MIDI send — short note only.
+   * Does not change routes or apply delay correction.
+   */
+  sendLatencyLabNote(portId: string, data: Uint8Array): void {
+    this.transport.send(portId, data);
+    this.bus.emit({
+      type: 'midi:out',
+      message: parseMidiMessage(data, performance.now(), portId),
+    });
   }
 
   // —— Circuit Controller ——

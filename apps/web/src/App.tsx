@@ -15,6 +15,7 @@ import { SectionsWorkspace } from './workspaces/SectionsWorkspace';
 import { SessionsWorkspace } from './workspaces/SessionsWorkspace';
 import { TestWorkspace } from './workspaces/TestWorkspace';
 import { SetupWorkspace } from './workspaces/SetupWorkspace';
+import { TimingWorkspace } from './workspaces/TimingWorkspace';
 import { MidiLearnGlass } from './components/MidiLearnGlass';
 import { WorkspaceErrorBoundary } from './components/WorkspaceErrorBoundary';
 import { loadExperimentalUi, saveExperimentalUi, saveWizardDismissed } from './nav/tabs';
@@ -119,6 +120,9 @@ export function App() {
                 saveExperimentalUi(on);
               }}
             />
+          </WorkspacePanel>
+          <WorkspacePanel id="timing" workspace={workspace} onReset={backToRig}>
+            <TimingWorkspace />
           </WorkspacePanel>
         </main>
       </div>

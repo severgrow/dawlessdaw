@@ -6,3 +6,4 @@ export * from './circuit-mirror';
 export * from './musical-events';
 export * from './musical-position';
 export * from './circuit-intelligence';
+export * from './clock-health';

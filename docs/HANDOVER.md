@@ -77,6 +77,10 @@ Five tabs: Play / Build / Sounds / Record / Settings. Keys 1–8 still deep-link
 
 Passive last-touched (CC 21–28), activity confidence labels, musical position. Extends Circuit Live only. **Never** auto-mute hardware. Experimental until hardware confirm. See [circuit-intelligence.md](./circuit-intelligence.md).
 
+## Timing Lab (Milestone 2)
+
+Settings → Timing. Clock Health (passive) + MIDI→audio Latency Lab (user-triggered). No clock master; no automatic delay correction. See [timing-lab.md](./timing-lab.md).
+
 ## Phase 0 (stability + Splot rename) — software
 
 - Test-tab React #185: `deepSyncController.getSnapshot()` caches; rebuild only in `emit()` (see #38 + unit test). Other stores audited: StudioRuntime uses Zustand hydrate-on-notify (safe); Flip/capture use `subscribe`→`setState` (not `useSyncExternalStore`).
