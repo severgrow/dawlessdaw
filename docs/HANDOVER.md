@@ -39,8 +39,9 @@ See [bench-results/2026-11-22-first-full-rig.md](./bench-results/2026-11-22-firs
 | Branch / PR | State |
 |---|---|
 | `main` | Tip after live-preview merge: `22408c8` ([#38](https://github.com/severgrow/dawlessdaw/pull/38)). Also includes earlier merges through Controller / UX / sequencer / FLIP work. |
-| Phase 0 (this work) | Branch `cursor/phase-0-splot-ac80` — **ask before merging.** |
-| `claude/circuit-controller` | [#16](https://github.com/severgrow/dawlessdaw/pull/16) — may still be open / superseded by later merges; check GitHub before acting. **Ask before merging.** |
+| Phase 0 | Branch `cursor/phase-0-splot-ac80` / [#39](https://github.com/severgrow/dawlessdaw/pull/39) — open; batch merge later. |
+| Circuit Mirror | Branch `cursor/circuit-mirror-ac80` — stacked on Phase 0; open PR; **do not merge** until batch. See [circuit-mirror.md](./circuit-mirror.md). |
+| `claude/circuit-controller` | [#16](https://github.com/severgrow/dawlessdaw/pull/16) — may still be open / superseded by later merges; check GitHub before acting. |
 
 After Phase 0 merges (only when Patryk approves): tag `v0.2-first-working-rig`. Do **not** tag before merge approval.
 

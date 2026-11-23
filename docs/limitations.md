@@ -8,6 +8,8 @@ Capability statuses used throughout the app: **verified** | **untested** | **exp
 |-----------|--------|-------|
 | WebMidiTransport | verified (browser API) | Chrome / Edge on macOS; requires user gesture + HTTPS or localhost. Timing Clock / Start / Stop are delivered, but on the **main thread** with jitter — not a sample-accurate clock master. |
 | Dawlessdaw 8×16 sequencer | experimental (browser) | Follows Circuit clock by default; optional internal BPM. Uses Web MIDI output timestamps + main-thread look-ahead — **not** sample-accurate. Does **not** display Circuit internal patterns (Circuit Pattern Unavailable). See [sequencer.md](./sequencer.md). |
+| Circuit Mirror (Live) | experimental | Passive observation of Circuit **input** notes + clock; loop-aware 8×16 grid. Does **not** change outbound routing. Not a dump of unsaved Circuit pattern RAM. Hardware **untested** until Patryk confirms. See [circuit-mirror.md](./circuit-mirror.md). |
+| Circuit Mirror (Saved .ncs) | experimental | Local file parse via Deep Sync `.ncs` layout. Never auto USB file-protocol (that stops device playback). |
 | FLIP capture lane | experimental (browser) | Hardware stereo loop under the 8 MIDI tracks via Session Recorder AudioWorklet. Quantised start vs sequencer clock is **not** sample-accurate; unaligned takes are labelled; **no** silent time-stretch. Circuit audio unused. Live Scarlett/ZED capture **unverified**. See [flip.md](./flip.md). |
 | MockMidiTransport | verified | Deterministic fixtures for simulation / tests |
 | NativeBridgeTransport | unavailable | Stub only — no native MIDI bridge in v0.1 |

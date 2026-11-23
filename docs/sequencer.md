@@ -1,14 +1,20 @@
-# Dawlessdaw 8-track visual MIDI sequencer
+# Splot sequencer + Circuit Mirror
 
-Circuit-inspired **8 tracks × 16 steps** pad grid. Patterns are **Dawlessdaw-owned** and serialised locally. This is **not** a view of Circuit Rhythm’s internal stored patterns.
+The **Sequencer** tab has three modes. See [circuit-mirror.md](./circuit-mirror.md).
+
+| Mode | Meaning |
+|------|---------|
+| **Circuit Live** | Read-only loop-aware observation of Circuit **input** MIDI (**experimental**) |
+| **Circuit Saved** | View a local `.ncs` session file (not live RAM) |
+| **Splot Pattern** | Editable **8×16** grid owned by Splot and serialised locally |
 
 ## Honesty labels
 
 | Label | Meaning |
 |-------|---------|
-| **Dawlessdaw Pattern** | The editable grid / bank persisted by the app |
-| **Live MIDI Activity** | Optional monitor of Circuit notes observed over USB |
-| **Circuit Pattern Unavailable** | Stock Circuit MIDI does not expose stored pattern dumps for this UI |
+| **Splot Pattern** | The editable grid / bank persisted by the app |
+| **Circuit Live** | Passive mirror of performance MIDI — not Circuit’s stored pattern RAM |
+| **Circuit Pattern Unavailable** | Stock Circuit MIDI does not expose unsaved internal pattern dumps |
 
 ## Clock
 

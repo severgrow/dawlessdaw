@@ -7,6 +7,7 @@ import {
   type MidiMessage,
 } from '@dawlessdaw/core';
 import {
+  CircuitMirrorEngine,
   SequencerEngine,
   type SeqClockSource,
   type SeqEngineSnapshot,
@@ -391,6 +392,8 @@ export class StudioRuntime {
   private started = false;
   private sequencer: SequencerEngine;
   private seqUnsub: (() => void) | null = null;
+  /** Passive Circuit Live observer — Circuit input MIDI only; never routes out. */
+  private circuitMirror = new CircuitMirrorEngine();
 
   constructor() {
     this.transport = new WebMidiTransport();
@@ -400,6 +403,11 @@ export class StudioRuntime {
       onAllNotesOff: () => this.routing.allNotesOff(),
     });
     this.seqUnsub = this.sequencer.subscribe(() => this.notify());
+    // Dev/smoke helper: drive Circuit Mirror from Playwright without outbound MIDI.
+    if (typeof window !== 'undefined') {
+      (window as unknown as { __splotCircuitMirror?: CircuitMirrorEngine }).__splotCircuitMirror =
+        this.circuitMirror;
+    }
     const saved = loadSetup();
     if (saved?.assignments?.length) {
       // Strip mock / dash sentinels so Live sync can auto-bind Felucca → FM1.
@@ -618,6 +626,8 @@ export class StudioRuntime {
         // Follow Circuit in only — never the forwarded OUT clock (no second competing clock).
         if (circuitIn && event.message.portId === circuitIn) {
           this.sequencer.onMidiClockMessage(event.message.kind, event.message.timestamp);
+          // Circuit Mirror: same Circuit-in filter — never forwarded OUT clock.
+          this.circuitMirror.onMidiMessage(event.message.kind);
         }
       }),
     );
@@ -962,6 +972,19 @@ export class StudioRuntime {
   seqRedo(): void {
     this.sequencer.redo();
     this.notify();
+  }
+
+  /** Circuit Mirror Live engine — subscribe via getSnapshot / subscribe. Read-only. */
+  getCircuitMirror(): CircuitMirrorEngine {
+    return this.circuitMirror;
+  }
+
+  resetCircuitMirror(): void {
+    this.circuitMirror.reset();
+  }
+
+  exportCircuitMirrorDiagnostic(): string {
+    return JSON.stringify(this.circuitMirror.exportDiagnostic(), null, 2);
   }
 
   // —— Circuit Controller ——
@@ -1828,6 +1851,14 @@ export class StudioRuntime {
               message.note,
               message.velocity ?? 0,
             );
+            // Circuit Mirror Live: Circuit **input** only (fromCircuit gate above).
+            if (fromCircuit) {
+              this.circuitMirror.onNoteOn(
+                message.channel,
+                message.note,
+                message.velocity ?? 0,
+              );
+            }
           }
         }
         this.pushBenchDetection(
