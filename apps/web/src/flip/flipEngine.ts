@@ -5,7 +5,7 @@
 import { getCaptureEngine, type CaptureStatus } from '../recorder/captureEngine';
 import { getInputPreviewEngine } from '../recorder/inputPreview';
 import { getPerformanceMemory } from '../recorder/performanceMemory';
-import { loadTakeAudio, type TakeMeta } from '../recorder/takeStore';
+import { loadTakeAudio, saveCompleteTake, type TakeMeta } from '../recorder/takeStore';
 import type { StereoAudio } from '../recorder/types';
 import {
   beginMidiCapture,
@@ -554,6 +554,50 @@ export class FlipEngine {
     });
     this.notify();
     return clip;
+  }
+
+  /**
+   * Phase E — import external stereo PCM (e.g. MPC Library WAV / fixture) into FLIP.
+   * Saves a Session take, then creates a clip at **gain 1** with no normalize.
+   */
+  async importExternalAudio(opts: {
+    name: string;
+    audio: StereoAudio;
+    sourceLabel: string;
+  }): Promise<FlipClipMeta | null> {
+    const frames = Math.min(opts.audio.left.length, opts.audio.right.length);
+    if (frames <= 0) return null;
+    const takeId = `mpc-lib-${Date.now().toString(36)}`;
+    const meta: TakeMeta = {
+      id: takeId,
+      name: opts.name.slice(0, 80) || 'MPC Library',
+      createdAt: Date.now(),
+      sampleRate: opts.audio.sampleRate,
+      channels: 2,
+      frameCount: frames,
+      durationSec: frames / opts.audio.sampleRate,
+      tags: {
+        recordedAt: new Date().toISOString(),
+        tempoBpm: this.clock.bpm || 120,
+        circuitProject: null,
+        studioScene: 'mpc-library',
+        inputDeviceName: opts.sourceLabel.slice(0, 80),
+      },
+      markers: [],
+      incomplete: false,
+    };
+    const saved = await saveCompleteTake(meta, {
+      sampleRate: opts.audio.sampleRate,
+      left: opts.audio.left.subarray(0, frames),
+      right: opts.audio.right.subarray(0, frames),
+    });
+    if (!saved) return null;
+    return this.importTakeRegion({
+      take: meta,
+      startFrame: 0,
+      endFrame: frames,
+      bpm: this.clock.bpm || 120,
+    });
   }
 
   setReverse(on: boolean): void {

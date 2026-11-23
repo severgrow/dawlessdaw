@@ -6,10 +6,13 @@ import {
   MpcLibraryClient,
   entriesForSection,
   initialMpcLibrarySnapshot,
+  type BackupProgress,
   type MpcLibraryClientSnapshot,
   type MpcLibraryEntry,
   type MpcLibrarySectionId,
 } from '@dawlessdaw/mpc-library';
+import { backupLibraryProject } from './backupProject';
+import { importLibraryEntryToFlip } from './importToFlip';
 
 function statusLabel(status: MpcLibraryClientSnapshot['status']): string {
   switch (status) {
@@ -43,7 +46,7 @@ export interface MpcLibraryBrowserProps {
 }
 
 /**
- * Phase D — read-only Projects / Audio / Expansions browser.
+ * Phase D/E — Projects / Audio / Expansions browser + backup / Import→FLIP.
  * Connected only after real companion /health. Fixture preview never claims Connected.
  */
 export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
@@ -53,6 +56,9 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
   const [section, setSection] = useState<MpcLibrarySectionId>('projects');
   const [useFixturesWhileOffline, setUseFixturesWhileOffline] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<BackupProgress | null>(null);
 
   const probe = useCallback(async () => {
     setSnap((s) => ({ ...s, status: 'probing', error: null }));
@@ -76,10 +82,47 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
   const showingFixturesOnly = snap.status !== 'connected';
   const selected = listing.find((e) => e.id === selectedId) ?? null;
 
+  const canImportFlip = selected?.kind === 'sample';
+  const canBackup =
+    Boolean(selected) || entriesForSection(sourceEntries, 'projects').length > 0;
+
+  const runBackup = useCallback(async () => {
+    setBusy(true);
+    setActionMsg(null);
+    setProgress({ done: 0, total: 1, currentPath: null });
+    try {
+      const result = await backupLibraryProject({
+        allEntries: sourceEntries,
+        selected,
+        onProgress: setProgress,
+      });
+      setActionMsg(result.message);
+    } catch (e) {
+      setActionMsg(e instanceof Error ? e.message : 'Backup failed');
+    } finally {
+      setBusy(false);
+      setProgress(null);
+    }
+  }, [sourceEntries, selected]);
+
+  const runImportFlip = useCallback(async () => {
+    if (!selected) return;
+    setBusy(true);
+    setActionMsg(null);
+    try {
+      const result = await importLibraryEntryToFlip(selected);
+      setActionMsg(result.message);
+    } catch (e) {
+      setActionMsg(e instanceof Error ? e.message : 'Import failed');
+    } finally {
+      setBusy(false);
+    }
+  }, [selected]);
+
   return (
     <div
       className={`mpc-lib-browser${compact ? ' mpc-lib-browser--compact' : ''}`}
-      data-mpc-library-phase="d"
+      data-mpc-library-phase="e"
       data-status={snap.status}
     >
       <header className="mpc-lib-head">
@@ -95,7 +138,7 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
         </div>
         {!compact ? (
           <p className="mpc-lib-sub muted small">
-            Read-only · not Network MIDI · companion on loopback
+            Read-only browse · backup / FLIP import · not Network MIDI · no write-to-MPC
           </p>
         ) : null}
       </header>
@@ -105,7 +148,7 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
           type="button"
           className="mpc-lib-probe"
           onClick={() => void probe()}
-          disabled={snap.status === 'probing'}
+          disabled={snap.status === 'probing' || busy}
         >
           Probe
         </button>
@@ -114,17 +157,44 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
             type="button"
             className={useFixturesWhileOffline ? 'active' : 'ghost'}
             onClick={() => setUseFixturesWhileOffline((v) => !v)}
+            disabled={busy}
           >
             Fixtures
           </button>
         ) : null}
-        <button type="button" className="ghost" disabled title="Phase E — Import">
-          Import · E
+        <button
+          type="button"
+          disabled={!canImportFlip || busy}
+          title={canImportFlip ? 'Import sample → FLIP (gain 1)' : 'Select an Audio WAV'}
+          onClick={() => void runImportFlip()}
+          data-testid="mpc-lib-import-flip"
+        >
+          Import FLIP
         </button>
-        <button type="button" className="ghost" disabled title="Phase E — Backup">
-          Backup · E
+        <button
+          type="button"
+          className="ghost"
+          disabled={!canBackup || busy}
+          title="Back up project — never silent overwrite"
+          onClick={() => void runBackup()}
+          data-testid="mpc-lib-backup"
+        >
+          Back up
         </button>
       </div>
+
+      {progress ? (
+        <p className="muted small mono" data-testid="mpc-lib-progress">
+          Backup {progress.done}/{progress.total}
+          {progress.currentPath ? ` · ${progress.currentPath}` : ''}
+        </p>
+      ) : null}
+
+      {actionMsg ? (
+        <p className="mpc-lib-action-msg muted small" data-testid="mpc-lib-action-msg">
+          {actionMsg}
+        </p>
+      ) : null}
 
       {snap.error ? <p className="warn small mono mpc-lib-err">{snap.error}</p> : null}
 
@@ -148,6 +218,7 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
             role="tab"
             aria-selected={section === s.id}
             className={section === s.id ? 'active' : 'ghost'}
+            disabled={busy}
             onClick={() => {
               setSection(s.id);
               setSelectedId(null);
@@ -170,6 +241,7 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
               <button
                 type="button"
                 className={`mpc-lib-row${selectedId === e.id ? ' selected' : ''}`}
+                disabled={busy}
                 onClick={() => setSelectedId(e.id)}
               >
                 <span className="mpc-lib-kind mono">{kindTag(e.kind)}</span>
@@ -185,11 +257,20 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
           <div className="mpc-lib-detail-name">{selected.name}</div>
           <div className="mpc-lib-detail-path mono small muted">{selected.relativePath}</div>
           <div className="row mpc-lib-detail-actions">
-            <button type="button" disabled title="Phase E">
-              Import · Phase E
+            <button
+              type="button"
+              disabled={!canImportFlip || busy}
+              onClick={() => void runImportFlip()}
+            >
+              Import FLIP
             </button>
-            <button type="button" className="ghost" disabled title="Phase E">
-              Backup · Phase E
+            <button
+              type="button"
+              className="ghost"
+              disabled={busy}
+              onClick={() => void runBackup()}
+            >
+              Back up
             </button>
           </div>
         </div>

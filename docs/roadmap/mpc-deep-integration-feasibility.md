@@ -40,6 +40,12 @@ A Feasibility (this) → B Network MIDI first-class → C Library PoC → D UI �
 - Import / Backup buttons disabled stubs → Phase E
 - Soft mint · IBM Plex · dark glass
 
+## Phase E (Backup + WAV→FLIP) — shipped in stack
+
+- **Back up** — stream/copy with progress; rename on conflict (never silent overwrite); verify counts
+- **Import FLIP** — Session take + FlipEngine (gain 1 · no normalize)
+- Fixtures work Offline; Connected only after Probe. No write-to-MPC.
+
 ## Related
 
 - `docs/mpc-via-scarlett.md` · `docs/limitations.md` · Setup DIN next-action (PR #79)
