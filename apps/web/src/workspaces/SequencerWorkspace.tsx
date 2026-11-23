@@ -20,6 +20,7 @@ import { EuclideanControls } from '../components/EuclideanControls';
 import { HardwareControlPanel } from '../components/HardwareControlPanel';
 import { MoreInfo } from '../components/MoreInfo';
 import { FlipLane } from '../flip/FlipLane';
+import { carrySetupRole } from '../nav/uiSelection';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 const noteName = (n: number) => `${NOTE_NAMES[n % 12]}${Math.floor(n / 12) - 1}`;
@@ -113,7 +114,9 @@ export function SequencerWorkspace() {
   const mirror = useCircuitMirror();
   const intel = useCircuitIntelligence();
   const circuitRole = snap.assignments.find((x) => x.roleId === 'circuit');
-  const circuitIn = circuitRole?.inputPortId;
+  const circuitIn = snap.ports.find((port) =>
+    port.id === circuitRole?.inputPortId && port.state === 'connected',
+  )?.id;
   const circuitOut = circuitRole?.outputPortId;
   const seq = snap.sequencer;
   const pattern = seq.bank.patterns[seq.bank.activePatternIndex]!;
@@ -450,10 +453,15 @@ export function SequencerWorkspace() {
             <CircuitPatternCapture
               key={seq.bank.activePatternIndex}
               inputPort={circuitIn}
+              openSetup={() => {
+                carrySetupRole('circuit', 'Ports · Circuit Rhythm');
+                a.setWorkspace('setup');
+              }}
               capture={(bars) => a.getRuntime().captureCircuitPattern(bars)}
               usePattern={(captured) => a.getRuntime().genCapturePattern(captured, 'capture')}
             />
             <div className="pattern-variation">
+              <h2 className="pattern-group-title">Audition & vary</h2>
               <div className="pattern-controls">
                 <div className="pattern-audition" role="group" aria-label="Audition pattern">
                   <button
@@ -571,90 +579,97 @@ export function SequencerWorkspace() {
               Variation B · T{selected.track}
               {selStep ? ` · step ${selected.step + 1}` : ''}
             </div>
-            <div className="seq-step-nums" aria-hidden="true">
-              <span className="seq-track-gutter" />
-              {Array.from({ length: 16 }, (_, i) => (
-                <span
-                  key={i}
-                  className={`seq-step-num${i >= pattern.length ? ' dim' : ''}${!hearingOriginal && seq.playhead === i ? ' play' : ''}`}
-                >
-                  {i + 1}
-                </span>
-              ))}
-            </div>
-            <div className="seq-grid" role="grid" aria-label="8 by 16 step pads">
-              {pattern.tracks.map((track, ti) => {
-                const trackNo = ti + 1;
-                const dest = snap.controller.tracks[ti]?.dest ?? null;
-                return (
-                  <div key={trackNo} className="seq-row" role="row">
-                    <div className="seq-track-meta">
-                      <b>T{trackNo}</b>
-                      <span className={`seq-dest ${dest ? `dev-${dest.device}` : 'dev-off'}`}>
-                        {destBadge(dest)}
-                      </span>
-                      <button
-                        type="button"
-                        className={track.muted ? 'seq-ms on' : 'seq-ms'}
-                        aria-pressed={track.muted}
-                        onClick={() => a.seqSetTrackMute(trackNo, !track.muted)}
-                      >
-                        M
-                      </button>
-                      <button
-                        type="button"
-                        className={track.solo ? 'seq-ms solo on' : 'seq-ms solo'}
-                        aria-pressed={track.solo}
-                        onClick={() => a.seqSetTrackSolo(trackNo, !track.solo)}
-                      >
-                        S
-                      </button>
+            <div className="seq-grid-scroll">
+              <div className="seq-step-nums" aria-hidden="true">
+                <span className="seq-track-gutter" />
+                {Array.from({ length: 16 }, (_, i) => (
+                  <span
+                    key={i}
+                    className={`seq-step-num${i % 4 === 0 ? ' beat' : ''}${i >= pattern.length ? ' dim' : ''}${!hearingOriginal && seq.playhead === i ? ' play' : ''}`}
+                  >
+                    {i + 1}
+                  </span>
+                ))}
+              </div>
+              <div className="seq-grid" role="grid" aria-label="8 by 16 step pads">
+                {pattern.tracks.map((track, ti) => {
+                  const trackNo = ti + 1;
+                  const dest = snap.controller.tracks[ti]?.dest ?? null;
+                  return (
+                    <div key={trackNo} className="seq-row" role="row">
+                      <div className="seq-track-meta">
+                        <b>T{trackNo}</b>
+                        <span className={`seq-dest ${dest ? `dev-${dest.device}` : 'dev-off'}`}>
+                          {destBadge(dest)}
+                        </span>
+                        <button
+                          type="button"
+                          className={track.muted ? 'seq-ms on' : 'seq-ms'}
+                          title={`Mute track ${trackNo}`}
+                          aria-label={`Mute track ${trackNo}`}
+                          aria-pressed={track.muted}
+                          onClick={() => a.seqSetTrackMute(trackNo, !track.muted)}
+                        >
+                          M
+                        </button>
+                        <button
+                          type="button"
+                          className={track.solo ? 'seq-ms solo on' : 'seq-ms solo'}
+                          title={`Solo track ${trackNo}`}
+                          aria-label={`Solo track ${trackNo}`}
+                          aria-pressed={track.solo}
+                          onClick={() => a.seqSetTrackSolo(trackNo, !track.solo)}
+                        >
+                          S
+                        </button>
+                      </div>
+                      <div className="seq-pads">
+                        {track.steps.map((st, si) => {
+                          const outside = si >= pattern.length;
+                          const selectedCell =
+                            selected.track === trackNo && selected.step === si;
+                          const playing = !hearingOriginal && seq.playhead === si && seq.playing;
+                          const isLocked = gen.locks[ti]?.[si] === true;
+                          return (
+                            <button
+                              key={si}
+                              type="button"
+                              role="gridcell"
+                              aria-selected={selectedCell}
+                              title={st.on ? `${noteName(st.pitch)} · velocity ${st.velocity} · gate ${Math.round(st.gate * 100)}%` : undefined}
+                              aria-label={`Track ${trackNo} step ${si + 1}${st.on ? ' on' : ' off'}${isLocked ? ' locked' : ''}`}
+                              className={[
+                                'seq-pad',
+                                st.on ? 'lit' : '',
+                                outside ? 'outside' : '',
+                                selectedCell ? 'selected' : '',
+                                playing ? 'playhead' : '',
+                                isLocked ? 'locked' : '',
+                                dest ? `dev-${dest.device}` : '',
+                              ]
+                                .filter(Boolean)
+                                .join(' ')}
+                              style={
+                                st.on
+                                  ? {
+                                      opacity: 0.35 + (st.velocity / 127) * 0.65,
+                                    }
+                                  : undefined
+                              }
+                              onClick={() => a.seqClickToggle(trackNo, si)}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                a.seqSelectCell(trackNo, si);
+                                a.genToggleLock(trackNo, si);
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="seq-pads">
-                      {track.steps.map((st, si) => {
-                        const outside = si >= pattern.length;
-                        const selectedCell =
-                          selected.track === trackNo && selected.step === si;
-                        const playing = !hearingOriginal && seq.playhead === si && seq.playing;
-                        const isLocked = gen.locks[ti]?.[si] === true;
-                        return (
-                          <button
-                            key={si}
-                            type="button"
-                            role="gridcell"
-                            aria-selected={selectedCell}
-                            aria-label={`Track ${trackNo} step ${si + 1}${st.on ? ' on' : ' off'}${isLocked ? ' locked' : ''}`}
-                            className={[
-                              'seq-pad',
-                              st.on ? 'lit' : '',
-                              outside ? 'outside' : '',
-                              selectedCell ? 'selected' : '',
-                              playing ? 'playhead' : '',
-                              isLocked ? 'locked' : '',
-                              dest ? `dev-${dest.device}` : '',
-                            ]
-                              .filter(Boolean)
-                              .join(' ')}
-                            style={
-                              st.on
-                                ? {
-                                    opacity: 0.35 + (st.velocity / 127) * 0.65,
-                                  }
-                                : undefined
-                            }
-                            onClick={() => a.seqClickToggle(trackNo, si)}
-                            onContextMenu={(e) => {
-                              e.preventDefault();
-                              a.seqSelectCell(trackNo, si);
-                              a.genToggleLock(trackNo, si);
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
 

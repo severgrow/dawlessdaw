@@ -47,14 +47,13 @@ const brand = await page.locator('.brand').textContent().catch(() => '');
 if (/splot/i.test(brand || '')) ok('brand', brand.trim());
 else fail('brand', brand);
 
-const badge = await page.locator('.sim-badge').first().textContent().catch(() => '');
-const midiReady = /midi/i.test(badge || '') && !/no midi/i.test(badge || '');
-if (/no midi/i.test(badge || '') || /midi/i.test(badge || '')) ok('sim-live-label', `badge="${(badge||'').trim()}" (no false LIVE hardware claim)`);
+const badge = await page.locator('.midi-port-button').textContent().catch(() => '');
+if (/allow midi/i.test(badge || '') || /midi/i.test(badge || '')) ok('sim-live-label', `badge="${(badge||'').trim()}" (no false LIVE hardware claim)`);
 else fail('sim-live-label', badge);
 
 // Status should NOT say "LIVE HARDWARE" when no midi
 const bodyText = await page.locator('body').innerText();
-if (/live hardware|hardware connected|verified live/i.test(bodyText) && /no midi/i.test(badge || '')) {
+if (/live hardware|hardware connected|verified live/i.test(bodyText) && /allow midi/i.test(badge || '')) {
   fail('honesty', 'claims live hardware while no midi');
 } else ok('honesty-no-false-live', 'no false live-hardware claim with no midi');
 
@@ -192,7 +191,7 @@ else ok('builtin-mics', 'no MacBook/iPhone/Continuity in visible selects');
 
 // ── Clock forward default (UI readout) ──
 const clk = await page.locator('.status-bar').innerText();
-if (/clk\s+\d/i.test(clk) && /no midi/i.test(badge || '')) {
+if (/clk\s+\d/i.test(clk) && /allow midi/i.test(badge || '')) {
   note('clock-ui', 'clk readout visible without midi — check anyClockForwarding');
 } else ok('clock-default-ui', 'no active clock-forward readout with no midi (expected)');
 
