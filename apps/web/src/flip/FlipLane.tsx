@@ -189,7 +189,7 @@ export function FlipLane({
       <div className="flip-lane-head">
         <div className="flip-title-row">
           <h2 className="flip-title">FLIP</h2>
-          <span className="flip-brand muted small">dawless/daw MIDI Brain</span>
+          <span className="flip-brand muted small">Splot MIDI Brain</span>
           <span className={`flip-phase flip-phase-${status.phase}`}>{status.phaseLabel}</span>
         </div>
         <p className="flip-lead muted small">

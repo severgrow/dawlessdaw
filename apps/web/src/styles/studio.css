@@ -1,5 +1,5 @@
 /*
- * Dawlessdaw visual system
+ * Splot MIDI Brain visual system
  * Two pastel colours on black:
  *   ON    (deep burgundy)   = on / live / OK / MIDI / selected
  *   ALERT (pastel mint)     = stop / fail / warn / clip / audio
@@ -687,6 +687,22 @@ p {
 .panel .lead {
   font-size: 12.5px;
   margin-bottom: 0.8rem;
+}
+
+.panel-error {
+  padding: 1rem 0;
+}
+
+.panel-error-stack {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 12rem;
+  overflow: auto;
 }
 
 strong {

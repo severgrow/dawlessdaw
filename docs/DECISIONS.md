@@ -1,6 +1,6 @@
-# Locked decisions (22 Nov 2026)
+# Locked decisions (22 Nov 2026 + Phase 0)
 
-Owner confirmed **"yeah all go"** on the handover confirmation questions. These are locked until the owner changes them.
+Owner confirmed **"yeah all go"** on the handover confirmation questions. Phase 0 brand/preset locks added 23 Nov. These are locked until the owner changes them.
 
 | # | Decision |
 |---|---|
@@ -11,7 +11,9 @@ Owner confirmed **"yeah all go"** on the handover confirmation questions. These 
 | 5 | Device colours: SP = burgundy (`--on`), FM1 = mint (`--alert`), MPC = bone/off-white (`--bone` `#e8e1d2`). |
 | 6 | Scenes stay gone; Sessions are enough for presets. |
 | 7 | Rig grid stays **read-only**; routing edits live on the Controller tab. |
-| 8 | Continue Controller work (CSS, browser check, bench/docs, open PR) on `claude/circuit-controller`. |
-| 9 | SP effect CTRL (bench h6) and Scarlett MPC Step 3 proceed as listed in HANDOVER — do **not** block Controller finish on hardware; hardware remains **unverified**. |
+| 8 | Ask before merging any PR. Serialize Splot phases unless the owner says otherwise. |
+| 9 | SP effect CTRL (bench h6) and Scarlett MPC Step 3 proceed as listed in HANDOVER — do **not** claim hardware Pass without owner confirmation. |
+| 10 | Product brand **Splot MIDI Brain** (header `splot / midi brain`). Do not rename packages, folders, or localStorage keys yet. |
+| 11 | Default Controller preset **Ploe Live v1** (T1–4 MPC, T5–6 Skiff 1–2, T7–8 SP A–B). Keep older My Studio presets. |
 
 See also [HANDOVER.md](./HANDOVER.md) and [circuit-controller.md](./circuit-controller.md).

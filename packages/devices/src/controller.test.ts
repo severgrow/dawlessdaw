@@ -11,9 +11,11 @@ import {
   destChannel,
   destHowTo,
   myStudioPreset,
+  ploeLiveV1Preset,
   presetFromTrackPlan,
   sanitizePreset,
   swapKnobs,
+  BUILTIN_PRESETS,
   type ControllerPreset,
 } from './controller';
 import { trackPreset } from './studio-layout';
@@ -32,6 +34,31 @@ describe('Circuit Controller', () => {
     await transport.start();
     engine = new MidiRoutingEngine(transport);
     engine.start();
+  });
+
+  it('Ploe Live v1: T1–4 → MPC, T5–6 → Skiff 1–2, T7–8 → SP A–B (default built-in)', () => {
+    expect(BUILTIN_PRESETS[0]!.id).toBe('builtin-ploe-live-v1');
+    const p = ploeLiveV1Preset();
+    expect(p.name).toBe('Ploe Live v1');
+    expect(p.tracks.map((t) => destBadge(t.dest))).toEqual([
+      'MPC · Track 1',
+      'MPC · Track 2',
+      'MPC · Track 3',
+      'MPC · Track 4',
+      'FM1 · Track 1',
+      'FM1 · Track 2',
+      'SP · Bank A',
+      'SP · Bank B',
+    ]);
+    load(p);
+    transport.inject('c', [0x90, 48, 100]); // T1 → MPC ch9
+    transport.inject('c', [0x94, 60, 100]); // T5 → Skiff track 1 ch1
+    transport.inject('c', [0x96, 60, 100]); // T7 → SP bank A pad 1
+    expect(sent()).toEqual([
+      ['mpc', 0x98, 48, 100],
+      ['fm1', 0x90, 60, 100],
+      ['sp', 0x90, 36, 100],
+    ]);
   });
 
   it('My Studio (SP): T1–4 → SP banks A–D, T5–8 → Skiff tracks 1–4 on ch1–4', () => {

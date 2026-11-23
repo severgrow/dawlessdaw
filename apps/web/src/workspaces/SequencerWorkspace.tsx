@@ -24,7 +24,7 @@ export function SequencerWorkspace() {
       <div className="page-head">
         <h1>sequencer</h1>
         <span className="seq-brand-chip" title="Product brand">
-          dawless/daw MIDI Brain
+          Splot MIDI Brain
         </span>
       </div>
       <p className="lead">

@@ -2,6 +2,7 @@ import { destBadge } from '@dawlessdaw/devices';
 import { AudioPreview } from '../components/AudioPreview';
 import { MoreInfo } from '../components/MoreInfo';
 import { RigMap } from '../components/RigMap';
+import { WorkspaceErrorBoundary } from '../components/WorkspaceErrorBoundary';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 /** Flashes when `at` changes (remount restarts the CSS animation). */
@@ -48,7 +49,9 @@ export function RigWorkspace() {
         </p>
       ) : null}
 
-      <RigMap />
+      <WorkspaceErrorBoundary workspace="Rig art" onReset={() => setWorkspace('rig')}>
+        <RigMap />
+      </WorkspaceErrorBoundary>
 
       <div className="panel">
         <h2>Activity</h2>

@@ -13,10 +13,12 @@
     "build": "npm run build -w @dawlessdaw/web",
     "test": "vitest run",
     "test:watch": "vitest",
+    "smoke": "node scripts/smoke.mjs",
     "typecheck": "tsc -p apps/web/tsconfig.json --pretty false"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
+    "playwright": "^1.49.0",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
   },

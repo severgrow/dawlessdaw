@@ -52,6 +52,7 @@ import {
   isLearnGlassIgnoredMidi,
   knobTarget,
   myStudioPreset,
+  ploeLiveV1Preset,
   presetFromTrackPlan,
   resolveControlMapping,
   sanitizePreset,
@@ -335,9 +336,9 @@ export class StudioRuntime {
   private trackPlan: TrackPlan | null = null;
   private trackActivity: number[] = Array(9).fill(0);
   private lastProject: StudioRuntimeSnapshot['lastProject'] = null;
-  private controller: ControllerPreset = clonePreset(myStudioPreset('sp'));
+  private controller: ControllerPreset = clonePreset(ploeLiveV1Preset());
   private controllerPresets: ControllerPreset[] = [];
-  private controllerSavedId = BUILTIN_PRESETS[0]!.id;
+  private controllerSavedId = BUILTIN_PRESETS[0]!.id; // Ploe Live v1
   private controllerHistory: ControllerPreset[] = [];
   private controllerLearn: StudioRuntimeSnapshot['controllerLearn'] = null;
   private knobValues: number[][] = Array.from({ length: 8 }, () => Array(8).fill(0));

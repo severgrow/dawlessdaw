@@ -1,8 +1,10 @@
-# dawless/daw MIDI Brain
+# Splot MIDI Brain
 
 Local-first web app for hardware music studio connectivity (Mac + Chrome + Web MIDI).
 
-Formerly prototyped as NervOS. This repository is the source of truth.
+**About:** Splot is Polish for weaving things together. Splot weaves your hardware into one instrument.
+
+Formerly prototyped as NervOS / dawlessdaw. This repository is the source of truth. Package and folder names still use `dawlessdaw` for now.
 
 ## Quick start (macOS + Chrome)
 
@@ -13,35 +15,36 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:5173**. Default mode is Simulation. Click **Switch to Live** and allow MIDI when your Circuit / MPC / SP-404 / FM1 are on USB.
+Open **http://localhost:5173**. Allow MIDI when your Circuit / MPC / SP-404 / FM1 are on USB.
 
 ```bash
-npm test
+npm test          # unit tests (Vitest)
 npm run build
+npm run smoke     # headless Chrome: open built app, keys 1–8, fail on blank/error
 ```
 
-## Your studio plan (My Studio)
+## Your studio plan (Ploe Live v1 — default)
 
-Routing lives on the **Controller** tab (see [docs/circuit-controller.md](docs/circuit-controller.md)). The **Sequencer** tab is an 8×16 Dawlessdaw pattern grid that reuses those destinations (not Circuit’s internal patterns) — see [docs/sequencer.md](docs/sequencer.md). Locked decisions: [docs/DECISIONS.md](docs/DECISIONS.md). Circuit **Mixer** Level (CC29) / Pan (CC30) also remap to destination Volume/Pan (CC7/CC10) on each routed track — see [docs/skiff-fm1.md](docs/skiff-fm1.md).
+Routing lives on the **Controller** tab (see [docs/circuit-controller.md](docs/circuit-controller.md)). The default built-in preset is **Ploe Live v1** (older **My Studio** presets stay in the list). The **Sequencer** tab is an 8×16 pattern grid that reuses those destinations — see [docs/sequencer.md](docs/sequencer.md). Locked decisions: [docs/DECISIONS.md](docs/DECISIONS.md).
 
-**FM1 / Skiff:** Circuit T5–T8 → Skiff tracks 1–4 over USB (port often named Felucca). App out channels **1–4** (Skiff default) — set FM1 MENU › MIDI › T1–T4 CHANNEL to match. Macro knobs → Brightness…Reverb + **Level**. See [docs/skiff-fm1.md](docs/skiff-fm1.md).
+**Ploe Live v1 (verified path 22 Nov 2026):**
 
-**SP-404:** Circuit T1–T4 → SP banks A–D (MIDI Mode A), first-note learn on the Controller. Samples tab prepares pad WAVs. See [docs/sp404-banks-and-samples.md](docs/sp404-banks-and-samples.md).
+| Circuit | Destination |
+|---------|-------------|
+| T1–T4 | MPC tracks 1–4 (ch 9–12 via Scarlett MIDI Out → DIN) |
+| T5–T6 | Skiff tracks 1–2 (USB / Felucca) |
+| T7–T8 | SP banks A–B (change Bank on Controller anytime) |
 
-| Circuit | Destination (My Studio) |
-|---------|-------------------------|
-| T1–T4 | SP banks A–D **or** MPC tracks 1–4 (ch 9–12 via Scarlett) |
-| T5–T8 | Skiff tracks 1–4 (app → FM1 ch 1–4) |
-| Project / Sections | Section Bridge → SP **ch13** PC · MPC **ch15** PC |
+**My Studio** variants remain available: T1–T4 → SP A–D **or** MPC, T5–T8 → Skiff 1–4.
 
-- MIDI clock: **hardware** Circuit Out → thru → SP. The MPC (Scarlett DIN — [docs/mpc-via-scarlett.md](docs/mpc-via-scarlett.md)) gets clock only when Rig → Tempo → **→ MPC** is on. App clock switches default OFF.
+- MIDI clock: **hardware** Circuit Out → thru → SP. The MPC (Scarlett DIN — [docs/mpc-via-scarlett.md](docs/mpc-via-scarlett.md)) gets app clock only when Rig → Tempo → **→ MPC** is on. App clock switches default OFF.
 - MPC mute MIDI Learn: **CC 20 on channel 15** (control channel — not 16).
 
 ZED-10FX: USB **audio only** — no MIDI. Use the **Sessions** tab to record stereo from ZED / Scarlett / SP / any input (local takes only). See [docs/session-recorder.md](docs/session-recorder.md).
 
 ## Docs
 
-See `/docs` — start with **[docs/live-run-guide.md](docs/live-run-guide.md)**, then [circuit-controller.md](docs/circuit-controller.md), [session-recorder.md](docs/session-recorder.md), [circuit-deep-sync.md](docs/circuit-deep-sync.md) (stock MIDI vs saved patterns research), [universal-ux-slice.md](docs/universal-ux-slice.md) (generic profiles / first-run), architecture, setup, limitations. Agent context: [docs/HANDOVER.md](docs/HANDOVER.md).
+See `/docs` — start with **[docs/live-run-guide.md](docs/live-run-guide.md)**, then [circuit-controller.md](docs/circuit-controller.md), [session-recorder.md](docs/session-recorder.md), [circuit-deep-sync.md](docs/circuit-deep-sync.md), [universal-ux-slice.md](docs/universal-ux-slice.md), architecture, setup, limitations. Agent context: [docs/HANDOVER.md](docs/HANDOVER.md). First full-rig bench narrative: [docs/bench-results/2026-11-22-first-full-rig.md](docs/bench-results/2026-11-22-first-full-rig.md).
 
 ## Honesty
 

@@ -36,7 +36,7 @@ export function Nav() {
     }
   }, [workspace]);
 
-  // Number keys 1–6 switch tabs, like a pad row.
+  // Number keys 1–8 switch tabs, like a pad row.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;

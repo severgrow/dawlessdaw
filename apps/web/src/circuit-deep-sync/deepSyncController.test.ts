@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DeepSyncController } from './deepSyncController';
 
+/**
+ * useSyncExternalStore requires a stable getSnapshot reference between notifies.
+ * Audit (Phase 0): DeepSyncController is the only store wired via useSyncExternalStore.
+ * StudioRuntime → Zustand hydrate-on-notify; Flip/capture → subscribe + setState.
+ * Those patterns are safe without snapshot caching.
+ */
 describe('DeepSyncController getSnapshot caching', () => {
   it('returns the same object reference until emit', () => {
     const ctrl = new DeepSyncController();

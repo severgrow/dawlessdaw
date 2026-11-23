@@ -257,7 +257,42 @@ export function myStudioPreset(variant: MyStudioVariant = 'sp'): ControllerPrese
   };
 }
 
-export const BUILTIN_PRESETS: readonly ControllerPreset[] = [myStudioPreset('sp'), myStudioPreset('mpc')];
+/**
+ * Default live-rig preset (verified path 22 Nov 2026):
+ * T1–T4 → MPC (Scarlett DIN), T5–T6 → Skiff 1–2, T7–T8 → SP banks A–B.
+ * Banks are easy to change on the Controller track strip (Bank dropdown).
+ */
+export function ploeLiveV1Preset(): ControllerPreset {
+  const tracks: CtrlTrack[] = CIRCUIT_TRACKS.map((t) => {
+    const track = emptyTrack();
+    if (t <= 4) {
+      track.dest = { device: 'mpc', slot: t };
+      track.knobs = track.knobs.map((_, i) => ({ target: `mpc.learn${i + 1}`, min: 0, max: 127 }));
+    } else if (t <= 6) {
+      track.dest = { device: 'fm1', slot: t - 4 };
+      track.knobs = SKIFF_KNOBS.map((k) => ({ target: `fm1.${k}`, min: 0, max: 127 }));
+    } else {
+      // T7 → Bank A, T8 → Bank B (sensible defaults; change on Controller anytime)
+      track.dest = { device: 'sp', slot: t - 6 };
+      track.firstNote = 60;
+    }
+    return track;
+  });
+  return {
+    id: 'builtin-ploe-live-v1',
+    name: 'Ploe Live v1',
+    builtIn: true,
+    tracks,
+    skiffChannels: [1, 2, 3, 4, 5, 6],
+  };
+}
+
+/** Built-ins: Ploe Live v1 first (app default), then older My Studio variants. */
+export const BUILTIN_PRESETS: readonly ControllerPreset[] = [
+  ploeLiveV1Preset(),
+  myStudioPreset('sp'),
+  myStudioPreset('mpc'),
+];
 
 export function clonePreset(p: ControllerPreset): ControllerPreset {
   return JSON.parse(JSON.stringify(p)) as ControllerPreset;

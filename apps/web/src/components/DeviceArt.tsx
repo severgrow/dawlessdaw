@@ -356,10 +356,10 @@ function Drawing({ kind }: { kind: DeviceKind }) {
           <rect className="art-body" x={14} y={4} width={102} height={66} rx={7} />
           <rect className="art-screen" x={20} y={10} width={90} height={54} rx={3} />
           <text className="art-label" x={65} y={36} textAnchor="middle">
-            dawless/daw
+            splot /
           </text>
           <text className="art-label" x={65} y={48} textAnchor="middle">
-            MIDI Brain
+            midi brain
           </text>
           <path className="art-body" d="M2 74 h126 l-8 12 h-110 z" />
         </>
