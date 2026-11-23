@@ -13,6 +13,13 @@ import {
 } from '@dawlessdaw/devices';
 import { MoreInfo } from '../components/MoreInfo';
 import { resolveNextAction } from '../nav/nextAction';
+import {
+  loadMpcDinCableConfirmed,
+  loadMpcDinPrefsConfirmed,
+  resolveMpcDinNextAction,
+  saveMpcDinCableConfirmed,
+  saveMpcDinPrefsConfirmed,
+} from '../nav/mpcDinSetup';
 import { useUiSelection } from '../nav/uiSelection';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import { formatRouteChannelDetail } from './routeChannelDetail';
@@ -378,6 +385,15 @@ export function SetupWorkspace({
   const mpc = snap.assignments.find((a) => a.roleId === 'mpc');
   const clock = snap.clockActivity;
   const clockAdvice = mpcClockPortAdvice(mpc?.outputPortName ?? null);
+  const [cableConfirmed, setCableConfirmed] = useState(() => loadMpcDinCableConfirmed());
+  const [prefsConfirmed, setPrefsConfirmed] = useState(() => loadMpcDinPrefsConfirmed());
+  const mpcDin = resolveMpcDinNextAction({
+    mpcNoteMode: snap.mpcNoteMode === 'din-only' ? 'din-only' : 'usb',
+    mpcOutPortName: mpc?.outputPortName ?? null,
+    clockToMpc: snap.clockToMpc === true,
+    cableConfirmed,
+    devicePrefsConfirmed: prefsConfirmed,
+  });
   const next = resolveNextAction({
     midiReady: snap.midiReady,
     midiError: snap.midiError,
@@ -498,9 +514,60 @@ export function SetupWorkspace({
 
           {unmatched.length > 0 || snap.customProfiles.length > 0 ? <UnknownDevicesPanel /> : null}
 
-          <div className="panel setup-tier">
+          <div className="panel setup-tier" id="setup-mpc-din">
             <h2>Configure · MPC</h2>
-            <div className="row">
+            <p className="muted small">
+              Next · {mpcDin.progressIndex}/{mpcDin.progressTotal}
+            </p>
+            <p className={mpcDin.usbBUseless ? 'warn' : 'lead'}>{mpcDin.cta}</p>
+            <p className={mpcDin.usbBUseless ? 'warn' : 'muted small'}>{mpcDin.hint}</p>
+            {mpcDin.step === 'app-sends-notes' ? (
+              <button type="button" className="active" onClick={() => setMpcNoteMode('usb')}>
+                App sends notes
+              </button>
+            ) : null}
+            {mpcDin.step === 'ports-scarlett' || mpcDin.step === 'usb-b-honesty' ? (
+              <p className="muted small mono">
+                Ports table ↑ · Akai MPC One → MIDI out = Scarlett
+              </p>
+            ) : null}
+            {mpcDin.step === 'cable' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  saveMpcDinCableConfirmed(true);
+                  setCableConfirmed(true);
+                }}
+              >
+                Cable done
+              </button>
+            ) : null}
+            {mpcDin.step === 'mpc-device-prefs' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  saveMpcDinPrefsConfirmed(true);
+                  setPrefsConfirmed(true);
+                }}
+              >
+                MPC prefs set
+              </button>
+            ) : null}
+            {mpcDin.step === 'clock-follow-optin' ? (
+              <div className="row">
+                <button
+                  type="button"
+                  className={snap.clockToMpc ? 'active' : ''}
+                  onClick={() => setClockToMpc(true)}
+                >
+                  Turn follow On
+                </button>
+                <button type="button" onClick={() => setClockToMpc(false)}>
+                  Leave off
+                </button>
+              </div>
+            ) : null}
+            <div className="row" style={{ marginTop: '0.75rem' }}>
               <button
                 type="button"
                 className={snap.mpcNoteMode === 'usb' ? 'active' : ''}
@@ -521,6 +588,9 @@ export function SetupWorkspace({
                 ? `MPC Out = ${mpc?.outputPortName ?? 'not assigned'}${mpc?.outputManual && !mpc.outputPortId ? ' (unplugged)' : ''}.`
                 : 'App sends MPC nothing — thru-box mode.'}
             </p>
+            <p className={clockAdvice.kind === 'warn-akai-usb' ? 'warn' : 'muted small'}>
+              {clockAdvice.message}
+            </p>
             {snap.mpcNoteMode === 'usb' ? (
               <MoreInfo label="Tracks sound mixed?">
                 <p className="muted small">{MPC_CHANNEL_ISOLATION_HINT}</p>
@@ -532,7 +602,7 @@ export function SetupWorkspace({
                     <b>Monitoring = In</b> (not Auto).
                   </li>
                   <li>
-                    <b>USB vs DIN</b> — notes either path; clock needs Scarlett→DIN.
+                    <b>USB-B clock is useless</b> — sequencer follow needs Scarlett→DIN.
                   </li>
                 </ol>
               </MoreInfo>
