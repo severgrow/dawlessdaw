@@ -42,7 +42,8 @@ Provenance fields (`deviceProfileKey`, `genericProfileId`, `studioRoleId`, …) 
 
 ## Next steps (not this PR)
 
-- Step 14: AudioBackend contract + fake backend  
+- Step 14: AudioBackend contract + fake backend — see [audio-backend.md](./audio-backend.md)  
+
 - Step 15: Mixer data model (buses referenced by `audioBus` on stages)  
 - Runtime: compile chain → MidiRoute without changing clock defaults  
 

@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@dawlessdaw/audio': path.resolve(__dirname, '../../packages/audio/src'),
       '@dawlessdaw/core': path.resolve(__dirname, '../../packages/core/src'),
       '@dawlessdaw/events': path.resolve(__dirname, '../../packages/events/src'),
       '@dawlessdaw/midi': path.resolve(__dirname, '../../packages/midi/src'),

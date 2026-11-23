@@ -5,6 +5,9 @@
  * Graph: MediaStreamSource → Worklet (PCM + meters) only.
  * Worklet → silent gain → destination keeps the node alive without monitoring.
  * Live input never reaches destination unless Monitor input is explicitly ON.
+ *
+ * Swappable contract: `@dawlessdaw/audio` (`AudioBackend` / `WorkletAudioBackend`).
+ * This engine remains the production Sessions/FLIP owner — thin seam, not a rewrite.
  */
 import {
   CLIP_HOLD_MS,
