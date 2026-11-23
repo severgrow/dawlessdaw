@@ -74,14 +74,22 @@ export function applyHandoffMutes(
   return snap;
 }
 
-/** Restore mute state from a prior applyHandoffMutes snapshot. */
+/**
+ * Restore mute state from a prior applyHandoffMutes snapshot.
+ * Continues past per-track setMute failures so an interrupt cannot leave
+ * the rest of the handoff stuck muted (A4).
+ */
 export function restoreHandoffMutes(
   snapshot: readonly FlipMuteSnapshot[],
   setMute: (track: FlipHandoffTrack, muted: boolean) => void,
 ): void {
   for (const s of snapshot) {
     if (!isFlipHandoffTrack(s.track)) continue;
-    setMute(s.track, s.wasMuted === true);
+    try {
+      setMute(s.track, s.wasMuted === true);
+    } catch {
+      // keep restoring remaining tracks
+    }
   }
 }
 

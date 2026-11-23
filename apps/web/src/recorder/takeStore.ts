@@ -280,16 +280,15 @@ export async function clearChunks(takeId: string): Promise<void> {
   }
 }
 
-/** Recover an interrupted take from draft + chunks. */
-export async function recoverUnsavedTake(): Promise<{ meta: TakeMeta; audio: StereoAudio } | null> {
-  const draft = await getDraft();
-  if (!draft) return null;
-  const chunks = await loadChunks(draft.takeId);
-  if (!chunks.length) {
-    await clearDraft();
-    await clearChunks(draft.takeId);
-    return null;
-  }
+/**
+ * Pure assemble step for interrupted Session / FLIP capture recovery (A4).
+ * Stitches draft chunks into a labelled incomplete take — no IndexedDB I/O.
+ */
+export function assembleRecoveredTake(
+  draft: DraftState,
+  chunks: PcmChunk[],
+): { meta: TakeMeta; audio: StereoAudio } | null {
+  if (!chunks.length) return null;
   try {
     const audio = stitchChunks(chunks, draft.meta.sampleRate);
     const meta: TakeMeta = {
@@ -301,10 +300,29 @@ export async function recoverUnsavedTake(): Promise<{ meta: TakeMeta; audio: Ste
         ? draft.meta.name
         : `${draft.meta.name} (recovered)`,
     };
-    await saveCompleteTake(meta, audio);
+    return { meta, audio };
+  } catch {
+    return null;
+  }
+}
+
+/** Recover an interrupted take from draft + chunks. */
+export async function recoverUnsavedTake(): Promise<{ meta: TakeMeta; audio: StereoAudio } | null> {
+  const draft = await getDraft();
+  if (!draft) return null;
+  const chunks = await loadChunks(draft.takeId);
+  if (!chunks.length) {
+    await clearDraft();
+    await clearChunks(draft.takeId);
+    return null;
+  }
+  const assembled = assembleRecoveredTake(draft, chunks);
+  if (!assembled) return null;
+  try {
+    await saveCompleteTake(assembled.meta, assembled.audio);
     await clearChunks(draft.takeId);
     await clearDraft();
-    return { meta, audio };
+    return assembled;
   } catch {
     return null;
   }
