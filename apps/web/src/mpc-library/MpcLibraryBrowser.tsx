@@ -48,6 +48,9 @@ export interface MpcLibraryBrowserProps {
 /**
  * Phase D/E — Projects / Audio / Expansions browser + backup / Import→FLIP.
  * Connected only after real companion /health. Fixture preview never claims Connected.
+ *
+ * Premium design showcase: Ableton-like browser (sections + dense rows + detail),
+ * TE-sparse chrome, RC-20 tactile rows. Visual/IA only — no write-to-MPC.
  */
 export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
   const [snap, setSnap] = useState<MpcLibraryClientSnapshot>(() =>
@@ -119,10 +122,13 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
     }
   }, [selected]);
 
+  const statusTone =
+    snap.status === 'connected' ? 'on' : snap.status === 'error' ? 'err' : 'off';
+
   return (
     <div
       className={`mpc-lib-browser${compact ? ' mpc-lib-browser--compact' : ''}`}
-      data-mpc-library-phase="e"
+      data-mpc-library-phase="premium"
       data-status={snap.status}
     >
       <header className="mpc-lib-head">
@@ -130,68 +136,63 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
           <h2 className="mpc-lib-title">MPC Library</h2>
           <span className="ci-badge">experimental</span>
           <span
-            className={`mpc-lib-pill mpc-lib-pill--${snap.status === 'connected' ? 'on' : 'off'}`}
+            className={`mpc-lib-status mpc-lib-status--${statusTone}`}
             data-testid="mpc-lib-status"
           >
+            <span className="mpc-lib-status-led" aria-hidden />
             {statusLabel(snap.status)}
           </span>
         </div>
-        {!compact ? (
-          <p className="mpc-lib-sub muted small">
-            Read-only browse · backup / FLIP import · not Network MIDI · no write-to-MPC
-          </p>
-        ) : null}
-      </header>
-
-      <div className="mpc-lib-toolbar">
-        <button
-          type="button"
-          className="mpc-lib-probe"
-          onClick={() => void probe()}
-          disabled={snap.status === 'probing' || busy}
-        >
-          Probe
-        </button>
-        {snap.status !== 'connected' ? (
+        <div className="mpc-lib-toolbar" role="toolbar" aria-label="Library actions">
           <button
             type="button"
-            className={useFixturesWhileOffline ? 'active' : 'ghost'}
-            onClick={() => setUseFixturesWhileOffline((v) => !v)}
-            disabled={busy}
+            className="mpc-lib-probe"
+            onClick={() => void probe()}
+            disabled={snap.status === 'probing' || busy}
           >
-            Fixtures
+            Probe
           </button>
-        ) : null}
-        <button
-          type="button"
-          disabled={!canImportFlip || busy}
-          title={canImportFlip ? 'Import sample → FLIP (gain 1)' : 'Select an Audio WAV'}
-          onClick={() => void runImportFlip()}
-          data-testid="mpc-lib-import-flip"
-        >
-          Import FLIP
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={!canBackup || busy}
-          title="Back up project — never silent overwrite"
-          onClick={() => void runBackup()}
-          data-testid="mpc-lib-backup"
-        >
-          Back up
-        </button>
-      </div>
+          {snap.status !== 'connected' ? (
+            <button
+              type="button"
+              className={useFixturesWhileOffline ? 'active' : 'ghost'}
+              onClick={() => setUseFixturesWhileOffline((v) => !v)}
+              disabled={busy}
+            >
+              Fixtures
+            </button>
+          ) : null}
+          <button
+            type="button"
+            disabled={!canImportFlip || busy}
+            title={canImportFlip ? 'Import sample → FLIP (gain 1)' : 'Select an Audio WAV'}
+            onClick={() => void runImportFlip()}
+            data-testid="mpc-lib-import-flip"
+          >
+            Import FLIP
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={!canBackup || busy}
+            title="Back up project — never silent overwrite"
+            onClick={() => void runBackup()}
+            data-testid="mpc-lib-backup"
+          >
+            Back up
+          </button>
+        </div>
+      </header>
 
       {progress ? (
-        <p className="muted small mono" data-testid="mpc-lib-progress">
+        <p className="mpc-lib-progress muted small mono" data-testid="mpc-lib-progress">
           Backup {progress.done}/{progress.total}
           {progress.currentPath ? ` · ${progress.currentPath}` : ''}
         </p>
       ) : null}
 
       {actionMsg ? (
-        <p className="mpc-lib-action-msg muted small" data-testid="mpc-lib-action-msg">
+        <p className="mpc-lib-action-msg" data-testid="mpc-lib-action-msg">
           {actionMsg}
         </p>
       ) : null}
@@ -199,82 +200,91 @@ export function MpcLibraryBrowser({ compact = false }: MpcLibraryBrowserProps) {
       {snap.error ? <p className="warn small mono mpc-lib-err">{snap.error}</p> : null}
 
       {showingFixturesOnly && useFixturesWhileOffline ? (
-        <p className="mpc-lib-fixture-banner muted small" data-testid="mpc-lib-fixture-banner">
-          Fixture preview — still <strong>Offline</strong> (not Connected)
+        <p className="mpc-lib-fixture-banner" data-testid="mpc-lib-fixture-banner">
+          Fixtures · still Offline
         </p>
       ) : null}
 
       {!useFixturesWhileOffline && snap.status !== 'connected' ? (
-        <p className="muted small">
-          Offline · start <code className="mono">npm run mpc-library</code> then Probe
+        <p className="mpc-lib-hint muted small">
+          Offline · <code className="mono">npm run mpc-library</code> then Probe
         </p>
       ) : null}
 
-      <div className="mpc-lib-sections" role="tablist" aria-label="Library sections">
-        {MPC_LIBRARY_SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            role="tab"
-            aria-selected={section === s.id}
-            className={section === s.id ? 'active' : 'ghost'}
-            disabled={busy}
-            onClick={() => {
-              setSection(s.id);
-              setSelectedId(null);
-            }}
-          >
-            {s.label}
-            <span className="mpc-lib-count mono">
-              {entriesForSection(sourceEntries, s.id).length}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <ul className="mpc-lib-list" data-testid="mpc-lib-list">
-        {listing.length === 0 ? (
-          <li className="mpc-lib-empty muted small">Nothing in {section}</li>
-        ) : (
-          listing.map((e) => (
-            <li key={e.id}>
-              <button
-                type="button"
-                className={`mpc-lib-row${selectedId === e.id ? ' selected' : ''}`}
-                disabled={busy}
-                onClick={() => setSelectedId(e.id)}
-              >
-                <span className="mpc-lib-kind mono">{kindTag(e.kind)}</span>
-                <span className="mpc-lib-name">{e.name}</span>
-              </button>
-            </li>
-          ))
-        )}
-      </ul>
-
-      {selected ? (
-        <div className="mpc-lib-detail glass-surface">
-          <div className="mpc-lib-detail-name">{selected.name}</div>
-          <div className="mpc-lib-detail-path mono small muted">{selected.relativePath}</div>
-          <div className="row mpc-lib-detail-actions">
+      {/* Ableton-like browser: section rail + list/detail stage */}
+      <div className="mpc-lib-body">
+        <div className="mpc-lib-sections" role="tablist" aria-label="Library sections">
+          {MPC_LIBRARY_SECTIONS.map((s) => (
             <button
+              key={s.id}
               type="button"
-              disabled={!canImportFlip || busy}
-              onClick={() => void runImportFlip()}
-            >
-              Import FLIP
-            </button>
-            <button
-              type="button"
-              className="ghost"
+              role="tab"
+              aria-selected={section === s.id}
+              className={`mpc-lib-section${section === s.id ? ' active' : ''}`}
               disabled={busy}
-              onClick={() => void runBackup()}
+              onClick={() => {
+                setSection(s.id);
+                setSelectedId(null);
+              }}
             >
-              Back up
+              <span className="mpc-lib-section-label">{s.label}</span>
+              <span className="mpc-lib-count mono">
+                {entriesForSection(sourceEntries, s.id).length}
+              </span>
             </button>
-          </div>
+          ))}
         </div>
-      ) : null}
+
+        <div className="mpc-lib-stage">
+          <ul className="mpc-lib-list" data-testid="mpc-lib-list">
+            {listing.length === 0 ? (
+              <li className="mpc-lib-empty muted small">Nothing in {section}</li>
+            ) : (
+              listing.map((e) => (
+                <li key={e.id}>
+                  <button
+                    type="button"
+                    className={`mpc-lib-row${selectedId === e.id ? ' selected' : ''}`}
+                    disabled={busy}
+                    onClick={() => setSelectedId(e.id)}
+                  >
+                    <span className="mpc-lib-kind mono">{kindTag(e.kind)}</span>
+                    <span className="mpc-lib-name">{e.name}</span>
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+
+          {selected ? (
+            <div className="mpc-lib-detail">
+              <div className="mpc-lib-detail-name">{selected.name}</div>
+              <div className="mpc-lib-detail-path mono">{selected.relativePath}</div>
+              <div className="mpc-lib-detail-actions">
+                <button
+                  type="button"
+                  disabled={!canImportFlip || busy}
+                  onClick={() => void runImportFlip()}
+                >
+                  Import FLIP
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={busy}
+                  onClick={() => void runBackup()}
+                >
+                  Back up
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mpc-lib-detail mpc-lib-detail--empty muted small">
+              Select a row
+            </div>
+          )}
+        </div>
+      </div>
 
       {snap.health ? (
         <p className="muted small mono mpc-lib-meta">
