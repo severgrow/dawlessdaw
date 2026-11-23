@@ -46,6 +46,11 @@ A Feasibility (this) → B Network MIDI first-class → C Library PoC → D UI �
 - **Import FLIP** — Session take + FlipEngine (gain 1 · no normalize)
 - Fixtures work Offline; Connected only after Probe. No write-to-MPC.
 
+## Phase F (Tests + Bench protocol) — shipped in stack
+
+- Failure-path Vitest for library / backup / import
+- Bench checklist: DIN (g2/g3) + Ethernet/Network MIDI (Experimental) — see `docs/mpc-one-bench-protocol.md`
+
 ## Related
 
 - `docs/mpc-via-scarlett.md` · `docs/limitations.md` · Setup DIN next-action (PR #79)
