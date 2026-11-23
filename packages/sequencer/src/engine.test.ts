@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SequencerEngine } from './engine';
 import { activePattern, clonePattern } from './pattern';
 import type { SeqScheduledNote } from './types';
@@ -66,6 +66,69 @@ describe('SequencerEngine', () => {
     eng.onMidiClockMessage('clock', 400);
     expect(notes.map((note) => note.pitch)).toEqual([58, 55, 58]);
     eng.dispose();
+  });
+
+  it('switches on a four-beat boundary with Circuit clock and uses the latest edit when returning to B', () => {
+    const notes: SeqScheduledNote[] = [];
+    const eng = new SequencerEngine({ onNote: (note) => notes.push(note), persist: false });
+    eng.setLength(6);
+    eng.setStep(1, 0, { on: true, pitch: 55, gate: 1 });
+    eng.setStep(1, 3, { on: true, pitch: 55, gate: 1 });
+    const original = clonePattern(activePattern(eng.getSnapshot().bank));
+    eng.setStep(1, 0, { pitch: 58 });
+    eng.play();
+    const tick = (i: number) => eng.onMidiClockMessage('clock', i * 20);
+    tick(0);
+    eng.requestAudition(original);
+    expect(eng.getSnapshot()).toMatchObject({ playing: true, auditionSide: 'B', queuedAudition: 'A' });
+    for (let i = 1; i < 96; i++) tick(i);
+    expect(eng.getSnapshot().auditionSide).toBe('B');
+    const last = notes.at(-1)!;
+    tick(96);
+    expect(eng.getSnapshot()).toMatchObject({ playing: true, auditionSide: 'A', queuedAudition: null });
+    expect(notes.at(-1)).toMatchObject({ pitch: 55, step: 0, time: 1920 });
+    expect(last.time + last.durationMs).toBeLessThanOrEqual(notes.at(-1)!.time);
+    eng.requestAudition(null);
+    eng.setStep(1, 0, { pitch: 62 });
+    for (let i = 97; i <= 192; i++) tick(i);
+    expect(notes.at(-1)).toMatchObject({ pitch: 62, step: 0, time: 3840 });
+    expect(eng.getSnapshot()).toMatchObject({ playing: true, auditionSide: 'B', queuedAudition: null });
+    eng.dispose();
+  });
+
+  it('cancels a pending switch and commits the next request when hardware stops', () => {
+    const eng = new SequencerEngine({ onNote: () => {}, persist: false });
+    const original = clonePattern(activePattern(eng.getSnapshot().bank));
+    eng.play();
+    eng.requestAudition(original);
+    eng.requestAudition(null);
+    expect(eng.getSnapshot().queuedAudition).toBeNull();
+    eng.requestAudition(original);
+    eng.onMidiClockMessage('stop');
+    expect(eng.getSnapshot()).toMatchObject({ playing: false, auditionSide: 'A', queuedAudition: null });
+    eng.dispose();
+  });
+
+  it('switches at the scheduled bar boundary on internal clock without stopping', () => {
+    vi.useFakeTimers();
+    const notes: SeqScheduledNote[] = [];
+    const eng = new SequencerEngine({ onNote: (note) => notes.push(note), now: () => Date.now(), persist: false });
+    try {
+      eng.setClockSource('internal');
+      eng.setStep(1, 0, { on: true, pitch: 55, gate: 1 });
+      const original = clonePattern(activePattern(eng.getSnapshot().bank));
+      eng.setStep(1, 0, { pitch: 60 });
+      eng.play();
+      vi.advanceTimersByTime(100);
+      eng.requestAudition(original);
+      expect(eng.getSnapshot().queuedAudition).toBe('A');
+      vi.advanceTimersByTime(2100);
+      expect(notes.map((note) => note.pitch)).toEqual([60, 55]);
+      expect(eng.getSnapshot()).toMatchObject({ playing: true, auditionSide: 'A', queuedAudition: null });
+    } finally {
+      eng.dispose();
+      vi.useRealTimers();
+    }
   });
 
   it('records observed Circuit notes onto the playhead step', () => {

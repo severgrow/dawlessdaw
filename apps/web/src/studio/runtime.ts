@@ -343,7 +343,6 @@ export interface StudioRuntimeSnapshot {
    * Experimental until Bench. Not Guided Record / not .ncs write.
    */
   generative: GenerativeSnapshot;
-  patternAudition: 'A' | 'B';
   /**
    * Opt-in: also send sequencer notes to Circuit Out (documented ch 1–8).
    * Experimental / untested — needs Note Rx Bench. Never emits clock.
@@ -668,7 +667,6 @@ export class StudioRuntime {
   private spEffectSweep: StudioRuntimeSnapshot['spEffectSweep'] = null;
   private spEffectSweepTimers: ReturnType<typeof setTimeout>[] = [];
 
-  private patternAudition: 'A' | 'B' = 'B';
   private readonly circuitCapture = new MidiEventRecorder({
     getPosition: () => this.clockService.getMusicalTime(),
   });
@@ -895,7 +893,6 @@ export class StudioRuntime {
       },
       spEffectSweep: this.spEffectSweep ? { ...this.spEffectSweep } : null,
       generative: this.generative.getSnapshot(),
-      patternAudition: this.patternAudition,
       hearOnCircuit: this.hearOnCircuit,
       hardwareControl: this.hardwareControl.getSnapshot(),
     };
@@ -1282,7 +1279,7 @@ export class StudioRuntime {
   }
 
   seqToggleRecord(): void {
-    if (this.patternAudition === 'A') return;
+    if (this.sequencer.getSnapshot().auditionSide === 'A') return;
     this.sequencer.toggleRecording();
     const on = this.sequencer.getSnapshot().recording;
     this.setStatus(
@@ -1304,7 +1301,9 @@ export class StudioRuntime {
   }
 
   seqSetActivePattern(index: number): void {
-    if (this.patternAudition === 'A') this.setPatternAudition('B');
+    const seq = this.sequencer.getSnapshot();
+    if (seq.bank.activePatternIndex === index) return;
+    this.sequencer.setAuditionPattern(null);
     this.sequencer.setActivePattern(index);
     this.notify();
   }
@@ -1404,13 +1403,9 @@ export class StudioRuntime {
   }
 
   setPatternAudition(side: 'A' | 'B'): void {
-    if (side === this.patternAudition) return;
     const source = this.generative.getSnapshot().source;
     if (side === 'A' && !source) return;
-    this.patternAudition = side;
-    const stopped = this.sequencer.setAuditionPattern(side === 'A' ? source : null);
-    this.setStatus(stopped ? `Audition ${side} selected. Press Play to hear it.` : `Audition ${side} selected`);
-    this.notify();
+    this.sequencer.requestAudition(side === 'A' ? source : null);
   }
 
   /** Capture Live Mirror → generative source + working, then load into Pattern. */
@@ -1440,7 +1435,7 @@ export class StudioRuntime {
   }
 
   private setGenerativeSource(pattern: SeqPattern, kind: GenerativeSourceKind): void {
-    this.setPatternAudition('B');
+    this.sequencer.setAuditionPattern(null);
     this.generative.captureSource(pattern, kind);
     try {
       localStorage.setItem('dawlessdaw.patternOriginal.v1', JSON.stringify({ pattern, kind }));

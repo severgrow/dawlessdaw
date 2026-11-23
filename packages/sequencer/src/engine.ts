@@ -44,6 +44,7 @@ export class SequencerEngine {
   private listeners = new Set<SeqChangeListener>();
   private scheduler: SeqScheduler;
   private audition: SeqPattern | null = null;
+  private pendingAudition: { pattern: SeqPattern | null } | null = null;
   private awaitingAuditionPlay = false;
   private selectedTrack = 1;
   private selectedStep = 0;
@@ -60,6 +61,7 @@ export class SequencerEngine {
       now: opts.now,
       onNote: opts.onNote,
       onAllNotesOff: opts.onAllNotesOff,
+      onBarBoundary: () => this.applyQueuedAudition(),
       onPlayhead: (step) => {
         this.playhead = step;
         this.notifyThrottled();
@@ -80,6 +82,8 @@ export class SequencerEngine {
       playing: this.scheduler.isPlaying(),
       recording: this.recording,
       playhead: this.playhead,
+      auditionSide: this.audition ? 'A' : 'B',
+      queuedAudition: this.pendingAudition ? (this.pendingAudition.pattern ? 'A' : 'B') : null,
       undoCount: this.undoStack.length,
       redoCount: this.redoStack.length,
       liveActivity: this.liveActivity ? { ...this.liveActivity } : null,
@@ -125,6 +129,7 @@ export class SequencerEngine {
 
   stop(): void {
     this.scheduler.stop();
+    this.applyQueuedAudition();
     this.recording = false;
     this.playhead = -1;
     this.notify();
@@ -132,12 +137,12 @@ export class SequencerEngine {
 
   setRecording(on: boolean): void {
     this.recording = on;
+    if (on) this.pendingAudition = null;
     this.notify();
   }
 
   toggleRecording(): void {
-    this.recording = !this.recording;
-    this.notify();
+    this.setRecording(!this.recording);
   }
 
   /** Forward Circuit transport / clock into the scheduler (authority stays Circuit). */
@@ -151,6 +156,7 @@ export class SequencerEngine {
       this.notify();
     } else if (kind === 'stop') {
       this.scheduler.onTransportStop();
+      this.applyQueuedAudition();
       this.playhead = -1;
       this.notify();
     } else if (kind === 'clock') {
@@ -161,6 +167,7 @@ export class SequencerEngine {
   setClockSource(source: SeqClockSource): void {
     if (this.bank.clockSource === source) return;
     this.scheduler.stop();
+    this.applyQueuedAudition();
     this.bank = { ...this.bank, clockSource: source };
     this.scheduler.setClockSource(source);
     this.persistSoon();
@@ -169,6 +176,7 @@ export class SequencerEngine {
 
   /** A is a playback override. The bank and its edit history always belong to B. */
   setAuditionPattern(pattern: SeqPattern | null): boolean {
+    this.pendingAudition = null;
     if (pattern === this.audition) return false;
     const wasPlaying = this.scheduler.isPlaying();
     this.pauseForAudition();
@@ -177,8 +185,27 @@ export class SequencerEngine {
     return wasPlaying;
   }
 
+  requestAudition(pattern: SeqPattern | null): void {
+    if (!this.scheduler.isPlaying() || this.recording) {
+      this.setAuditionPattern(pattern);
+    } else {
+      const sameSide = Boolean(pattern) === Boolean(this.audition);
+      this.pendingAudition = sameSide ? null : { pattern };
+    }
+    this.notify();
+  }
+
+  private applyQueuedAudition(): boolean {
+    if (!this.pendingAudition) return false;
+    this.audition = this.pendingAudition.pattern;
+    this.pendingAudition = null;
+    this.syncSchedulerPattern();
+    return true;
+  }
+
   pauseForAudition(): void {
     this.awaitingAuditionPlay = true;
+    this.pendingAudition = null;
     if (this.scheduler.isPlaying() || this.recording) this.stop();
   }
 
@@ -294,6 +321,7 @@ export class SequencerEngine {
 
   replaceBank(bank: SeqBank): void {
     this.scheduler.stop();
+    this.applyQueuedAudition();
     this.bank = sanitizeBank(bank) ?? createBank();
     this.undoStack = [];
     this.redoStack = [];

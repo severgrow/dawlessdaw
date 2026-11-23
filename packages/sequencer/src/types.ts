@@ -65,6 +65,8 @@ export interface SeqEngineSnapshot {
   recording: boolean;
   /** Current step 0..length-1 while playing; -1 when stopped */
   playhead: number;
+  auditionSide: 'A' | 'B';
+  queuedAudition: 'A' | 'B' | null;
   undoCount: number;
   redoCount: number;
   /** Last observed Circuit note (monitor only) */

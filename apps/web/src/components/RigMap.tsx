@@ -145,34 +145,37 @@ export function RigMap() {
 
   return (
     <div className="panel rig-map-panel">
-      <h2 className="rig-map-head">
-        <span>Your rig</span>
-        <span className="rig-map-toggles">
-          <button
-            type="button"
-            className={`rig-backdrop-toggle${backdrop ? ' active' : ''}`}
-            aria-pressed={backdrop}
-            title="Soft wash and meter bars behind the map (saved in this browser)"
-            onClick={toggleBackdrop}
-          >
-            Motion {backdrop ? 'on' : 'off'}
-          </button>
-          <button
-            type="button"
-            className={`rig-backdrop-toggle${drawings ? ' active' : ''}`}
-            aria-pressed={drawings}
-            disabled={!backdrop}
-            title={
-              backdrop
-                ? 'Big equipment drawings behind the map (saved in this browser). Off = cleaner.'
-                : 'Turn Motion on first to show or hide background drawings'
-            }
-            onClick={toggleDrawings}
-          >
-            Drawings {drawings ? 'on' : 'off'}
-          </button>
-        </span>
-      </h2>
+      <div className="rig-map-head">
+        <h2>Your rig</h2>
+        <details className="rig-view">
+          <summary>View</summary>
+          <div className="rig-map-toggles">
+            <button
+              type="button"
+              className={`rig-backdrop-toggle${backdrop ? ' active' : ''}`}
+              aria-pressed={backdrop}
+              title="Soft wash and meter bars behind the map (saved in this browser)"
+              onClick={toggleBackdrop}
+            >
+              Motion {backdrop ? 'on' : 'off'}
+            </button>
+            <button
+              type="button"
+              className={`rig-backdrop-toggle${drawings ? ' active' : ''}`}
+              aria-pressed={drawings}
+              disabled={!backdrop}
+              title={
+                backdrop
+                  ? 'Big equipment drawings behind the map (saved in this browser). Off = cleaner.'
+                  : 'Turn Motion on first to show or hide background drawings'
+              }
+              onClick={toggleDrawings}
+            >
+              Drawings {drawings ? 'on' : 'off'}
+            </button>
+          </div>
+        </details>
+      </div>
       <div className="rig-map-scroll">
         <div className={`rig-map${backdrop ? ' with-backdrop' : ''}`} role="group" aria-label="Studio map">
           <RigMixerBackdrop active={backdrop} showDrawings={drawings} />
@@ -253,13 +256,19 @@ export function RigMap() {
                   {p.name}
                   {p.sub ? <em>{p.sub}</em> : null}
                 </span>
-                <span className={`rig-link-dot${d.lit ? ' on' : ''}`} aria-hidden="true" />
+                <span key={d.pulse || 'idle'} className={`rig-link-dot${d.lit ? ' on' : ''}${d.lit && d.pulse ? ' activity' : ''}`} aria-hidden="true" />
               </button>
             );
           })}
         </div>
       </div>
       <div className="rig-legend">
+        <span>Circuit input: {circuitOn ? 'Ready' : 'Disconnected'}</span>
+        <span>MIDI outputs: {[
+          mpcOn && 'MPC',
+          spOn && 'SP-404',
+          fm1On && 'FM1',
+        ].filter(Boolean).join(', ') || 'None connected'}</span>
         <span>
           <i className="lg-midi" /> MIDI · flashes on notes
         </span>

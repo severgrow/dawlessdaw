@@ -78,11 +78,11 @@ export function CircuitPatternCapture({
           {!inputPort
             ? 'Connect your Circuit Rhythm and assign its MIDI input.'
             : !bar
-              ? 'Play on Circuit, then capture the MIDI it sends.'
+              ? 'Circuit ready · listening for notes'
               : !bar.notes
                 ? 'No Circuit notes in this bar. Check Note Tx and play another bar.'
                 : [
-                    usedBar === barIndex ? 'Saved as Original A' : `${bar.notes} captured notes`,
+                    usedBar === barIndex ? 'Saved as Original A' : `Captured ${bar.notes} ${bar.notes === 1 ? 'note' : 'notes'}`,
                     current?.aligned ? bar.label : 'Estimated timing',
                     bar.collisions ? `${bar.collisions} extra hits shared a step` : '',
                     bar.estimatedGates ? `${bar.estimatedGates} gates estimated` : '',
