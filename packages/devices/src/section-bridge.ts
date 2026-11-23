@@ -15,6 +15,13 @@ export interface SectionBridgeRow {
 export interface SectionBridgeConfig {
   enabled: boolean;
   rows: SectionBridgeRow[];
+  /**
+   * Performance Memory → Section Bridge event-actions (Milestone 4).
+   * **Off by default.** When on, only confirmed project-change markers may
+   * optionally replay bridge outbound — never inferred pattern/mute guesses,
+   * and never auto fills of MPC/SP from inference.
+   */
+  eventActionsEnabled?: boolean;
 }
 
 export interface SectionBridgeAction {
@@ -29,6 +36,8 @@ export interface SectionBridgeAction {
 
 export const DEFAULT_SECTION_BRIDGE: SectionBridgeConfig = {
   enabled: true,
+  /** Performance Memory event-actions stay off until the user opts in. */
+  eventActionsEnabled: false,
   rows: [
     {
       projectIndex: 1,

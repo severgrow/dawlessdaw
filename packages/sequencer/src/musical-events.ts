@@ -15,7 +15,10 @@ export type MusicalEventKind =
   | 'last-touched'
   | 'track-activity'
   | 'pattern-hint'
-  | 'marker'; // reserved for Performance Memory
+  | 'marker'
+  | 'macro'
+  | 'morph'
+  | 'flip';
 
 export type MusicalEventConfidence = 'high' | 'medium' | 'low' | 'unknown';
 

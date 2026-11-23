@@ -69,6 +69,26 @@ export function SectionsWorkspace() {
       </p>
 
       <div className="panel">
+        <h2>Performance Memory event-actions</h2>
+        <p className="muted small">
+          Optional replay of <strong>confirmed</strong> project-change markers through Section Bridge.
+          Off by default. Inferred events (possible pattern change / mute) never auto-fill SP or MPC.
+        </p>
+        <button
+          type="button"
+          className={bridge.eventActionsEnabled ? 'active' : ''}
+          onClick={() =>
+            setSectionBridge({
+              ...bridge,
+              eventActionsEnabled: !bridge.eventActionsEnabled,
+            })
+          }
+        >
+          Event-actions {bridge.eventActionsEnabled ? 'on' : 'off'} · experimental
+        </button>
+      </div>
+
+      <div className="panel">
         <h2>Last Circuit project</h2>
         {last ? (
           <p className="mono">

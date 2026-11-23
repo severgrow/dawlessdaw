@@ -4,6 +4,7 @@
  */
 import { getCaptureEngine, type CaptureStatus } from '../recorder/captureEngine';
 import { getInputPreviewEngine } from '../recorder/inputPreview';
+import { getPerformanceMemory } from '../recorder/performanceMemory';
 import { loadTakeAudio, type TakeMeta } from '../recorder/takeStore';
 import type { StereoAudio } from '../recorder/types';
 import {
@@ -430,6 +431,71 @@ export class FlipEngine {
     this.session = upsertClip(this.session, next);
     this.persist();
     this.notify();
+  }
+
+  /**
+   * Performance Memory → FLIP: adopt an existing Session take region as a FLIP clip.
+   * Does not re-record; PCM stays in IndexedDB under takeId.
+   */
+  async importTakeRegion(opts: {
+    take: TakeMeta;
+    startFrame: number;
+    endFrame: number;
+    bpm?: number;
+  }): Promise<FlipClipMeta | null> {
+    const audio = await loadTakeAudio(opts.take.id);
+    if (!audio) return null;
+    const start = Math.max(0, Math.min(audio.left.length, Math.floor(opts.startFrame)));
+    const end = Math.max(start + 1, Math.min(audio.left.length, Math.floor(opts.endFrame)));
+    const bpm = opts.bpm && opts.bpm > 0 ? opts.bpm : this.clock.bpm || 120;
+    const contentFrames = end - start;
+    const seconds = contentFrames / audio.sampleRate;
+    const barsGuess = Math.max(1, Math.round((seconds * bpm) / 240));
+    const bars: FlipBarCount = isFlipBarCount(barsGuess)
+      ? barsGuess
+      : barsGuess <= 2
+        ? 2
+        : barsGuess <= 4
+          ? 4
+          : 8;
+
+    const clip: FlipClipMeta = {
+      schemaVersion: 1,
+      id: makeFlipClipId(),
+      takeId: opts.take.id,
+      name: `${opts.take.name} · range`,
+      createdAt: Date.now(),
+      bars,
+      bpm,
+      sampleRate: audio.sampleRate,
+      frameCount: audio.left.length,
+      inputDeviceId: null,
+      inputDeviceLabel: opts.take.tags.inputDeviceName || 'Session take',
+      captureOffsetMs: 0,
+      trim: { startFrame: start, endFrame: end },
+      alignment: 'unknown',
+      confidence: 'medium',
+      confidenceNote: 'Imported from Sessions trim — alignment not re-measured',
+      reverse: false,
+      fadeInMs: 0,
+      fadeOutMs: 0,
+      gain: 1,
+      chop: null,
+      sliceSeq: null,
+      clockSource: 'none',
+    };
+    this.activeAudio = audio;
+    this.session = upsertClip(this.session, clip);
+    this.persist();
+    // Jump straight to ready — no re-record / process pipeline.
+    this.machine = { phase: 'ready', error: null, lastQuantized: false };
+    getPerformanceMemory().recordFlip({
+      phase: 'ready',
+      summary: 'FLIP range from Sessions',
+      data: { takeId: opts.take.id, start, end },
+    });
+    this.notify();
+    return clip;
   }
 
   setReverse(on: boolean): void {

@@ -3,13 +3,43 @@
 export type WavBitDepth = 16 | 24 | 32;
 export type Mp3Mode = 'cbr320' | 'v0';
 
+/** Marker provenance — inferred must stay labelled and never auto-fill hardware. */
+export type TakeMarkerSource =
+  | 'manual'
+  | 'circuit-project'
+  | 'transport'
+  | 'inferred'
+  | 'macro'
+  | 'morph'
+  | 'flip';
+
 export interface TakeMarker {
+  /** Stable id for rename/delete (optional on legacy takes). */
+  id?: string;
   /** Sample index (frames, not interleaved) from take start */
   sample: number;
   /** Seconds from take start */
   seconds: number;
   label: string;
-  source: 'manual' | 'circuit-project';
+  source: TakeMarkerSource;
+  /** true = guess / inference */
+  inferred?: boolean;
+}
+
+/** Performance Memory timeline row persisted with the take (observations kept). */
+export interface TakePerformanceEvent {
+  id: string;
+  kind: string;
+  atMs: number;
+  relativeMs: number;
+  sample: number;
+  seconds: number;
+  summary: string;
+  confidence: string;
+  inferred: boolean;
+  honesty: string;
+  data: Record<string, unknown>;
+  markerId: string | null;
 }
 
 export interface TakeTags {
@@ -31,6 +61,8 @@ export interface TakeMeta {
   durationSec: number;
   tags: TakeTags;
   markers: TakeMarker[];
+  /** Performance Memory timeline — original audio/MIDI observations kept */
+  performanceEvents?: TakePerformanceEvent[];
   /** True while a crash/incomplete record may still have chunks */
   incomplete?: boolean;
 }

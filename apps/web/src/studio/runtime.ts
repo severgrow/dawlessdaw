@@ -127,6 +127,8 @@ import {
   type DawlessdawSession,
 } from '@dawlessdaw/sessions';
 import { MemoryRepository } from '@dawlessdaw/storage';
+import { getPerformanceMemory } from '../recorder/performanceMemory';
+import type { PerformanceTimelineEvent } from '@dawlessdaw/sequencer';
 
 /** Rig · Controller · Sequencer · Samples · Sections · Sessions (audio) · Test · Setup · Timing. */
 export type WorkspaceId =
@@ -276,7 +278,7 @@ type Listener = () => void;
 /** Accept saved Section Bridge rows only if they look right. */
 function sanitizeSectionBridge(raw: unknown): SectionBridgeConfig | null {
   if (!raw || typeof raw !== 'object') return null;
-  const r = raw as { enabled?: unknown; rows?: unknown };
+  const r = raw as { enabled?: unknown; rows?: unknown; eventActionsEnabled?: unknown };
   if (!Array.isArray(r.rows)) return null;
   const num = (v: unknown, lo: number, hi: number): number | null =>
     typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : null;
@@ -294,7 +296,12 @@ function sanitizeSectionBridge(raw: unknown): SectionBridgeConfig | null {
       },
     ];
   });
-  return { enabled: Boolean(r.enabled), rows };
+  return {
+    enabled: Boolean(r.enabled),
+    // Default OFF — Performance Memory must never silently drive SP/MPC fills.
+    eventActionsEnabled: r.eventActionsEnabled === true,
+    rows,
+  };
 }
 
 /** MPC channel (9–12) → Circuit track channel (1–4), from the My Studio remap. */
@@ -500,7 +507,10 @@ export class StudioRuntime {
       onAllNotesOff: () => this.routing.allNotesOff(),
     });
     this.seqUnsub = this.sequencer.subscribe(() => this.notify());
-    this.intelUnsub = this.circuitIntel.subscribe(() => this.notify());
+    this.intelUnsub = this.circuitIntel.subscribe(() => {
+      this.ingestPerformanceMemoryFromIntel();
+      this.notify();
+    });
     this.clockHealthUnsub = this.clockHealth.subscribe(() => this.notify());
     this.superMacroUnsub = this.superMacros.subscribe(() => this.notify());
     const savedMacros = loadSuperMacrosState();
@@ -560,6 +570,9 @@ export class StudioRuntime {
       }
       const bridge = sanitizeSectionBridge(saved.sectionBridge);
       if (bridge) this.sectionBridge = bridge;
+      getPerformanceMemory().setPrefs({
+        sectionEventActionsEnabled: this.sectionBridge.eventActionsEnabled === true,
+      });
       if (typeof saved.spNoteOffset === 'number' && Number.isFinite(saved.spNoteOffset)) {
         this.spNoteOffset = Math.max(-127, Math.min(127, Math.round(saved.spNoteOffset)));
       }
@@ -627,6 +640,7 @@ export class StudioRuntime {
       lastProject: this.lastProject ? { ...this.lastProject } : null,
       sectionBridge: {
         enabled: this.sectionBridge.enabled,
+        eventActionsEnabled: this.sectionBridge.eventActionsEnabled === true,
         rows: this.sectionBridge.rows.map((r) => ({ ...r })),
       },
       benchResults: this.benchResults.map((r) => ({
@@ -1199,6 +1213,7 @@ export class StudioRuntime {
       barQuantize: this.superMacros.getSnapshot().scenes.barQuantize,
       currentBar: bar,
     });
+    getPerformanceMemory().recordMorph({ phase: 'start', to });
     this.ensureSuperMacroTimers();
     this.setStatus(`Morph → scene ${to.toUpperCase()} (Splot-owned, not Circuit Scenes)`);
     this.notify();
@@ -1206,6 +1221,7 @@ export class StudioRuntime {
 
   cancelSuperMacroMorph(): void {
     this.superMacros.cancelMorph();
+    getPerformanceMemory().recordMorph({ phase: 'cancel' });
     this.setStatus('Macro morph cancelled');
     this.notify();
   }
@@ -1632,6 +1648,12 @@ export class StudioRuntime {
         this.ensureSuperMacroTimers();
         this.dispatchSuperMacroIntents(intents);
       }
+      getPerformanceMemory().recordMacro({
+        track: t,
+        knob,
+        cc: message.controller,
+        value: message.value ?? 0,
+      });
     }
 
     if (!isNote && !resolved && knob < 0) return;
@@ -1857,11 +1879,62 @@ export class StudioRuntime {
 
   setSectionBridge(config: SectionBridgeConfig): void {
     this.sectionBridge = {
+      eventActionsEnabled: config.eventActionsEnabled === true,
       enabled: config.enabled,
       rows: config.rows.map((r) => ({ ...r })),
     };
+    getPerformanceMemory().setPrefs({
+      sectionEventActionsEnabled: this.sectionBridge.eventActionsEnabled === true,
+    });
     this.persistSetup();
     this.notify();
+  }
+
+  /**
+   * Optional Performance Memory → Section Bridge replay for a confirmed project-change
+   * event. No-ops when event-actions are off or the event is inferred.
+   */
+  runPerformanceSectionEventAction(ev: {
+    kind: string;
+    inferred: boolean;
+    data: Record<string, unknown>;
+  }): boolean {
+    getPerformanceMemory().setPrefs({
+      sectionEventActionsEnabled: this.sectionBridge.eventActionsEnabled === true,
+    });
+    const asTimeline = {
+      id: 'replay',
+      kind: ev.kind as PerformanceTimelineEvent['kind'],
+      atMs: 0,
+      relativeMs: 0,
+      sample: 0,
+      seconds: 0,
+      summary: '',
+      confidence: 'high' as const,
+      inferred: ev.inferred,
+      honesty: 'experimental' as const,
+      data: ev.data,
+      markerId: null,
+    };
+    if (!getPerformanceMemory().mayRunSectionEventAction(asTimeline)) {
+      this.setStatus(
+        'Section event-actions off or event is inferred — nothing sent (no auto fills from guesses)',
+      );
+      return false;
+    }
+    const index = typeof ev.data.index === 'number' ? ev.data.index : null;
+    const program =
+      typeof ev.data.program === 'number'
+        ? ev.data.program
+        : index != null
+          ? index - 1
+          : null;
+    if (program == null || program < 0) {
+      this.setStatus('No project index on that timeline event');
+      return false;
+    }
+    this.runSectionBridge(program);
+    return true;
   }
 
   updateSectionBridgeRow(index: number, patch: Partial<SectionBridgeConfig['rows'][0]>): void {
@@ -2192,6 +2265,13 @@ export class StudioRuntime {
     }
 
     this.focus.onMidi(message, deviceId);
+  }
+
+  /** Pull new Circuit Intelligence events into Performance Memory while a take is recording. */
+  private ingestPerformanceMemoryFromIntel(): void {
+    const mem = getPerformanceMemory();
+    if (!mem.isActive()) return;
+    mem.ingestMusicalEvents(this.circuitIntel.getSnapshot().events);
   }
 
   private runSectionBridge(program: number): void {
