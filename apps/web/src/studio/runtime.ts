@@ -7,7 +7,12 @@ import {
   type MidiMessage,
 } from '@dawlessdaw/core';
 import {
+  CircuitIntelligenceEngine,
+  CircuitMirrorEngine,
+  ClockHealthMonitor,
   SequencerEngine,
+  type CircuitIntelligenceSnapshot,
+  type ClockHealthSnapshot,
   type SeqClockSource,
   type SeqEngineSnapshot,
   type SeqScheduledNote,
@@ -43,25 +48,52 @@ import {
   matchPortsToRoles,
   BUILTIN_PRESETS,
   CIRCUIT_MACRO_CCS,
+  DEVICE_NAME,
+  SuperMacroEngine,
   buildControllerRoutes,
+  bumpCircuitTick,
+  bumpSpTick,
   clonePreset,
   controlMappingKey,
+  CONTROLLER_KNOB_PICKUP_KEY,
   copyTrack,
   describeIncoming,
   destChannel,
+  emptyCircuitLiveTicks,
+  emptyProjectGrid,
+  emptySpLiveTicks,
   isLearnGlassIgnoredMidi,
+  isSpModeABank,
   knobTarget,
   myStudioPreset,
+  normalizeProjectGrid,
+  normalizeSpEffectProfile,
+  CIRCUIT_PROJECTS_STORAGE_KEY,
+  SP_EFFECT_CCS,
+  SP_EFFECT_NAMES_KEY,
+  defaultSpEffectProfile,
+  setEffectKnobLabel,
+  spModeANoteToPad,
+  ploeLiveV1Preset,
   presetFromTrackPlan,
   resolveControlMapping,
   sanitizePreset,
   slotCc,
   swapKnobs,
+  type CircuitLiveTicks,
+  type CircuitProjectSlot,
   type ControllerPreset,
   type CtrlDevice,
   type CtrlTrack,
   type KnobSlot,
+  type MacroSceneBank,
   type ResolvedControlMapping,
+  type SpEffectNameProfile,
+  type SpLiveTicks,
+  type SpModeABank,
+  type SuperMacro,
+  type SuperMacroSnapshot,
+  type SuperMacroTrafficConfig,
   legacyTrackPlan,
   sanitizeTrackPlan,
   setTrackSend as withTrackSend,
@@ -116,17 +148,25 @@ import {
   type DawlessdawSession,
 } from '@dawlessdaw/sessions';
 import { MemoryRepository } from '@dawlessdaw/storage';
+import { getPerformanceMemory } from '../recorder/performanceMemory';
+import type { PerformanceTimelineEvent } from '@dawlessdaw/sequencer';
+import { getFlipEngine } from '../flip/flipEngine';
+import { hardwareLabelForChannel } from '../flip/midiGuide';
 
-/** Rig · Controller · Sequencer · Samples · Sections · Sessions (audio) · Test · Setup. */
+/** Rig · Controller · Sequencer · Samples · Sections · Circuit · Sessions · Test · Setup · Timing. */
 export type WorkspaceId =
   | 'rig'
   | 'controller'
   | 'sequencer'
   | 'samples'
   | 'sections'
+  | 'circuit'
+  | 'sp'
   | 'sessions'
   | 'test'
-  | 'setup';
+  | 'setup'
+  | 'timing'
+  | 'macros';
 
 export interface StudioRuntimeSnapshot {
   /** True once Chrome granted Web MIDI access. */
@@ -241,6 +281,41 @@ export interface StudioRuntimeSnapshot {
   /** Dawlessdaw 8×16 sequencer (not Circuit's internal patterns). */
   sequencer: SeqEngineSnapshot;
   sequencerSelected: { track: number; step: number };
+  /**
+   * Circuit Intelligence (passive) — last-touched, activity guesses, musical position.
+   * Experimental until Patryk confirms on hardware. Never drives outbound MIDI.
+   */
+  circuitIntelligence: CircuitIntelligenceSnapshot;
+  /**
+   * Clock Health (Timing Lab Stage A) — passive MIDI clock quality.
+   * Not a clock master. Experimental until hardware confirm.
+   */
+  clockHealth: ClockHealthSnapshot;
+  /**
+   * Cross-device Super Macros (Milestone 3) — opt-in fan-out + A/B morph.
+   * Experimental until hardware confirm. Does not replace Controller MIDI Learn.
+   */
+  superMacros: SuperMacroSnapshot;
+  /**
+   * Phase 2 — live Note / CC / PC / Clock ticks from Circuit USB in.
+   * Lights the setup checklist as messages arrive. Experimental until hardware.
+   */
+  circuitLiveTicks: CircuitLiveTicks;
+  /** Phase 2 — 64 Project slots with user names / colours. */
+  circuitProjects: CircuitProjectSlot[];
+  /**
+   * Phase 2 — Controller knob soft takeover (promotes Super Macro direct → pickup).
+   * **Off by default.**
+   */
+  controllerKnobPickup: boolean;
+  /** Phase 3 — live ticks on SP out (and SP in when present). */
+  spLiveTicks: SpLiveTicks;
+  /** Phase 3 — last SP pad lit from Mode A note (bank + pad 1–16). */
+  lastSpPadHit: { bank: SpModeABank; pad: number; note: number; at: number } | null;
+  /** Phase 3 — effect CTRL names from guided ear test. */
+  spEffectNames: SpEffectNameProfile;
+  /** Phase 3 — effect-by-ear sweep in progress. */
+  spEffectSweep: { cc: number; step: number; running: boolean } | null;
 }
 
 type Listener = () => void;
@@ -248,7 +323,7 @@ type Listener = () => void;
 /** Accept saved Section Bridge rows only if they look right. */
 function sanitizeSectionBridge(raw: unknown): SectionBridgeConfig | null {
   if (!raw || typeof raw !== 'object') return null;
-  const r = raw as { enabled?: unknown; rows?: unknown };
+  const r = raw as { enabled?: unknown; rows?: unknown; eventActionsEnabled?: unknown };
   if (!Array.isArray(r.rows)) return null;
   const num = (v: unknown, lo: number, hi: number): number | null =>
     typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi ? v : null;
@@ -256,17 +331,68 @@ function sanitizeSectionBridge(raw: unknown): SectionBridgeConfig | null {
     const row = x as Record<string, unknown>;
     const projectIndex = num(row.projectIndex, 1, 64);
     if (projectIndex == null) return [];
+    const bankRaw = typeof row.spBank === 'string' ? row.spBank.toUpperCase() : null;
     return [
       {
         projectIndex,
         spProgramChange: num(row.spProgramChange, 0, 127),
+        spBank: bankRaw && isSpModeABank(bankRaw) ? bankRaw : null,
         mpcProgramChange: num(row.mpcProgramChange, 0, 127),
         sceneId: typeof row.sceneId === 'string' ? row.sceneId : null,
         label: typeof row.label === 'string' ? row.label.slice(0, 40) : undefined,
       },
     ];
   });
-  return { enabled: Boolean(r.enabled), rows };
+  return {
+    enabled: Boolean(r.enabled),
+    // Default OFF — Performance Memory must never silently drive SP/MPC fills.
+    eventActionsEnabled: r.eventActionsEnabled === true,
+    rows,
+  };
+}
+
+function loadCircuitProjects(): CircuitProjectSlot[] {
+  try {
+    const raw = localStorage.getItem(CIRCUIT_PROJECTS_STORAGE_KEY);
+    if (!raw) return emptyProjectGrid();
+    return normalizeProjectGrid(JSON.parse(raw) as unknown);
+  } catch {
+    return emptyProjectGrid();
+  }
+}
+
+function saveCircuitProjects(slots: CircuitProjectSlot[]): void {
+  try {
+    localStorage.setItem(CIRCUIT_PROJECTS_STORAGE_KEY, JSON.stringify(slots));
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadControllerKnobPickup(): boolean {
+  try {
+    return localStorage.getItem(CONTROLLER_KNOB_PICKUP_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function loadSpEffectNames(): SpEffectNameProfile {
+  try {
+    const raw = localStorage.getItem(SP_EFFECT_NAMES_KEY);
+    if (!raw) return defaultSpEffectProfile();
+    return normalizeSpEffectProfile(JSON.parse(raw) as unknown);
+  } catch {
+    return defaultSpEffectProfile();
+  }
+}
+
+function saveSpEffectNames(profile: SpEffectNameProfile): void {
+  try {
+    localStorage.setItem(SP_EFFECT_NAMES_KEY, JSON.stringify(profile));
+  } catch {
+    /* ignore */
+  }
 }
 
 /** MPC channel (9–12) → Circuit track channel (1–4), from the My Studio remap. */
@@ -291,6 +417,61 @@ function saveSetup(setup: PersistedStudioSetup): void {
   try {
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem(STORAGE_KEY_STUDIO_SETUP, JSON.stringify(setup));
+  } catch {
+    // ignore
+  }
+}
+
+const CIRCUIT_INTEL_AUTOFOCUS_KEY = 'dawlessdaw.circuitIntel.autoFocus';
+const SUPER_MACROS_KEY = 'dawlessdaw.superMacros.v1';
+
+function loadSuperMacrosState(): {
+  macros: SuperMacro[];
+  scenes: MacroSceneBank;
+  traffic: SuperMacroTrafficConfig;
+} | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(SUPER_MACROS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as {
+      macros: SuperMacro[];
+      scenes: MacroSceneBank;
+      traffic: SuperMacroTrafficConfig;
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveSuperMacrosState(state: {
+  macros: SuperMacro[];
+  scenes: MacroSceneBank;
+  traffic: SuperMacroTrafficConfig;
+}): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(SUPER_MACROS_KEY, JSON.stringify(state));
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadCircuitIntelAutoFocus(): boolean {
+  try {
+    if (typeof localStorage === 'undefined') return true;
+    const v = localStorage.getItem(CIRCUIT_INTEL_AUTOFOCUS_KEY);
+    if (v === null) return true;
+    return v !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function saveCircuitIntelAutoFocus(on: boolean): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(CIRCUIT_INTEL_AUTOFOCUS_KEY, on ? '1' : '0');
   } catch {
     // ignore
   }
@@ -335,9 +516,9 @@ export class StudioRuntime {
   private trackPlan: TrackPlan | null = null;
   private trackActivity: number[] = Array(9).fill(0);
   private lastProject: StudioRuntimeSnapshot['lastProject'] = null;
-  private controller: ControllerPreset = clonePreset(myStudioPreset('sp'));
+  private controller: ControllerPreset = clonePreset(ploeLiveV1Preset());
   private controllerPresets: ControllerPreset[] = [];
-  private controllerSavedId = BUILTIN_PRESETS[0]!.id;
+  private controllerSavedId = BUILTIN_PRESETS[0]!.id; // Ploe Live v1
   private controllerHistory: ControllerPreset[] = [];
   private controllerLearn: StudioRuntimeSnapshot['controllerLearn'] = null;
   private knobValues: number[][] = Array.from({ length: 8 }, () => Array(8).fill(0));
@@ -390,6 +571,33 @@ export class StudioRuntime {
   private started = false;
   private sequencer: SequencerEngine;
   private seqUnsub: (() => void) | null = null;
+  /** Passive Circuit Live observer — Circuit input MIDI only; never routes out. */
+  private circuitMirror = new CircuitMirrorEngine();
+  /**
+   * Passive Circuit Intelligence — analysis after routing; never emits MIDI.
+   * Auto-focus preference from localStorage (`dawlessdaw.circuitIntel.autoFocus`).
+   */
+  private circuitIntel = new CircuitIntelligenceEngine({
+    autoFocus: loadCircuitIntelAutoFocus(),
+  });
+  private intelUnsub: (() => void) | null = null;
+  /** Passive Clock Health — Timing Lab Stage A. */
+  private clockHealth = new ClockHealthMonitor();
+  private clockHealthUnsub: (() => void) | null = null;
+  /** Opt-in Super Macros — Milestone 3. */
+  private superMacros = new SuperMacroEngine();
+  private superMacroUnsub: (() => void) | null = null;
+  private superMacroFlushTimer: ReturnType<typeof setInterval> | null = null;
+  private superMacroMorphTimer: ReturnType<typeof setInterval> | null = null;
+  /** Phase 2 Circuit live ticks + project grid + Controller soft takeover. */
+  private circuitLiveTicks: CircuitLiveTicks = emptyCircuitLiveTicks();
+  private circuitProjects: CircuitProjectSlot[] = loadCircuitProjects();
+  private controllerKnobPickup = loadControllerKnobPickup();
+  private spLiveTicks: SpLiveTicks = emptySpLiveTicks();
+  private lastSpPadHit: StudioRuntimeSnapshot['lastSpPadHit'] = null;
+  private spEffectNames: SpEffectNameProfile = loadSpEffectNames();
+  private spEffectSweep: StudioRuntimeSnapshot['spEffectSweep'] = null;
+  private spEffectSweepTimers: ReturnType<typeof setTimeout>[] = [];
 
   constructor() {
     this.transport = new WebMidiTransport();
@@ -399,6 +607,32 @@ export class StudioRuntime {
       onAllNotesOff: () => this.routing.allNotesOff(),
     });
     this.seqUnsub = this.sequencer.subscribe(() => this.notify());
+    this.intelUnsub = this.circuitIntel.subscribe(() => {
+      this.ingestPerformanceMemoryFromIntel();
+      this.notify();
+    });
+    this.clockHealthUnsub = this.clockHealth.subscribe(() => this.notify());
+    this.superMacroUnsub = this.superMacros.subscribe(() => this.notify());
+    this.superMacros.setControllerPickup(this.controllerKnobPickup);
+    const savedMacros = loadSuperMacrosState();
+    if (savedMacros?.macros) this.superMacros.setMacros(savedMacros.macros);
+    if (savedMacros?.scenes) this.superMacros.setScenes(savedMacros.scenes);
+    if (savedMacros?.traffic) this.superMacros.setTraffic(savedMacros.traffic);
+    // Dev/smoke helper: drive Circuit Mirror from Playwright without outbound MIDI.
+    if (typeof window !== 'undefined') {
+      (window as unknown as { __splotCircuitMirror?: CircuitMirrorEngine }).__splotCircuitMirror =
+        this.circuitMirror;
+      (window as unknown as { __splotCircuitIntel?: CircuitIntelligenceEngine }).__splotCircuitIntel =
+        this.circuitIntel;
+      (window as unknown as { __splotClockHealth?: ClockHealthMonitor }).__splotClockHealth =
+        this.clockHealth;
+      (window as unknown as { __splotSuperMacros?: SuperMacroEngine }).__splotSuperMacros =
+        this.superMacros;
+    }
+    getFlipEngine().setMidiLabelFn((channel, note) => {
+      const base = hardwareLabelForChannel(channel, this.controller.tracks, DEVICE_NAME);
+      return `${base} · n${note}`;
+    });
     const saved = loadSetup();
     if (saved?.assignments?.length) {
       // Strip mock / dash sentinels so Live sync can auto-bind Felucca → FM1.
@@ -441,6 +675,9 @@ export class StudioRuntime {
       }
       const bridge = sanitizeSectionBridge(saved.sectionBridge);
       if (bridge) this.sectionBridge = bridge;
+      getPerformanceMemory().setPrefs({
+        sectionEventActionsEnabled: this.sectionBridge.eventActionsEnabled === true,
+      });
       if (typeof saved.spNoteOffset === 'number' && Number.isFinite(saved.spNoteOffset)) {
         this.spNoteOffset = Math.max(-127, Math.min(127, Math.round(saved.spNoteOffset)));
       }
@@ -508,6 +745,7 @@ export class StudioRuntime {
       lastProject: this.lastProject ? { ...this.lastProject } : null,
       sectionBridge: {
         enabled: this.sectionBridge.enabled,
+        eventActionsEnabled: this.sectionBridge.eventActionsEnabled === true,
         rows: this.sectionBridge.rows.map((r) => ({ ...r })),
       },
       benchResults: this.benchResults.map((r) => ({
@@ -547,6 +785,29 @@ export class StudioRuntime {
       onboarding: this.computeOnboarding(),
       sequencer: this.sequencer.getSnapshot(),
       sequencerSelected: this.sequencer.getSelected(),
+      circuitIntelligence: this.circuitIntel.getSnapshot(),
+      clockHealth: this.clockHealth.getSnapshot(),
+      superMacros: this.superMacros.getSnapshot(),
+      circuitLiveTicks: {
+        note: { ...this.circuitLiveTicks.note },
+        cc: { ...this.circuitLiveTicks.cc },
+        pc: { ...this.circuitLiveTicks.pc },
+        clock: { ...this.circuitLiveTicks.clock },
+      },
+      circuitProjects: this.circuitProjects.map((s) => ({ ...s })),
+      controllerKnobPickup: this.controllerKnobPickup,
+      spLiveTicks: {
+        note: { ...this.spLiveTicks.note },
+        cc: { ...this.spLiveTicks.cc },
+        pc: { ...this.spLiveTicks.pc },
+        clock: { ...this.spLiveTicks.clock },
+      },
+      lastSpPadHit: this.lastSpPadHit ? { ...this.lastSpPadHit } : null,
+      spEffectNames: {
+        ...this.spEffectNames,
+        knobs: this.spEffectNames.knobs.map((k) => ({ ...k })),
+      },
+      spEffectSweep: this.spEffectSweep ? { ...this.spEffectSweep } : null,
     };
   }
 
@@ -617,6 +878,26 @@ export class StudioRuntime {
         // Follow Circuit in only — never the forwarded OUT clock (no second competing clock).
         if (circuitIn && event.message.portId === circuitIn) {
           this.sequencer.onMidiClockMessage(event.message.kind, event.message.timestamp);
+          // Circuit Mirror: same Circuit-in filter — never forwarded OUT clock.
+          this.circuitMirror.onMidiMessage(event.message.kind);
+          // Intelligence analysis after mirror — still Circuit-in only; no outbound.
+          this.circuitIntel.onMidiTransport(event.message.kind);
+          // Clock Health (Timing Lab) — passive; never becomes clock master.
+          this.clockHealth.onMidiTransport(event.message.kind, event.message.portId);
+          const pos = this.circuitIntel.getSnapshot().position;
+          this.clockHealth.setPosition({
+            transport: pos.transport,
+            bar: pos.bar,
+            beat: pos.beat,
+            bpm: pos.bpm,
+          });
+        } else if (
+          event.message.kind === 'clock' &&
+          event.message.portId &&
+          (!circuitIn || event.message.portId !== circuitIn)
+        ) {
+          // Second input clocking? Hint only for duplicate-source (no BPM from this path).
+          this.clockHealth.observeOtherClockPort(event.message.portId);
         }
       }),
     );
@@ -963,6 +1244,172 @@ export class StudioRuntime {
     this.notify();
   }
 
+  /** Circuit Mirror Live engine — subscribe via getSnapshot / subscribe. Read-only. */
+  getCircuitMirror(): CircuitMirrorEngine {
+    return this.circuitMirror;
+  }
+
+  resetCircuitMirror(): void {
+    this.circuitMirror.reset();
+  }
+
+  exportCircuitMirrorDiagnostic(): string {
+    return JSON.stringify(this.circuitMirror.exportDiagnostic(), null, 2);
+  }
+
+  /** Circuit Intelligence — passive analysis; subscribe via getSnapshot. */
+  getCircuitIntelligence(): CircuitIntelligenceEngine {
+    return this.circuitIntel;
+  }
+
+  resetCircuitIntelligence(): void {
+    this.circuitIntel.reset();
+    this.notify();
+  }
+
+  exportCircuitIntelligenceDiagnostic(): string {
+    return JSON.stringify(this.circuitIntel.exportDiagnostic(), null, 2);
+  }
+
+  setCircuitIntelAutoFocus(on: boolean): void {
+    this.circuitIntel.setAutoFocus(on);
+    saveCircuitIntelAutoFocus(on);
+    this.setStatus(`Circuit auto-focus ${on ? 'on' : 'off'} (macros CC 21–28)`);
+    this.notify();
+  }
+
+  getClockHealth(): ClockHealthMonitor {
+    return this.clockHealth;
+  }
+
+  resetClockHealth(): void {
+    this.clockHealth.reset();
+    this.notify();
+  }
+
+  exportClockHealthDiagnostic(): string {
+    return JSON.stringify(this.clockHealth.exportDiagnostic(), null, 2);
+  }
+
+  /**
+   * User-triggered Latency Lab MIDI send — short note only.
+   * Does not change routes or apply delay correction.
+   */
+  sendLatencyLabNote(portId: string, data: Uint8Array): void {
+    this.transport.send(portId, data);
+    this.bus.emit({
+      type: 'midi:out',
+      message: parseMidiMessage(data, performance.now(), portId),
+    });
+  }
+
+  getSuperMacros(): SuperMacroEngine {
+    return this.superMacros;
+  }
+
+  setSuperMacros(macros: SuperMacro[]): void {
+    this.superMacros.setMacros(macros);
+    this.persistSuperMacros();
+    this.ensureSuperMacroTimers();
+    this.notify();
+  }
+
+  setSuperMacroScenes(scenes: MacroSceneBank): void {
+    this.superMacros.setScenes(scenes);
+    this.persistSuperMacros();
+    this.notify();
+  }
+
+  setSuperMacroTraffic(cfg: Partial<SuperMacroTrafficConfig>): void {
+    this.superMacros.setTraffic(cfg);
+    this.persistSuperMacros();
+    this.notify();
+  }
+
+  captureSuperMacroScene(which: 'a' | 'b'): void {
+    this.superMacros.captureScene(which);
+    this.persistSuperMacros();
+    this.notify();
+  }
+
+  startSuperMacroMorph(to: 'a' | 'b'): void {
+    const bar = this.circuitIntel.getSnapshot().position.bar;
+    this.superMacros.startMorph(to, {
+      barQuantize: this.superMacros.getSnapshot().scenes.barQuantize,
+      currentBar: bar,
+    });
+    getPerformanceMemory().recordMorph({ phase: 'start', to });
+    this.ensureSuperMacroTimers();
+    this.setStatus(`Morph → scene ${to.toUpperCase()} (Splot-owned, not Circuit Scenes)`);
+    this.notify();
+  }
+
+  cancelSuperMacroMorph(): void {
+    this.superMacros.cancelMorph();
+    getPerformanceMemory().recordMorph({ phase: 'cancel' });
+    this.setStatus('Macro morph cancelled');
+    this.notify();
+  }
+
+  panicSuperMacros(): void {
+    this.superMacros.panic();
+    this.persistSuperMacros();
+    this.setStatus('Super Macros panic — output disabled');
+    this.notify();
+  }
+
+  enableSuperMacrosAfterPanic(): void {
+    this.superMacros.enableAfterPanic();
+    this.persistSuperMacros();
+    this.notify();
+  }
+
+  exportSuperMacrosDiagnostic(): string {
+    return JSON.stringify(this.superMacros.exportDiagnostic(), null, 2);
+  }
+
+  private persistSuperMacros(): void {
+    const snap = this.superMacros.getSnapshot();
+    saveSuperMacrosState({
+      macros: snap.macros,
+      scenes: snap.scenes,
+      traffic: snap.traffic,
+    });
+  }
+
+  private ensureSuperMacroTimers(): void {
+    if (!this.superMacroFlushTimer) {
+      this.superMacroFlushTimer = setInterval(() => {
+        const intents = this.superMacros.flushPending();
+        this.dispatchSuperMacroIntents(intents);
+        const morphIntents = this.superMacros.tickMorph();
+        this.dispatchSuperMacroIntents(morphIntents);
+      }, 33);
+    }
+  }
+
+  private dispatchSuperMacroIntents(
+    intents: { roleId: 'mpc' | 'sp404' | 'fm1'; channel: number; cc: number; value: number }[],
+  ): void {
+    if (!intents.length) return;
+    const p = portsForRoles(this.assignments);
+    for (const intent of intents) {
+      const portId =
+        intent.roleId === 'mpc' ? p.mpcOut : intent.roleId === 'sp404' ? p.spOut : p.fm1Out;
+      if (!portId) continue;
+      const data = new Uint8Array([
+        0xb0 | ((intent.channel - 1) & 0x0f),
+        intent.cc & 0x7f,
+        intent.value & 0x7f,
+      ]);
+      this.transport.send(portId, data);
+      this.bus.emit({
+        type: 'midi:out',
+        message: parseMidiMessage(data, performance.now(), portId),
+      });
+    }
+  }
+
   // —— Circuit Controller ——
 
   private controllerDirty(): boolean {
@@ -1306,14 +1753,48 @@ export class StudioRuntime {
     const t = message.channel ?? 0;
     if (t < 1 || t > 8) return;
     const isNote = message.kind === 'note-on' && (message.velocity ?? 0) > 0;
+    // MIDI-guided FLIP: observe note-ons during capture (no MIDI playback).
+    if (isNote && message.note != null) {
+      getFlipEngine().ingestMidiNoteOn({
+        channel: t,
+        note: message.note,
+        velocity: message.velocity ?? 0,
+      });
+    }
     const knob =
       message.kind === 'cc' && message.controller != null
         ? CIRCUIT_MACRO_CCS.indexOf(message.controller as (typeof CIRCUIT_MACRO_CCS)[number])
         : -1;
     const resolved =
       message.kind === 'cc' ? resolveControlMapping(this.controller, message) : null;
-    if (!isNote && !resolved) return;
-    this.activeCircuitTrack = t;
+
+    // Last-touched from macros even when the track has no Controller mapping yet.
+    if (knob >= 0 && message.controller != null) {
+      const touch = this.circuitIntel.onMacroCc(t, message.controller, message.value ?? 0);
+      if (touch?.shouldAutoFocus) this.activeCircuitTrack = t;
+      // Super Macros (opt-in fan-out) — additive to single-destination Controller Learn.
+      this.superMacros.setActiveTrack(this.activeCircuitTrack ?? t);
+      const bar = this.circuitIntel.getSnapshot().position.bar;
+      this.superMacros.setMusicalBar(bar);
+      const intents = this.superMacros.onMacroCc(t, knob, message.value ?? 0);
+      if (intents.length) {
+        this.ensureSuperMacroTimers();
+        this.dispatchSuperMacroIntents(intents);
+      }
+      getPerformanceMemory().recordMacro({
+        track: t,
+        knob,
+        cc: message.controller,
+        value: message.value ?? 0,
+      });
+    }
+
+    if (!isNote && !resolved && knob < 0) return;
+
+    if (knob < 0) {
+      // Notes / non-macro CCs still update the live track highlight.
+      this.activeCircuitTrack = t;
+    }
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
     const learn = this.controllerLearn;
@@ -1529,13 +2010,239 @@ export class StudioRuntime {
 
   // —— Section Bridge ——
 
+  resetCircuitLiveTicks(): void {
+    this.circuitLiveTicks = emptyCircuitLiveTicks();
+    this.notify();
+  }
+
+  setCircuitProjectSlot(index: number, patch: Partial<Pick<CircuitProjectSlot, 'name' | 'colour'>>): void {
+    const i = Math.max(1, Math.min(64, Math.round(index)));
+    const slot = this.circuitProjects[i - 1];
+    if (!slot) return;
+    if (typeof patch.name === 'string') slot.name = patch.name.trim().slice(0, 40) || `Project ${i}`;
+    if (typeof patch.colour === 'string' && patch.colour.trim()) {
+      slot.colour = patch.colour.trim().slice(0, 32);
+    }
+    saveCircuitProjects(this.circuitProjects);
+    this.notify();
+  }
+
+  setControllerKnobPickup(on: boolean): void {
+    this.controllerKnobPickup = on;
+    try {
+      localStorage.setItem(CONTROLLER_KNOB_PICKUP_KEY, on ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+    this.superMacros.setControllerPickup(on);
+    this.setStatus(
+      on
+        ? 'Knob soft takeover on — Super Macro destinations wait for pickup (experimental)'
+        : 'Knob soft takeover off (default)',
+    );
+    this.notify();
+  }
+
+  resetSpLiveTicks(): void {
+    this.spLiveTicks = emptySpLiveTicks();
+    this.notify();
+  }
+
+  setSpEffectChannel(channel: number): void {
+    this.spEffectNames = {
+      ...this.spEffectNames,
+      channel: Math.min(16, Math.max(1, Math.round(channel))),
+    };
+    saveSpEffectNames(this.spEffectNames);
+    this.notify();
+  }
+
+  nameSpEffectKnob(cc: number, label: string): void {
+    this.spEffectNames = setEffectKnobLabel(this.spEffectNames, cc, label);
+    saveSpEffectNames(this.spEffectNames);
+    this.setStatus(`Saved SP effect CC ${cc} as “${label.trim()}” — untested until you confirm`);
+    this.notify();
+  }
+
+  /** Owner-only: mark ear names verified after Patryk confirms on hardware. */
+  markSpEffectNamesVerified(on: boolean): void {
+    this.spEffectNames = {
+      ...this.spEffectNames,
+      ownerVerified: on,
+      knobs: this.spEffectNames.knobs.map((k) => ({
+        ...k,
+        honesty: on && k.namedAt ? 'verified' : k.honesty === 'verified' ? 'untested' : k.honesty,
+      })),
+    };
+    saveSpEffectNames(this.spEffectNames);
+    this.setStatus(
+      on
+        ? 'SP effect names marked verified (owner confirm)'
+        : 'SP effect names back to untested / docs-backed',
+    );
+    this.notify();
+  }
+
+  /**
+   * Guided effect-by-ear sweep: send each CTRL CC 0→127→0 slowly on the SP channel.
+   * Never SysEx. User names which physical knob moved.
+   */
+  startSpEffectSweep(cc?: number): void {
+    const spOut = portsForRoles(this.assignments).spOut;
+    if (!spOut) {
+      this.setStatus('SP output port not assigned — Settings → Ports');
+      this.notify();
+      return;
+    }
+    for (const t of this.spEffectSweepTimers) clearTimeout(t);
+    this.spEffectSweepTimers = [];
+    const list = cc != null ? [cc] : [...SP_EFFECT_CCS];
+    const ch = this.spEffectNames.channel;
+    let delay = 0;
+    this.spEffectSweep = { cc: list[0]!, step: 0, running: true };
+    this.setStatus(`Effect-by-ear: sweeping CC ${list.join(', ')} on ch${ch} — watch the SP`);
+    this.notify();
+    for (const targetCc of list) {
+      const values = [
+        ...Array.from({ length: 17 }, (_, i) => Math.round((i / 16) * 127)),
+        ...Array.from({ length: 16 }, (_, i) => Math.round(((15 - i) / 16) * 127)),
+      ];
+      for (const v of values) {
+        const at = delay;
+        delay += 40;
+        this.spEffectSweepTimers.push(
+          setTimeout(() => {
+            const data = new Uint8Array([0xb0 | ((ch - 1) & 0x0f), targetCc & 0x7f, v & 0x7f]);
+            this.transport.send(spOut, data);
+            this.recordSpOutbound(data);
+            this.spEffectSweep = { cc: targetCc, step: v, running: true };
+            this.notify();
+          }, at),
+        );
+      }
+    }
+    this.spEffectSweepTimers.push(
+      setTimeout(() => {
+        this.spEffectSweep = null;
+        this.setStatus('Effect sweep done — name the knob that moved (still untested)');
+        this.notify();
+      }, delay + 50),
+    );
+  }
+
+  stopSpEffectSweep(): void {
+    for (const t of this.spEffectSweepTimers) clearTimeout(t);
+    this.spEffectSweepTimers = [];
+    this.spEffectSweep = null;
+    this.setStatus('Effect sweep stopped');
+    this.notify();
+  }
+
+  /** Record MIDI bytes leaving toward the SP (ticks + pad lights). */
+  private recordSpOutbound(data: Uint8Array): void {
+    const at = Date.now();
+    const status = data[0] ?? 0;
+    const hi = status & 0xf0;
+    const ch = (status & 0x0f) + 1;
+    if (hi === 0x90 && (data[2] ?? 0) > 0) {
+      this.spLiveTicks = bumpSpTick(this.spLiveTicks, 'note', at);
+      const note = data[1] ?? 0;
+      // Outbound note is already transposed for Mode A — map 36–51 → pad directly.
+      const pad = spModeANoteToPad(note, 0);
+      if (pad != null && ch >= 1 && ch <= 10) {
+        const bank = (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] as const)[ch - 1]!;
+        this.lastSpPadHit = { bank, pad, note, at };
+      }
+    } else if (hi === 0xb0) {
+      this.spLiveTicks = bumpSpTick(this.spLiveTicks, 'cc', at);
+    } else if (hi === 0xc0) {
+      this.spLiveTicks = bumpSpTick(this.spLiveTicks, 'pc', at);
+    } else if (status === 0xf8 || status === 0xfa || status === 0xfb) {
+      this.spLiveTicks = bumpSpTick(this.spLiveTicks, 'clock', at);
+    }
+  }
+
+  /** Host hook: midi:out toward the assigned SP port. */
+  observeSpOutbound(portId: string | undefined, data: Uint8Array): void {
+    const spOut = portsForRoles(this.assignments).spOut;
+    if (!spOut || !portId || portId !== spOut) return;
+    this.recordSpOutbound(data);
+    // Throttle UI for clock floods
+    const status = data[0] ?? 0;
+    if (status === 0xf8) {
+      if (this.spLiveTicks.clock.count % 24 === 0) this.notify();
+      return;
+    }
+    this.notify();
+  }
+
+  reorderSectionBridgeRows(from: number, to: number): void {
+    const rows = [...this.sectionBridge.rows];
+    if (from < 0 || from >= rows.length || to < 0 || to >= rows.length || from === to) return;
+    const [row] = rows.splice(from, 1);
+    if (!row) return;
+    rows.splice(to, 0, row);
+    this.setSectionBridge({ ...this.sectionBridge, rows });
+  }
+
   setSectionBridge(config: SectionBridgeConfig): void {
     this.sectionBridge = {
+      eventActionsEnabled: config.eventActionsEnabled === true,
       enabled: config.enabled,
       rows: config.rows.map((r) => ({ ...r })),
     };
+    getPerformanceMemory().setPrefs({
+      sectionEventActionsEnabled: this.sectionBridge.eventActionsEnabled === true,
+    });
     this.persistSetup();
     this.notify();
+  }
+
+  /**
+   * Optional Performance Memory → Section Bridge replay for a confirmed project-change
+   * event. No-ops when event-actions are off or the event is inferred.
+   */
+  runPerformanceSectionEventAction(ev: {
+    kind: string;
+    inferred: boolean;
+    data: Record<string, unknown>;
+  }): boolean {
+    getPerformanceMemory().setPrefs({
+      sectionEventActionsEnabled: this.sectionBridge.eventActionsEnabled === true,
+    });
+    const asTimeline = {
+      id: 'replay',
+      kind: ev.kind as PerformanceTimelineEvent['kind'],
+      atMs: 0,
+      relativeMs: 0,
+      sample: 0,
+      seconds: 0,
+      summary: '',
+      confidence: 'high' as const,
+      inferred: ev.inferred,
+      honesty: 'experimental' as const,
+      data: ev.data,
+      markerId: null,
+    };
+    if (!getPerformanceMemory().mayRunSectionEventAction(asTimeline)) {
+      this.setStatus(
+        'Section event-actions off or event is inferred — nothing sent (no auto fills from guesses)',
+      );
+      return false;
+    }
+    const index = typeof ev.data.index === 'number' ? ev.data.index : null;
+    const program =
+      typeof ev.data.program === 'number'
+        ? ev.data.program
+        : index != null
+          ? index - 1
+          : null;
+    if (program == null || program < 0) {
+      this.setStatus('No project index on that timeline event');
+      return false;
+    }
+    this.runSectionBridge(program);
+    return true;
   }
 
   updateSectionBridgeRow(index: number, patch: Partial<SectionBridgeConfig['rows'][0]>): void {
@@ -1806,11 +2513,25 @@ export class StudioRuntime {
       const interpreted = this.circuitInterpreter.interpret(message);
       this.lastCircuitGesture = interpreted;
 
+      // Phase 2 live ticks — Circuit USB in only (checklist lights).
+      if (fromCircuit) {
+        const at = Date.now();
+        if (message.kind === 'note-on' && (message.velocity ?? 0) > 0) {
+          this.circuitLiveTicks = bumpCircuitTick(this.circuitLiveTicks, 'note', at);
+        } else if (message.kind === 'cc') {
+          this.circuitLiveTicks = bumpCircuitTick(this.circuitLiveTicks, 'cc', at);
+        } else if (message.kind === 'program-change') {
+          this.circuitLiveTicks = bumpCircuitTick(this.circuitLiveTicks, 'pc', at);
+        }
+      }
+
       if (interpreted.gesture === 'arrangement' && interpreted.projectIndex != null) {
         this.pushBenchDetection(
           'circuit-project-pgm',
           `Project ${interpreted.projectIndex} (${interpreted.projectChangeKind})`,
         );
+        // Intelligence: Project Change is informational (never outbound from intel).
+        if (fromCircuit) this.circuitIntel.onProjectChange(message.value ?? 0);
         this.runSectionBridge(message.value ?? 0);
         this.notify();
         return;
@@ -1827,6 +2548,20 @@ export class StudioRuntime {
               message.note,
               message.velocity ?? 0,
             );
+            // Circuit Mirror Live: Circuit **input** only (fromCircuit gate above).
+            if (fromCircuit) {
+              this.circuitMirror.onNoteOn(
+                message.channel,
+                message.note,
+                message.velocity ?? 0,
+              );
+              // Activity fingerprints — after routing path; analysis only.
+              this.circuitIntel.onNoteOn(
+                message.channel,
+                message.note,
+                message.velocity ?? 0,
+              );
+            }
           }
         }
         this.pushBenchDetection(
@@ -1850,6 +2585,13 @@ export class StudioRuntime {
     }
 
     this.focus.onMidi(message, deviceId);
+  }
+
+  /** Pull new Circuit Intelligence events into Performance Memory while a take is recording. */
+  private ingestPerformanceMemoryFromIntel(): void {
+    const mem = getPerformanceMemory();
+    if (!mem.isActive()) return;
+    mem.ingestMusicalEvents(this.circuitIntel.getSnapshot().events);
   }
 
   private runSectionBridge(program: number): void {
@@ -2111,6 +2853,10 @@ export class StudioRuntime {
     const spOut = portsForRoles(this.assignments).spOut;
     const fm1Out = portsForRoles(this.assignments).fm1Out;
     const isIn = circuitIn != null && message.portId === circuitIn;
+    if (isIn && (message.kind === 'clock' || message.kind === 'start' || message.kind === 'continue')) {
+      // Throttle clock tick UI bumps — F8 is 24 PPQN; count every tick but notify sparsely via clock path.
+      this.circuitLiveTicks = bumpCircuitTick(this.circuitLiveTicks, 'clock', now);
+    }
     const isOut =
       (mpcOut != null && message.portId === mpcOut) ||
       (spOut != null && message.portId === spOut) ||
@@ -2319,6 +3065,8 @@ export function getStudioRuntime(): StudioRuntime {
         const note = data[1] ?? 0;
         singleton?.recordOutboundLatency(note, channel, ev.message.portId);
       }
+      // Phase 3 — SP live ticks + pad lights from any SP-bound outbound MIDI.
+      singleton?.observeSpOutbound(ev.message.portId, data);
     });
   }
   return singleton;

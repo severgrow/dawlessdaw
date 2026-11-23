@@ -2,9 +2,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   clearMixerOutLevels,
   getMixerOutLevels,
+  loadRigBackdropDrawings,
   loadRigBackdropEnabled,
   publishMixerOutLevels,
+  RIG_BACKDROP_DRAWINGS_KEY,
   RIG_BACKDROP_KEY,
+  saveRigBackdropDrawings,
   saveRigBackdropEnabled,
   subscribeMixerOutLevels,
 } from './mixerOutBus';
@@ -13,10 +16,24 @@ afterEach(() => {
   clearMixerOutLevels();
   try {
     localStorage.removeItem(RIG_BACKDROP_KEY);
+    localStorage.removeItem(RIG_BACKDROP_DRAWINGS_KEY);
   } catch {
     // ignore
   }
 });
+
+function memStorage() {
+  const mem = new Map<string, string>();
+  return {
+    getItem: (k: string) => mem.get(k) ?? null,
+    setItem: (k: string, v: string) => {
+      mem.set(k, v);
+    },
+    removeItem: (k: string) => {
+      mem.delete(k);
+    },
+  };
+}
 
 describe('mixerOutBus', () => {
   it('publishes levels to subscribers', () => {
@@ -31,20 +48,23 @@ describe('mixerOutBus', () => {
   });
 
   it('persists backdrop toggle', () => {
-    const mem = new Map<string, string>();
-    const storage = {
-      getItem: (k: string) => mem.get(k) ?? null,
-      setItem: (k: string, v: string) => {
-        mem.set(k, v);
-      },
-      removeItem: (k: string) => {
-        mem.delete(k);
-      },
-    };
+    const storage = memStorage();
     expect(loadRigBackdropEnabled(true, storage)).toBe(true);
     saveRigBackdropEnabled(false, storage);
     expect(loadRigBackdropEnabled(true, storage)).toBe(false);
     saveRigBackdropEnabled(true, storage);
     expect(loadRigBackdropEnabled(true, storage)).toBe(true);
+  });
+
+  it('defaults equipment drawings off and persists independently', () => {
+    const storage = memStorage();
+    expect(loadRigBackdropDrawings(false, storage)).toBe(false);
+    saveRigBackdropDrawings(true, storage);
+    expect(loadRigBackdropDrawings(false, storage)).toBe(true);
+    saveRigBackdropEnabled(false, storage);
+    // Drawings pref stays even if Motion is off
+    expect(loadRigBackdropDrawings(false, storage)).toBe(true);
+    saveRigBackdropDrawings(false, storage);
+    expect(loadRigBackdropDrawings(false, storage)).toBe(false);
   });
 });

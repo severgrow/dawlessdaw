@@ -5,6 +5,7 @@
  */
 
 import type { WavBitDepth } from '../recorder/types';
+import type { FlipMidiGuideState } from './midiGuide';
 
 /** Capture length in musical bars (4/4 sixteenths × 16). */
 export type FlipBarCount = 1 | 2 | 4 | 8;
@@ -106,6 +107,11 @@ export interface FlipClipMeta {
   chop: FlipChop | null;
   sliceSeq: FlipSliceSeq | null;
   clockSource: 'circuit' | 'internal' | 'none';
+  /**
+   * MIDI-guided FLIP (Milestone 5) — captured note-ons + suggested slices.
+   * Optional on legacy clips. Original take PCM remains unchanged.
+   */
+  midiGuide?: FlipMidiGuideState | null;
 }
 
 /** MIDI handoff prefs persisted with the FLIP session (Dawlessdaw mute only). */

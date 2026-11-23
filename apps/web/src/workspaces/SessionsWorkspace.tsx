@@ -15,6 +15,9 @@ import {
   getCaptureEngine,
   type CaptureStatus,
 } from '../recorder/captureEngine';
+import { getPerformanceMemory } from '../recorder/performanceMemory';
+import { toTakeMarkers } from '@dawlessdaw/sequencer';
+import { getFlipEngine } from '../flip/flipEngine';
 import {
   deleteTake,
   listTakes,
@@ -23,6 +26,7 @@ import {
   updateTakeMeta,
   type TakeMeta,
 } from '../recorder/takeStore';
+import type { TakeMarker, TakePerformanceEvent } from '../recorder/types';
 import {
   clampTrim,
   prepareForExport,
@@ -141,6 +145,8 @@ export function SessionsWorkspace() {
   );
   const [spGrantWarning, setSpGrantWarning] = useState<string | null>(null);
   const [spBusy, setSpBusy] = useState(false);
+  const [playheadFrame, setPlayheadFrame] = useState<number | null>(null);
+  const [editingMarkerId, setEditingMarkerId] = useState<string | null>(null);
   const playRef = useRef<AudioBufferSourceNode | null>(null);
   const waveRef = useRef<HTMLCanvasElement>(null);
   const selectedInputRef = useRef<AudioInputDevice | null>(null);
@@ -232,14 +238,16 @@ export function SessionsWorkspace() {
         void stopRecordRef.current();
       }
     });
+    // Project-change markers come from Performance Memory via Circuit Intelligence
+    // (confirmed PC). Avoid a second CaptureEngine marker here.
     const unsubIn = runtime.bus.on('midi:in', (ev) => {
       if (ev.type !== 'midi:in') return;
       const m = ev.message;
       if (m.kind !== 'program-change' || m.channel !== 16) return;
-      const engine = getCaptureEngine();
-      if (engine.status().state !== 'recording') return;
-      const prog = (m.value ?? 0) % 64;
-      engine.addMarker(`Project ${prog + 1}`, 'circuit-project');
+      if (getCaptureEngine().status().state !== 'recording') return;
+      getPerformanceMemory().ingestMusicalEvents(
+        getRuntime().getCircuitIntelligence().getSnapshot().events,
+      );
     });
     return () => {
       unsub();
@@ -256,9 +264,14 @@ export function SessionsWorkspace() {
         return;
       if (e.key === 'm' || e.key === 'M') {
         e.preventDefault();
-        const engine = getCaptureEngine();
-        if (engine.status().state === 'recording') {
-          engine.addMarker('Mark', 'manual');
+        if (getCaptureEngine().status().state === 'recording') {
+          const pm = getPerformanceMemory().addManualMarker('Mark');
+          if (pm) {
+            getCaptureEngine().addMarker(pm.label, 'manual', {
+              id: pm.id,
+              inferred: false,
+            });
+          }
           setMsg('Marker added');
         }
       }
@@ -274,7 +287,7 @@ export function SessionsWorkspace() {
     if (!canvas || !g || !audio || !selected) return;
     const { width, height } = canvas;
     const css = getComputedStyle(canvas);
-    const accent = css.getPropertyValue('--accent').trim() || '#9a2a45';
+    const accent = css.getPropertyValue('--accent').trim() || '#9fdcc2';
     const alert = css.getPropertyValue('--alert-hi').trim() || '#b5ead3';
     const dim = css.getPropertyValue('--line-hard').trim() || '#3a3a3a';
     g.clearRect(0, 0, width, height);
@@ -316,13 +329,32 @@ export function SessionsWorkspace() {
 
     for (const m of selected.markers) {
       const x = (m.sample / audio.left.length) * width;
-      g.strokeStyle = m.source === 'circuit-project' ? alert : '#ecebe6';
+      const inferred = m.inferred === true || m.source === 'inferred';
+      g.strokeStyle = inferred
+        ? '#c4a574'
+        : m.source === 'circuit-project'
+          ? alert
+          : m.source === 'transport'
+            ? '#7eb8a2'
+            : '#ecebe6';
+      g.setLineDash(inferred ? [4, 3] : []);
       g.beginPath();
       g.moveTo(x, 0);
       g.lineTo(x, height);
       g.stroke();
+      g.setLineDash([]);
     }
-  }, [audio, selected, trimStart, trimEnd, zoom]);
+    if (playheadFrame != null) {
+      const px = (playheadFrame / audio.left.length) * width;
+      g.strokeStyle = '#9fdcc2';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(px, 0);
+      g.lineTo(px, height);
+      g.stroke();
+      g.lineWidth = 1;
+    }
+  }, [audio, selected, trimStart, trimEnd, zoom, playheadFrame]);
 
   const startRecord = useCallback(async () => {
     setMsg(null);
@@ -331,7 +363,8 @@ export function SessionsWorkspace() {
     const live = useStudioStore.getState();
     const scene = live.scenes.find((s) => s.id === live.activeSceneId);
     try {
-      await getCaptureEngine().start({
+      const engine = getCaptureEngine();
+      await engine.start({
         deviceId: input?.deviceId ?? null,
         deviceLabel: label,
         tags: {
@@ -341,17 +374,48 @@ export function SessionsWorkspace() {
           inputDeviceName: label,
         },
       });
+      const st = engine.status();
+      getPerformanceMemory().setPrefs({
+        sectionEventActionsEnabled: live.sectionBridge.eventActionsEnabled === true,
+      });
+      getPerformanceMemory().start({
+        sampleRate: st.sampleRate,
+        getFrames: () => getCaptureEngine().status().frames,
+      });
+      // Seed any recent intel events already observed.
+      getPerformanceMemory().ingestMusicalEvents(
+        getRuntime().getCircuitIntelligence().getSnapshot().events,
+      );
+      setMsg('Recording · Performance Memory listening (experimental)');
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
     }
-  }, []);
+  }, [getRuntime]);
 
   const stopRecord = useCallback(async () => {
-    const meta = await getCaptureEngine().stop();
+    const mem = getPerformanceMemory().isActive()
+      ? getPerformanceMemory().stop()
+      : { events: [], markers: [] };
+    const markers = mem.markers.length
+      ? (toTakeMarkers(mem.markers) as TakeMarker[])
+      : undefined;
+    const performanceEvents = mem.events.length
+      ? (mem.events as TakePerformanceEvent[])
+      : undefined;
+    const meta = await getCaptureEngine().stop(
+      markers || performanceEvents
+        ? { markers: markers ?? [], performanceEvents }
+        : undefined,
+    );
     await refreshTakes();
     if (meta) {
       setSelectedId(meta.id);
-      setMsg(`Saved take · ${formatTime(meta.durationSec)}`);
+      const n = meta.performanceEvents?.length ?? 0;
+      setMsg(
+        `Saved take · ${formatTime(meta.durationSec)}${
+          n ? ` · ${n} timeline event${n === 1 ? '' : 's'}` : ''
+        }`,
+      );
     }
   }, [refreshTakes]);
 
@@ -574,7 +638,9 @@ export function SessionsWorkspace() {
         <h1>sessions</h1>
         <span className="readout mono">{spaceHint}</span>
       </div>
-      <p className="lead">Record stereo from any USB input Chrome sees. Takes stay local — nothing uploaded.</p>
+      <p className="lead">
+        Record stereo from any USB input Chrome sees. Takes stay on this Mac — nothing uploaded.
+      </p>
 
       {recoverNote ? <p className="warn">{recoverNote}</p> : null}
       {msg ? <p className="mono small">{msg}</p> : null}
@@ -631,7 +697,13 @@ export function SessionsWorkspace() {
             className="ghost"
             disabled={!recording}
             onClick={() => {
-              getCaptureEngine().addMarker('Mark', 'manual');
+              const pm = getPerformanceMemory().addManualMarker('Mark');
+              if (pm) {
+                getCaptureEngine().addMarker(pm.label, 'manual', {
+                  id: pm.id,
+                  inferred: false,
+                });
+              }
               setMsg('Marker added (M)');
             }}
           >
@@ -647,8 +719,10 @@ export function SessionsWorkspace() {
         <MoreInfo>
           <p className="muted small">
             ZED USB = 16-bit / 48 kHz max; for 24-bit route ZED → Scarlett and pick Scarlett. Raw PCM
-            via AudioWorklet (echo cancel / AGC off). Clip at −0.3 dBFS (2 s hold). Auto-markers on
-            Circuit ch-16 Program Change.
+            via AudioWorklet (echo cancel / AGC off). Clip at −0.3 dBFS (2 s hold). Performance
+            Memory records transport / project / activity / macros / morphs while you record;
+            inferred markers are dashed and labelled. Section Bridge event-actions stay off by
+            default.
           </p>
         </MoreInfo>
       </div>
@@ -732,8 +806,49 @@ export function SessionsWorkspace() {
                   }}
                 />
                 <p className="muted small">
-                  Click = start handle · Shift-click = end · markers snap when enabled
+                  Click = start handle · Shift-click = end · markers snap when enabled · playhead =
+                  last jumped marker
                 </p>
+              </div>
+              <div className="row wrap" style={{ gap: '0.45rem', marginBottom: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => playRegion(trimStart, trimEnd)}
+                >
+                  Play selection
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={playheadFrame == null}
+                  onClick={() => {
+                    if (playheadFrame == null) return;
+                    playRegion(playheadFrame, Math.min(audio.left.length, playheadFrame + audio.sampleRate * 4));
+                  }}
+                >
+                  Jump play from playhead
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void (async () => {
+                      const clip = await getFlipEngine().importTakeRegion({
+                        take: selected,
+                        startFrame: trimStart,
+                        endFrame: trimEnd,
+                        bpm: selected.tags.tempoBpm ?? snap.estimatedBpm ?? undefined,
+                      });
+                      if (!clip) {
+                        setMsg('Could not send range to FLIP (audio missing)');
+                        return;
+                      }
+                      getRuntime().setWorkspace('sequencer');
+                      setMsg(`Sent trim to FLIP · ${clip.name}`);
+                    })();
+                  }}
+                >
+                  Send trim to FLIP
+                </button>
               </div>
               <div className="row wrap">
                 <label className="field inline">
@@ -946,7 +1061,9 @@ export function SessionsWorkspace() {
                     <span className="rec-sp-dest-vol">no volume yet</span>
                   )}
                 </div>
-                <p className="rec-sp-hint mono">{SP_IMPORT_HINT}</p>
+                <p className="rec-sp-hint mono">
+                  {SP_IMPORT_HINT} · Roland Reference Manual (or check the manual if menus differ)
+                </p>
                 {spGrantWarning ? <p className="warn small">{spGrantWarning}</p> : null}
                 <div className="row wrap">
                   <button
@@ -981,6 +1098,147 @@ export function SessionsWorkspace() {
           )}
         </div>
       </div>
+
+      {selected ? (
+        <div className="panel pm-panel">
+          <div className="page-head" style={{ marginBottom: '0.5rem' }}>
+            <h2>Performance Memory</h2>
+            <span className="ci-badge">experimental</span>
+          </div>
+          <p className="muted small">
+            Event timeline from the take. Inferred rows are labelled — they never auto-fill SP/MPC.
+            Original audio stays untouched; observations persist with the take in IndexedDB.
+          </p>
+
+          <h3>Markers</h3>
+          {selected.markers.length === 0 ? (
+            <p className="muted small">No markers on this take.</p>
+          ) : (
+            <ul className="pm-marker-list">
+              {selected.markers.map((m, i) => {
+                const id = m.id ?? `legacy-${i}`;
+                const inferred = m.inferred === true || m.source === 'inferred';
+                return (
+                  <li key={id} className={inferred ? 'pm-inferred' : undefined}>
+                    <button
+                      type="button"
+                      className="ghost pm-jump"
+                      onClick={() => {
+                        setPlayheadFrame(m.sample);
+                        setTrimWithSnap('start', m.sample);
+                        if (audio) {
+                          playRegion(
+                            m.sample,
+                            Math.min(audio.left.length, m.sample + audio.sampleRate * 2),
+                          );
+                        }
+                      }}
+                    >
+                      {formatTime(m.seconds)}
+                    </button>
+                    {editingMarkerId === id ? (
+                      <input
+                        className="text-input"
+                        defaultValue={m.label}
+                        autoFocus
+                        onBlur={(e) => {
+                          const label = e.target.value.trim() || m.label;
+                          const next = selected.markers.map((x, j) =>
+                            (x.id ?? `legacy-${j}`) === id ? { ...x, label } : x,
+                          );
+                          setTakes((prev) =>
+                            prev.map((t) => (t.id === selected.id ? { ...t, markers: next } : t)),
+                          );
+                          void updateTakeMeta(selected.id, { markers: next });
+                          setEditingMarkerId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                        }}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() => setEditingMarkerId(id)}
+                        title="Rename"
+                      >
+                        {m.label}
+                      </button>
+                    )}
+                    <span className="mono small muted">
+                      {m.source}
+                      {inferred ? ' · inferred' : ''}
+                    </span>
+                    <button
+                      type="button"
+                      className="ghost"
+                      aria-label="Delete marker"
+                      onClick={() => {
+                        const next = selected.markers.filter(
+                          (x, j) => (x.id ?? `legacy-${j}`) !== id,
+                        );
+                        setTakes((prev) =>
+                          prev.map((t) => (t.id === selected.id ? { ...t, markers: next } : t)),
+                        );
+                        void updateTakeMeta(selected.id, { markers: next });
+                      }}
+                    >
+                      ×
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          <h3>Event timeline</h3>
+          {(selected.performanceEvents?.length ?? 0) === 0 ? (
+            <p className="muted small">
+              No timeline on this take (record with Performance Memory active, or older take).
+            </p>
+          ) : (
+            <ul className="pm-timeline mono small">
+              {selected.performanceEvents!.slice(0, 80).map((ev) => (
+                <li key={ev.id} className={ev.inferred ? 'pm-inferred' : undefined}>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => {
+                      setPlayheadFrame(ev.sample);
+                      if (audio) playRegion(ev.sample, Math.min(audio.left.length, ev.sample + audio.sampleRate));
+                    }}
+                  >
+                    {formatTime(ev.seconds)}
+                  </button>
+                  <span>
+                    {ev.inferred ? 'inferred · ' : ''}
+                    {ev.summary}
+                  </span>
+                  <span className="muted">{ev.kind}</span>
+                  {ev.kind === 'project-change' && !ev.inferred ? (
+                    <button
+                      type="button"
+                      className="ghost"
+                      title="Requires Section Bridge event-actions on"
+                      onClick={() => {
+                        const ok = getRuntime().runPerformanceSectionEventAction(ev);
+                        setMsg(
+                          ok
+                            ? 'Replayed Section Bridge for confirmed project event'
+                            : 'Event-actions off or blocked — nothing sent',
+                        );
+                      }}
+                    >
+                      Replay bridge
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
 
       <details className="panel collapsed-chrome">
         <summary>

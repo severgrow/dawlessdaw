@@ -4,6 +4,10 @@ Turns the Circuit Rhythm into a controller for the SP-404MKII, FM1 (Skiff) and M
 
 Open the **Controller** tab (keyboard **2**). The Rig tab only shows a read-only track summary — edit routing here.
 
+## Default: Ploe Live v1 (built-in)
+
+Verified routing path (22 Nov 2026): **T1–T4 → MPC** (Scarlett DIN), **T5–T6 → Skiff tracks 1–2**, **T7–T8 → SP banks A–B**. Change any track's Bank/Track on the Controller strip anytime. Older **My Studio** presets stay in the preset list.
+
 ## My Studio (built-in)
 
 | Circuit | Plays | Knobs (default) |

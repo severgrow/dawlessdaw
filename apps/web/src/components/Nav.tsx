@@ -1,22 +1,6 @@
 import { useEffect } from 'react';
-import {
-  LAST_TAB_KEY,
-  useStudioActions,
-  useStudioStore,
-  type WorkspaceId,
-} from '../store/useStudioStore';
-
-const ITEMS: { id: WorkspaceId; label: string; hint: string }[] = [
-  { id: 'rig', label: 'Rig', hint: 'Map of the studio · listen · tempo' },
-  { id: 'controller', label: 'Controller', hint: 'Circuit tracks and knobs → SP, FM1, MPC' },
-  { id: 'sequencer', label: 'Sequencer', hint: 'Dawlessdaw 8×16 patterns → same destinations' },
-  { id: 'samples', label: 'Samples', hint: 'SP-404 pads: load, trim, save WAVs' },
-  { id: 'sections', label: 'Sections', hint: 'Circuit project → SP pattern / MPC sequence' },
-  { id: 'sessions', label: 'Sessions', hint: 'Record / trim / export audio takes' },
-  { id: 'test', label: 'Test', hint: 'Bench tests with your gear' },
-  { id: 'setup', label: 'Setup', hint: 'Ports and device options' },
-];
-
+import { LAST_TAB_KEY, useStudioActions, useStudioStore } from '../store/useStudioStore';
+import { LEGACY_KEY_PANELS, TOP_TABS, topTabFor } from '../nav/tabs';
 
 function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -24,9 +8,15 @@ function isTyping(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 }
 
+/**
+ * Five top tabs in the rail. Keys **1–8** still deep-link the old panels
+ * (Rig, Controller, Sequencer, …) so smoke + muscle memory keep working.
+ * Clicking a top tab opens that group’s default panel.
+ */
 export function Nav() {
   const workspace = useStudioStore((s) => s.workspace);
   const { setWorkspace } = useStudioActions();
+  const activeTop = topTabFor(workspace);
 
   useEffect(() => {
     try {
@@ -36,15 +26,14 @@ export function Nav() {
     }
   }, [workspace]);
 
-  // Number keys 1–6 switch tabs, like a pad row.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
       const n = Number.parseInt(e.key, 10);
-      const item = Number.isInteger(n) ? ITEMS[n - 1] : undefined;
-      if (item) {
+      const panel = Number.isInteger(n) ? LEGACY_KEY_PANELS[n - 1] : undefined;
+      if (panel) {
         e.preventDefault();
-        setWorkspace(item.id);
+        setWorkspace(panel);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -54,14 +43,17 @@ export function Nav() {
 
   return (
     <nav className="nav" aria-label="Tabs">
-      {ITEMS.map((item, i) => (
+      {TOP_TABS.map((item, i) => (
         <button
           key={item.id}
           type="button"
-          className={workspace === item.id ? 'active' : ''}
-          aria-current={workspace === item.id ? 'page' : undefined}
-          title={item.hint}
-          onClick={() => setWorkspace(item.id)}
+          className={activeTop === item.id ? 'active' : ''}
+          aria-current={activeTop === item.id ? 'page' : undefined}
+          title={`${item.hint} (keys ${item.panels.map((p) => LEGACY_KEY_PANELS.indexOf(p.id) + 1).join('/')} for panels)`}
+          onClick={() => {
+            if (activeTop === item.id) return;
+            setWorkspace(item.defaultPanel);
+          }}
         >
           <span className="key" aria-hidden="true">
             {i + 1}
@@ -72,7 +64,7 @@ export function Nav() {
           </span>
         </button>
       ))}
-      <div className="nav-hint">keys 1–8</div>
+      <div className="nav-hint">click 1–5 · keys 1–8 panels · J jam</div>
     </nav>
   );
 }

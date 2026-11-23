@@ -25,9 +25,13 @@ const TABS: readonly WorkspaceId[] = [
   'sequencer',
   'samples',
   'sections',
+  'circuit',
+  'sp',
   'sessions',
   'test',
   'setup',
+  'timing',
+  'macros',
 ];
 try {
   const last = localStorage.getItem(LAST_TAB_KEY) as WorkspaceId | null;
@@ -136,6 +140,20 @@ export function useStudioActions() {
       index: number,
       patch: Partial<SectionBridgeConfig['rows'][0]>,
     ) => runtime.updateSectionBridgeRow(index, patch),
+    reorderSectionBridgeRows: (from: number, to: number) =>
+      runtime.reorderSectionBridgeRows(from, to),
+    resetCircuitLiveTicks: () => runtime.resetCircuitLiveTicks(),
+    setCircuitProjectSlot: (
+      index: number,
+      patch: Partial<{ name: string; colour: string }>,
+    ) => runtime.setCircuitProjectSlot(index, patch),
+    setControllerKnobPickup: (on: boolean) => runtime.setControllerKnobPickup(on),
+    resetSpLiveTicks: () => runtime.resetSpLiveTicks(),
+    setSpEffectChannel: (ch: number) => runtime.setSpEffectChannel(ch),
+    nameSpEffectKnob: (cc: number, label: string) => runtime.nameSpEffectKnob(cc, label),
+    markSpEffectNamesVerified: (on: boolean) => runtime.markSpEffectNamesVerified(on),
+    startSpEffectSweep: (cc?: number) => runtime.startSpEffectSweep(cc),
+    stopSpEffectSweep: () => runtime.stopSpEffectSweep(),
     panic: () => runtime.panic(),
     setActiveBench: (id: string | null) => runtime.setActiveBench(id),
     markBench: (id: string, verdict: BenchVerdict, note?: string) =>

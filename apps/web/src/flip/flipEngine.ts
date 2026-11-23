@@ -4,8 +4,21 @@
  */
 import { getCaptureEngine, type CaptureStatus } from '../recorder/captureEngine';
 import { getInputPreviewEngine } from '../recorder/inputPreview';
+import { getPerformanceMemory } from '../recorder/performanceMemory';
 import { loadTakeAudio, type TakeMeta } from '../recorder/takeStore';
 import type { StereoAudio } from '../recorder/types';
+import {
+  beginMidiCapture,
+  emptyMidiGuide,
+  pushMidiNoteOn,
+  refineGuidedSlices,
+  resolveFlipLatency,
+  suggestSlicesForMode,
+  type FlipGuidedSlice,
+  type FlipMidiGuideState,
+  type FlipSliceMode,
+  type MidiCaptureSession,
+} from './midiGuide';
 import {
   armWaiting,
   initialFlipMachine,
@@ -71,6 +84,8 @@ export interface FlipHandoffHooks {
   setMute: (track: FlipHandoffTrack, muted: boolean) => void;
 }
 
+export type FlipMidiLabelFn = (channel: number, note: number) => string;
+
 export interface FlipEngineStatus {
   phase: FlipPhase;
   phaseLabel: string;
@@ -94,6 +109,9 @@ export interface FlipEngineStatus {
   handoff: FlipHandoffPrefs;
   /** True while a handoff mute snapshot is active (FLIP loop playing with replace on). */
   handoffActive: boolean;
+  /** MIDI notes captured during the active/last FLIP record (no MIDI playback). */
+  midiEventCount: number;
+  midiGuide: FlipMidiGuideState | null;
 }
 
 type StatusListener = (s: FlipEngineStatus) => void;
@@ -130,6 +148,8 @@ export class FlipEngine {
   private undoStack: FlipClipMeta[] = [];
   private handoffHooks: FlipHandoffHooks | null = null;
   private handoffSnapshot: FlipMuteSnapshot[] | null = null;
+  private midiCapture: MidiCaptureSession | null = null;
+  private midiLabelFn: FlipMidiLabelFn | null = null;
 
   constructor() {
     this.captureUnsub = getCaptureEngine().subscribe(() => this.notify());
@@ -153,6 +173,36 @@ export class FlipEngine {
   /** Wire Sequencer mute accessors (call from FlipLane mount). */
   setHandoffHooks(hooks: FlipHandoffHooks | null): void {
     this.handoffHooks = hooks;
+  }
+
+  /** Hardware-aware label resolver from Controller routing (context only). */
+  setMidiLabelFn(fn: FlipMidiLabelFn | null): void {
+    this.midiLabelFn = fn;
+  }
+
+  /**
+   * Ingest a Circuit/controller note-on while FLIP is recording.
+   * Does not play MIDI — observation only for slice suggestions.
+   */
+  ingestMidiNoteOn(opts: {
+    channel: number;
+    note: number;
+    velocity: number;
+    atMs?: number;
+  }): void {
+    if (this.machine.phase !== 'recording' || !this.midiCapture) return;
+    if (opts.velocity <= 0) return;
+    const label =
+      this.midiLabelFn?.(opts.channel, opts.note) ??
+      `ch ${opts.channel} note ${opts.note}`;
+    pushMidiNoteOn(this.midiCapture, {
+      atMs: opts.atMs ?? (typeof performance !== 'undefined' ? performance.now() : Date.now()),
+      channel: opts.channel,
+      note: opts.note,
+      velocity: opts.velocity,
+      label,
+    });
+    this.notify();
   }
 
   subscribe(fn: StatusListener): () => void {
@@ -191,6 +241,8 @@ export class FlipEngine {
         tracks: [...this.session.handoff.tracks],
       },
       handoffActive: this.handoffSnapshot != null,
+      midiEventCount: this.midiCapture?.events.length ?? active?.midiGuide?.events.length ?? 0,
+      midiGuide: active?.midiGuide ?? null,
     };
   }
 
@@ -432,6 +484,77 @@ export class FlipEngine {
     this.notify();
   }
 
+  /**
+   * Performance Memory → FLIP: adopt an existing Session take region as a FLIP clip.
+   * Does not re-record; PCM stays in IndexedDB under takeId.
+   */
+  async importTakeRegion(opts: {
+    take: TakeMeta;
+    startFrame: number;
+    endFrame: number;
+    bpm?: number;
+  }): Promise<FlipClipMeta | null> {
+    const audio = await loadTakeAudio(opts.take.id);
+    if (!audio) return null;
+    const start = Math.max(0, Math.min(audio.left.length, Math.floor(opts.startFrame)));
+    const end = Math.max(start + 1, Math.min(audio.left.length, Math.floor(opts.endFrame)));
+    const bpm = opts.bpm && opts.bpm > 0 ? opts.bpm : this.clock.bpm || 120;
+    const contentFrames = end - start;
+    const seconds = contentFrames / audio.sampleRate;
+    const barsGuess = Math.max(1, Math.round((seconds * bpm) / 240));
+    const bars: FlipBarCount = isFlipBarCount(barsGuess)
+      ? barsGuess
+      : barsGuess <= 2
+        ? 2
+        : barsGuess <= 4
+          ? 4
+          : 8;
+
+    const latency = resolveFlipLatency({
+      audioInputId: this.deviceId,
+      flipOffsetMs: this.captureOffsetMs,
+      flipCalibrated: this.offsetCalibrated,
+    });
+    const clip: FlipClipMeta = {
+      schemaVersion: 1,
+      id: makeFlipClipId(),
+      takeId: opts.take.id,
+      name: `${opts.take.name} · range`,
+      createdAt: Date.now(),
+      bars,
+      bpm,
+      sampleRate: audio.sampleRate,
+      frameCount: audio.left.length,
+      inputDeviceId: null,
+      inputDeviceLabel: opts.take.tags.inputDeviceName || 'Session take',
+      captureOffsetMs: 0,
+      trim: { startFrame: start, endFrame: end },
+      alignment: 'unknown',
+      confidence: 'medium',
+      confidenceNote: 'Imported from Sessions trim — alignment not re-measured',
+      reverse: false,
+      fadeInMs: 0,
+      fadeOutMs: 0,
+      gain: 1,
+      chop: null,
+      sliceSeq: null,
+      clockSource: 'none',
+      midiGuide: emptyMidiGuide(latency),
+    };
+    this.activeAudio = audio;
+    this.session = upsertClip(this.session, clip);
+    this.persist();
+    // Jump straight to ready — no re-record / process pipeline.
+    this.machine = { phase: 'ready', error: null, lastQuantized: false };
+    getPerformanceMemory().recordFlip({
+      phase: 'ready',
+      summary: 'FLIP range from Sessions',
+      data: { takeId: opts.take.id, start, end },
+    });
+    this.notify();
+    return clip;
+  }
+
   setReverse(on: boolean): void {
     this.patchClip({ reverse: on === true });
   }
@@ -441,6 +564,82 @@ export class FlipEngine {
       fadeInMs: Math.max(0, fadeInMs),
       fadeOutMs: Math.max(0, fadeOutMs),
     });
+  }
+
+  /**
+   * Recompute guided slices for grid / midi / manual without rewriting PCM.
+   */
+  setSliceMode(mode: FlipSliceMode, gridSlices?: 4 | 8 | 16): void {
+    const clip = this.status().activeClip;
+    if (!clip) return;
+    const latency = resolveFlipLatency({
+      audioInputId: this.deviceId,
+      flipOffsetMs: this.captureOffsetMs,
+      flipCalibrated: this.offsetCalibrated,
+    });
+    const prev = clip.midiGuide ?? emptyMidiGuide(latency);
+    const slices = suggestSlicesForMode({
+      mode,
+      events: prev.events,
+      startFrame: clip.trim.startFrame,
+      endFrame: clip.trim.endFrame,
+      sampleRate: clip.sampleRate,
+      latencyMs: latency.ms,
+      frameCount: clip.frameCount,
+      gridSlices: gridSlices ?? clip.chop?.slices ?? 8,
+      bars: clip.bars,
+    });
+    const midiGuide: FlipMidiGuideState = {
+      ...prev,
+      mode,
+      latencyMs: latency.ms,
+      latencySource: latency.source,
+      latencyCalibrated: latency.calibrated,
+      latencyNote: latency.note,
+      slices,
+    };
+    this.pushUndo(clip);
+    this.session = upsertClip(this.session, { ...clip, midiGuide });
+    this.persist();
+    this.notify();
+  }
+
+  /** Re-run nearby-onset refinement on current guided slices. */
+  refineGuidedSlicesNow(): void {
+    const clip = this.status().activeClip;
+    if (!clip?.midiGuide?.slices.length) return;
+    const audio = this.activeAudio;
+    if (!audio) return;
+    const slices = refineGuidedSlices(clip.midiGuide.slices, audio, {
+      searchMs: 15,
+      preMarginMs: 5,
+      fadeHintMs: 8,
+    });
+    this.pushUndo(clip);
+    this.session = upsertClip(this.session, {
+      ...clip,
+      midiGuide: { ...clip.midiGuide, slices },
+    });
+    this.persist();
+    this.notify();
+  }
+
+  setGuidedSlices(slices: FlipGuidedSlice[]): void {
+    const clip = this.status().activeClip;
+    if (!clip) return;
+    const latency = resolveFlipLatency({
+      audioInputId: this.deviceId,
+      flipOffsetMs: this.captureOffsetMs,
+      flipCalibrated: this.offsetCalibrated,
+    });
+    const prev = clip.midiGuide ?? emptyMidiGuide(latency);
+    this.pushUndo(clip);
+    this.session = upsertClip(this.session, {
+      ...clip,
+      midiGuide: { ...prev, mode: 'manual', slices },
+    });
+    this.persist();
+    this.notify();
   }
 
   setChop(slices: 4 | 8 | 16 | null): void {
@@ -630,6 +829,16 @@ export class FlipEngine {
       return;
     }
 
+    const sr = eng.status().sampleRate || 48000;
+    this.midiCapture = beginMidiCapture({
+      startedAtMs: typeof performance !== 'undefined' ? performance.now() : Date.now(),
+      sampleRate: sr,
+    });
+    getPerformanceMemory().recordFlip({
+      phase: 'recording',
+      summary: `FLIP recording ${this.bars} bar`,
+    });
+
     this.stopTimer = setTimeout(() => {
       void this.finishRecording();
     }, window.totalMs);
@@ -689,6 +898,40 @@ export class FlipEngine {
         trimExact,
       });
 
+      const latency = resolveFlipLatency({
+        audioInputId: this.deviceId,
+        flipOffsetMs: this.captureOffsetMs,
+        flipCalibrated: this.offsetCalibrated,
+      });
+      const events = this.midiCapture?.events.slice() ?? [];
+      this.midiCapture = null;
+      const mode: FlipSliceMode = events.length > 0 ? 'midi' : 'grid';
+      let guide = emptyMidiGuide(latency);
+      guide = {
+        ...guide,
+        mode,
+        events,
+        slices: suggestSlicesForMode({
+          mode,
+          events,
+          startFrame: trim.startFrame,
+          endFrame: trim.endFrame,
+          sampleRate: audio.sampleRate,
+          latencyMs: latency.ms,
+          frameCount: audio.left.length,
+          bars: this.bars,
+        }),
+      };
+      // Soft refine MIDI/grid starts toward nearby onsets (keeps original PCM).
+      guide = {
+        ...guide,
+        slices: refineGuidedSlices(guide.slices, audio, {
+          searchMs: 15,
+          preMarginMs: 5,
+          fadeHintMs: 8,
+        }),
+      };
+
       const clip: FlipClipMeta = {
         schemaVersion: 1,
         id: makeFlipClipId(),
@@ -705,7 +948,7 @@ export class FlipEngine {
         trim,
         alignment: align.alignment,
         confidence: align.confidence,
-        confidenceNote: align.note,
+        confidenceNote: `${align.note} · ${latency.note}`,
         reverse: false,
         fadeInMs: 0,
         fadeOutMs: 0,
@@ -713,11 +956,18 @@ export class FlipEngine {
         chop: null,
         sliceSeq: null,
         clockSource: this.machine.lastQuantized ? this.clock.clockSource : 'none',
+        midiGuide: guide,
       };
       this.session = upsertClip(this.session, clip);
       this.persist();
       this.machine = transition(this.machine, { type: 'PROCESS_DONE' });
+      getPerformanceMemory().recordFlip({
+        phase: 'ready',
+        summary: `FLIP ready · ${events.length} MIDI note(s) · ${guide.mode} slices`,
+        data: { midiEvents: events.length, mode: guide.mode },
+      });
     } catch (e) {
+      this.midiCapture = null;
       this.machine = transition(this.machine, {
         type: 'PROCESS_FAIL',
         message: e instanceof Error ? e.message : 'Processing failed',

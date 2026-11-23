@@ -6,7 +6,13 @@
  * Worklet → silent gain → destination keeps the node alive without monitoring.
  * Live input never reaches destination unless Monitor input is explicitly ON.
  */
-import { CLIP_HOLD_MS, CLIP_LINEAR, type TakeMarker, type TakeMeta } from './types';
+import {
+  CLIP_HOLD_MS,
+  CLIP_LINEAR,
+  type TakeMarker,
+  type TakeMeta,
+  type TakePerformanceEvent,
+} from './types';
 import {
   appendChunk,
   beginDraft,
@@ -268,21 +274,34 @@ export class CaptureEngine {
     this.notify();
   }
 
-  addMarker(label: string, source: TakeMarker['source'] = 'manual'): TakeMarker | null {
+  addMarker(
+    label: string,
+    source: TakeMarker['source'] = 'manual',
+    extra?: Partial<Pick<TakeMarker, 'id' | 'inferred'>>,
+  ): TakeMarker | null {
     if (this.state !== 'recording' || !this.ctx) return null;
     const sample = this.frames;
     const marker: TakeMarker = {
+      id: extra?.id,
       sample,
       seconds: sample / this.ctx.sampleRate,
       label,
       source,
+      inferred: extra?.inferred ?? source === 'inferred',
     };
     this.markers.push(marker);
     if (this.meta) this.meta.markers = [...this.markers];
     return marker;
   }
 
-  async stop(): Promise<TakeMeta | null> {
+  /**
+   * Stop capture. Optional Performance Memory enrichment replaces markers and
+   * attaches the event timeline (original observations kept on the take).
+   */
+  async stop(enrichment?: {
+    markers?: TakeMarker[];
+    performanceEvents?: TakePerformanceEvent[];
+  }): Promise<TakeMeta | null> {
     if (this.state !== 'recording' || !this.meta || !this.ctx) return null;
     this.state = 'stopping';
     cancelAnimationFrame(this.raf);
@@ -323,7 +342,10 @@ export class CaptureEngine {
     const audio = stitchChunks(this.chunks, this.meta.sampleRate);
     const meta: TakeMeta = {
       ...this.meta,
-      markers: [...this.markers],
+      markers: enrichment?.markers ?? [...this.markers],
+      ...(enrichment?.performanceEvents
+        ? { performanceEvents: enrichment.performanceEvents }
+        : {}),
       frameCount: audio.left.length,
       durationSec: audio.left.length / this.meta.sampleRate,
       incomplete: false,

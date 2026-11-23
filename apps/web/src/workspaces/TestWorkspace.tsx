@@ -6,6 +6,7 @@ import {
   type BenchVerdict,
 } from '@dawlessdaw/devices';
 import { CircuitDeepSyncBench } from '../circuit-deep-sync/CircuitDeepSyncBench';
+import { loadExperimentalUi } from '../nav/tabs';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 const VERDICT_LABEL: Record<BenchVerdict, string> = {
@@ -18,6 +19,7 @@ const VERDICT_LABEL: Record<BenchVerdict, string> = {
 export function TestWorkspace() {
   const snap = useStudioStore();
   const actions = useStudioActions();
+  const experimental = loadExperimentalUi();
   const verdict = (id: string): BenchVerdict =>
     snap.benchResults.find((r) => r.id === id)?.verdict ?? 'pending';
   const done = BENCH_TESTS.filter((t) => verdict(t.id) !== 'pending').length;
@@ -26,7 +28,7 @@ export function TestWorkspace() {
   return (
     <div className="section-enter">
       <div className="page-head">
-        <h1>test</h1>
+        <h1>tests</h1>
         <div className="row">
           <span className="readout">
             done <b>{done}</b>/{BENCH_TESTS.length} · pass <b>{passed}</b>
@@ -38,7 +40,13 @@ export function TestWorkspace() {
       </div>
       <p className="lead">Open a card · follow steps · mark pass / fail. App only shows MIDI it heard.</p>
 
-      <CircuitDeepSyncBench />
+      {experimental ? (
+        <CircuitDeepSyncBench />
+      ) : (
+        <p className="muted small">
+          Circuit Deep Sync is under Settings → Ports → “Show experimental tools”.
+        </p>
+      )}
 
       {BENCH_GROUPS.map((g) => {
         const tests = BENCH_TESTS.filter((t) => t.group === g.id);

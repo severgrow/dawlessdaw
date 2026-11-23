@@ -219,7 +219,7 @@ export function AudioPreview() {
         c.height = h;
       }
       const css = getComputedStyle(c);
-      const accent = css.getPropertyValue('--accent').trim() || '#9a2a45';
+      const accent = css.getPropertyValue('--accent').trim() || '#9fdcc2';
       const grid = css.getPropertyValue('--line').trim() || '#2b2b2b';
       g.clearRect(0, 0, w, h);
       g.strokeStyle = grid;
@@ -241,10 +241,10 @@ export function AudioPreview() {
         }
         const n = time.length / 2;
         const mid = h / 2;
-        // Soft fill under the wave (burgundy → mint wash).
+        // Soft fill under the wave (mint wash; burgundy reserved for accents elsewhere).
         const fill = g.createLinearGradient(0, 0, 0, h);
-        fill.addColorStop(0, 'rgba(154, 42, 69, 0.35)');
-        fill.addColorStop(0.55, 'rgba(159, 220, 194, 0.12)');
+        fill.addColorStop(0, 'rgba(159, 220, 194, 0.35)');
+        fill.addColorStop(0.55, 'rgba(90, 168, 144, 0.12)');
         fill.addColorStop(1, 'rgba(10, 10, 10, 0)');
         g.beginPath();
         g.moveTo(0, mid);

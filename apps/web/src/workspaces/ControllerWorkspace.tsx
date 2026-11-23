@@ -448,7 +448,7 @@ export function ControllerWorkspace() {
   return (
     <div className="section-enter controller">
       <div className="page-head">
-        <h1>controller</h1>
+        <h1>live controller</h1>
         <span className="readout">
           Circuit {circuitIn ? <b>connected</b> : 'not connected'}
           {circuitTrack ? (
@@ -460,8 +460,24 @@ export function ControllerWorkspace() {
         </span>
       </div>
       <p className="lead">
-        Circuit tracks → SP / FM1 / MPC. Unmapped knobs drop. <strong>Advanced</strong> = channels &amp; CCs.
+        Circuit tracks play SP / FM1 / MPC. Twist macros — named knobs flash live. Unmapped knobs are
+        dropped. <strong>Advanced</strong> shows MIDI numbers.
       </p>
+
+      <div className="panel ctl-pickup">
+        <h2>Knob soft takeover</h2>
+        <p className="muted small">
+          Off by default. When on, Super Macro fan-out waits for pickup before jumping a parameter
+          (same engine as Settings → Macros). Experimental until hardware confirm.
+        </p>
+        <button
+          type="button"
+          className={snap.controllerKnobPickup ? 'active' : ''}
+          onClick={() => a.setControllerKnobPickup(!snap.controllerKnobPickup)}
+        >
+          Soft takeover {snap.controllerKnobPickup ? 'on' : 'off'}
+        </button>
+      </div>
 
       <PresetBar advanced={advanced} setAdvanced={setAdvanced} />
 

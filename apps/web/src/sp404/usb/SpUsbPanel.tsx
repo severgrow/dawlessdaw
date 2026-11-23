@@ -1,10 +1,19 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { SP_FW_552_ACK_KEY } from '@dawlessdaw/devices';
 import { isFirmwareTested, normalizeFirmware } from './allowlist';
 import { BANKS_A_TO_D, type SpUsbBank } from './constants';
 import { SpUsbReadOnlyClient, webSerialSupported, type UsbPadSlot } from './client';
 import { MoreInfo } from '../../components/MoreInfo';
 
 const LS_KEY = 'dawlessdaw-sp-usb';
+
+function loadFw552Ack(): boolean {
+  try {
+    return localStorage.getItem(SP_FW_552_ACK_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 /** Hidden experimental panel: enable with ?spUsb=1 or localStorage dawlessdaw-sp-usb=1. */
 export function spUsbPanelEnabled(): boolean {
@@ -42,6 +51,7 @@ export function SpUsbPanel() {
   const [backupOk, setBackupOk] = useState(false);
   const [rolandClosed, setRolandClosed] = useState(false);
   const [firmware, setFirmware] = useState('5.51');
+  const [fw552Ack, setFw552Ack] = useState(loadFw552Ack);
   const [project, setProject] = useState(1);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
@@ -51,7 +61,9 @@ export function SpUsbPanel() {
   const serialOk = webSerialSupported();
   const fwTested = isFirmwareTested(firmware);
   const fwNorm = normalizeFirmware(firmware);
-  const preflightOk = backupOk && rolandClosed;
+  const is552 = fwNorm === '5.52';
+  const fw552Blocked = is552 && !fw552Ack;
+  const preflightOk = backupOk && rolandClosed && !fw552Blocked;
 
   const occupied = useMemo(() => (pads ?? []).filter((p) => p.occupied), [pads]);
 
@@ -62,6 +74,10 @@ export function SpUsbPanel() {
     }
     if (!rolandClosed) {
       setStatus('Quit the Roland SP-404MKII App first (one owner of the serial port).');
+      return;
+    }
+    if (fw552Blocked) {
+      setStatus('Firmware 5.52 needs the explicit OK checkbox first (untested — ask Patryk).');
       return;
     }
     if (!serialOk) {
@@ -91,7 +107,7 @@ export function SpUsbPanel() {
     } finally {
       setBusy(false);
     }
-  }, [backupOk, client, fwNorm, fwTested, rolandClosed, serialOk]);
+  }, [backupOk, client, fw552Blocked, fwNorm, fwTested, rolandClosed, serialOk]);
 
   const disconnect = useCallback(async () => {
     setBusy(true);
@@ -164,6 +180,13 @@ export function SpUsbPanel() {
         <p className="warn small" role="status">
           Firmware <span className="mono">{fwNorm || '(empty)'}</span> is not the open404-tested{' '}
           <span className="mono">5.51</span>. Proceed only after an SD backup; session stays read-only.
+          {is552 ? (
+            <>
+              {' '}
+              <strong>5.52</strong> needs an explicit OK below before Connect — ask Patryk; do not
+              assume it is fine.
+            </>
+          ) : null}
         </p>
       ) : null}
 
@@ -186,6 +209,26 @@ export function SpUsbPanel() {
           />{' '}
           Roland SP-404MKII App is fully quit (one owner of the serial port)
         </label>
+        {is552 ? (
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={fw552Ack}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setFw552Ack(on);
+                try {
+                  localStorage.setItem(SP_FW_552_ACK_KEY, on ? '1' : '0');
+                } catch {
+                  /* ignore */
+                }
+              }}
+              disabled={connected || busy}
+            />{' '}
+            I understand <strong>5.52</strong> is untested here and still want a read-only connect
+            (owner confirm)
+          </label>
+        ) : null}
       </div>
 
       <div className="row wrap">

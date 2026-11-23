@@ -2,6 +2,7 @@
  * FLIP session persistence — clip meta + takeId refs only (no PCM blobs).
  */
 import { DEFAULT_HANDOFF, sanitizeHandoff } from './handoff';
+import { sanitizeMidiGuide } from './midiGuide';
 import {
   FLIP_DEFAULT_BARS,
   FLIP_SCHEMA_VERSION,
@@ -73,6 +74,7 @@ function sanitizeClip(raw: unknown): FlipClipMeta | null {
       o.clockSource === 'circuit' || o.clockSource === 'internal' || o.clockSource === 'none'
         ? o.clockSource
         : 'none',
+    midiGuide: o.midiGuide != null ? sanitizeMidiGuide(o.midiGuide) : null,
   };
 }
 
