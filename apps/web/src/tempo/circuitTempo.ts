@@ -1,8 +1,9 @@
 /**
  * Circuit tempo follow — display model only.
- * BPM from Clock Health / Circuit-in F8. Never enables app clock forwarding.
+ * BPM from shared ClockService / Clock Health (Circuit-in F8).
+ * Never enables app clock forwarding.
  */
-import type { ClockHealthSnapshot } from '@dawlessdaw/sequencer';
+import type { ClockHealthSnapshot, ClockService } from '@dawlessdaw/sequencer';
 
 export type CircuitTempoPhase =
   | 'waiting'
@@ -111,4 +112,15 @@ export function circuitTempoView(
 export function formatCircuitBpm(bpm: number | null): string {
   if (bpm == null || !Number.isFinite(bpm)) return '—';
   return Number.isInteger(bpm) ? String(bpm) : bpm.toFixed(1);
+}
+
+/**
+ * Transport / Play / Jam BPM via shared ClockService seam.
+ * Same display rules as circuitTempoView; does not enable app clock forward.
+ */
+export function circuitTempoViewFromClock(
+  svc: ClockService | null | undefined,
+  opts?: { midiReady?: boolean; estimatedBpm?: number | null },
+): CircuitTempoView {
+  return circuitTempoView(svc?.getHealthSnapshot() ?? null, opts);
 }

@@ -1,6 +1,7 @@
 /**
  * Host wiring for RollingMidiCapture — observation only.
- * Listens to bus midi:in / midi:out; never sends MIDI or changes routes/clock.
+ * Listens to bus midi:in / midi:out; clock context from shared ClockService.
+ * Never sends MIDI or changes routes/clock-forward.
  */
 import {
   CAPTURE_BAR_OPTIONS,
@@ -10,7 +11,7 @@ import {
   type CaptureLastNBarsResult,
   type MidiRecorderPosition,
 } from '@dawlessdaw/midi';
-import type { ClockHealthSnapshot } from '@dawlessdaw/sequencer';
+import { captureHintFromClockService, type ClockService } from '@dawlessdaw/sequencer';
 import { getStudioRuntime } from '../studio/runtime';
 
 export { CAPTURE_BAR_OPTIONS };
@@ -22,19 +23,19 @@ let shared: RollingMidiCapture | null = null;
 let unsubs: Array<() => void> = [];
 let listening = false;
 
-function positionFromRuntime(): MidiRecorderPosition | null {
-  try {
-    const pos = getStudioRuntime().getCircuitIntelligence().getSnapshot().position;
-    if (!pos) return null;
-    return {
-      bar: pos.bar,
-      beat: pos.beat,
-      tickCount: pos.tickCount,
-      transport: pos.transport,
-    };
-  } catch {
-    return null;
-  }
+function clock(): ClockService {
+  return getStudioRuntime().getClockService();
+}
+
+function positionFromClock(): MidiRecorderPosition | null {
+  const mt = clock().getMusicalTime();
+  if (!mt) return null;
+  return {
+    bar: mt.bar,
+    beat: mt.beat,
+    tickCount: mt.tickCount,
+    transport: mt.transport,
+  };
 }
 
 export function getRollingMidiCapture(): RollingMidiCapture {
@@ -42,7 +43,7 @@ export function getRollingMidiCapture(): RollingMidiCapture {
     shared = new RollingMidiCapture({
       eventCapacity: 4096,
       maxBytes: 512 * 1024,
-      getPosition: positionFromRuntime,
+      getPosition: positionFromClock,
     });
   }
   return shared;
@@ -72,16 +73,14 @@ export function ensureRollingMidiCaptureListening(): void {
   listening = true;
 }
 
-export function buildCaptureClockHint(
-  health?: ClockHealthSnapshot | null,
-): CaptureClockHint {
-  const h = health ?? getStudioRuntime().getClockHealth().getSnapshot();
+export function buildCaptureClockHint(svc?: ClockService): CaptureClockHint {
+  const hint = captureHintFromClockService(svc ?? clock());
   return {
-    confidence: h.confidence,
-    status: h.status,
-    bpm: h.bpm,
-    clockDetected: h.clockDetected,
-    position: positionFromRuntime(),
+    confidence: hint.confidence,
+    status: hint.status,
+    bpm: hint.bpm,
+    clockDetected: hint.clockDetected,
+    position: hint.position,
   };
 }
 

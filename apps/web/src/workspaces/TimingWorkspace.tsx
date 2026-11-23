@@ -20,11 +20,12 @@ import type { AudioInputDevice } from '../recorder/types';
 
 function useClockHealth(): ClockHealthSnapshot {
   const { getRuntime } = useStudioActions();
-  const eng = getRuntime().getClockHealth();
+  // Shared ClockService seam — same underlying monitor; never enables app clock forward.
+  const svc = getRuntime().getClockService();
   return useSyncExternalStore(
-    (cb) => eng.subscribe(cb),
-    () => eng.getSnapshot(),
-    () => eng.getSnapshot(),
+    (cb) => svc.subscribe(cb),
+    () => svc.getHealthSnapshot()!,
+    () => svc.getHealthSnapshot()!,
   );
 }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { ClockHealthSnapshot } from '@dawlessdaw/sequencer';
-import { circuitTempoView, formatCircuitBpm } from './circuitTempo';
+import { createInjectedClockService, type ClockHealthSnapshot } from '@dawlessdaw/sequencer';
+import { circuitTempoView, circuitTempoViewFromClock, formatCircuitBpm } from './circuitTempo';
 
 function health(partial: Partial<ClockHealthSnapshot>): ClockHealthSnapshot {
   return {
@@ -83,5 +83,16 @@ describe('circuitTempoView', () => {
     expect(formatCircuitBpm(120)).toBe('120');
     expect(formatCircuitBpm(120.4)).toBe('120.4');
     expect(formatCircuitBpm(null)).toBe('—');
+  });
+
+  it('reads live BPM through ClockService seam without enabling forward', () => {
+    const svc = createInjectedClockService();
+    expect(svc.appClockForwarding).toBe(false);
+    svc.injectStableClock({ bpm: 120, tickCount: 96, bar: 2, beat: 1 });
+    const v = circuitTempoViewFromClock(svc, { midiReady: true });
+    expect(v.phase).toBe('live');
+    expect(v.bpm).toBe(120);
+    expect(v.barBeat).toBe('2.1');
+    expect(svc.appClockForwarding).toBe(false);
   });
 });

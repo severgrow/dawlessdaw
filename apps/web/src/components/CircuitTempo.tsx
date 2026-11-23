@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { useStudioStore } from '../store/useStudioStore';
-import { circuitTempoView, formatCircuitBpm } from '../tempo/circuitTempo';
+import { useStudioStore, useStudioActions } from '../store/useStudioStore';
+import { circuitTempoViewFromClock, formatCircuitBpm } from '../tempo/circuitTempo';
 
 export type CircuitTempoSize = 'strip' | 'panel' | 'jam';
 
 /**
- * Circuit tempo follow display — large calm BPM from Circuit MIDI clock.
+ * Circuit tempo follow display — large calm BPM from shared ClockService.
  * Display only. Does not enable app clock forwarding.
  */
 export function CircuitTempo({
@@ -15,14 +15,20 @@ export function CircuitTempo({
   size?: CircuitTempoSize;
   showBarBeat?: boolean;
 }) {
+  // Store subscription for re-render; display reads shared ClockService seam.
   const health = useStudioStore((s) => s.clockHealth);
+  const { getRuntime } = useStudioActions();
   const estimatedBpm = useStudioStore((s) => s.estimatedBpm);
   const midiReady = useStudioStore((s) => s.midiReady);
   const appClockOn = useStudioStore((s) => s.anyClockForwarding);
 
   const view = useMemo(
-    () => circuitTempoView(health, { midiReady, estimatedBpm }),
-    [health, midiReady, estimatedBpm],
+    () =>
+      circuitTempoViewFromClock(getRuntime().getClockService(), {
+        midiReady,
+        estimatedBpm,
+      }),
+    [getRuntime, midiReady, estimatedBpm, health],
   );
 
   const bpmText = formatCircuitBpm(view.bpm);

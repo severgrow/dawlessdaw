@@ -14,6 +14,10 @@ Keeps a **rolling** MIDI event buffer (count + soft byte budget) fed by the head
 - events  
 - quality + limitations  
 
+## Clock
+
+Host reads tempo / position via shared [ClockService](./shared-clock-seam.md) (`captureHintFromClockService`).
+
 ## Honesty
 
 | Clock | Result |
