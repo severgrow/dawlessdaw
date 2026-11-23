@@ -6440,3 +6440,129 @@ button.send-add {
 .panel-subnav-btn:active:not(:disabled) {
   transform: translateY(1px);
 }
+
+/* ─── Circuit tempo follow (display only) ───────────────── */
+
+.circuit-tempo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.65rem 1rem;
+  flex-wrap: wrap;
+  color: var(--mint-5);
+  min-width: 0;
+}
+
+.circuit-tempo-main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.circuit-tempo-bpm {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--mint-4);
+  line-height: 1;
+}
+
+.circuit-tempo-unit {
+  font-family: var(--font-ui);
+  font-size: 0.7em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mint-3);
+  opacity: 0.85;
+}
+
+.circuit-tempo-meta {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.circuit-tempo-label {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.circuit-tempo-bar {
+  font-size: 11px;
+  color: var(--mint-3);
+}
+
+.circuit-tempo-path {
+  margin: 0;
+}
+
+.ct-size-strip {
+  padding: 0.15rem 0.55rem;
+  border-left: 1px solid var(--line);
+  margin-left: 0.15rem;
+}
+
+.ct-size-strip .circuit-tempo-bpm {
+  font-size: 1.55rem;
+}
+
+.ct-size-strip .circuit-tempo-meta {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.ct-panel > h2 {
+  margin-bottom: 0;
+}
+
+.ct-size-panel {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.1rem;
+  margin: 0.35rem 0 0.65rem;
+}
+
+.ct-size-panel .circuit-tempo-bpm {
+  font-size: 3.4rem;
+  color: var(--mint-4);
+}
+
+.ct-size-panel .circuit-tempo-unit {
+  font-size: 0.95rem;
+}
+
+.ct-size-jam {
+  margin-left: auto;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--mint-2);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--mint-0) 70%, transparent);
+}
+
+.ct-size-jam .circuit-tempo-bpm {
+  font-size: 2.6rem;
+}
+
+.circuit-tempo.phase-waiting .circuit-tempo-bpm,
+.circuit-tempo.phase-no-midi .circuit-tempo-bpm,
+.circuit-tempo.phase-listening .circuit-tempo-bpm {
+  color: var(--text-mute);
+}
+
+.circuit-tempo.phase-lost .circuit-tempo-bpm {
+  color: var(--text-dim);
+  opacity: 0.7;
+}
+
+.circuit-tempo.phase-variable .circuit-tempo-label {
+  color: var(--mint-3);
+}
+
+.circuit-tempo.phase-live .circuit-tempo-label {
+  color: var(--mint-4);
+}

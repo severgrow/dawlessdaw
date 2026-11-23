@@ -1,21 +1,18 @@
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
+import { CircuitTempo } from './CircuitTempo';
 
 /**
  * Compact transport + status strip shown on every tab.
- * One status line (onboarding / midi) — avoids stacked banners.
+ * Circuit tempo is display-only (MIDI clock in) — never toggles app clock forward.
  */
 export function TransportStrip({ onOpenJam }: { onOpenJam?: () => void }) {
   const snap = useStudioStore();
   const { panic, seqPlay, seqStop, setWorkspace } = useStudioActions();
   const playing = snap.sequencer.playing;
-  const bpm = snap.estimatedBpm ?? snap.sequencer.bank.patterns[snap.sequencer.bank.activePatternIndex]?.bpm;
   const rawStatus =
     snap.midiError ??
     (snap.onboarding.step !== 'play' ? snap.onboarding.message : snap.statusLine);
-  const status =
-    snap.midiError
-      ? 'No MIDI — allow in Chrome, then Rescan'
-      : rawStatus;
+  const status = snap.midiError ? 'No MIDI — allow in Chrome, then Rescan' : rawStatus;
 
   return (
     <div className="transport-strip" role="region" aria-label="Transport">
@@ -33,10 +30,7 @@ export function TransportStrip({ onOpenJam }: { onOpenJam?: () => void }) {
           Jam
         </button>
       ) : null}
-      <span className="ts-meta mono small">
-        {bpm != null ? `≈ ${bpm} BPM` : '— BPM'}
-        {snap.anyClockForwarding ? ' · clock on' : ' · clock off'}
-      </span>
+      <CircuitTempo size="strip" />
       <span className="ts-status" title={status}>
         {status}
       </span>

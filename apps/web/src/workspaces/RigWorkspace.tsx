@@ -1,5 +1,6 @@
 import { destBadge } from '@dawlessdaw/devices';
 import { AudioPreview } from '../components/AudioPreview';
+import { CircuitTempo } from '../components/CircuitTempo';
 import { HowTo } from '../components/HowTo';
 import { MoreInfo } from '../components/MoreInfo';
 import { RigMap } from '../components/RigMap';
@@ -39,17 +40,12 @@ export function RigWorkspace() {
         <RigMap />
       </WorkspaceErrorBoundary>
 
-      <div className="panel">
-        <h2>Activity</h2>
+      <div className="panel ct-panel">
+        <h2>Tempo</h2>
+        <CircuitTempo size="panel" />
         <p className="muted small">
           Tracks lit: <b>{noteHits}</b>
-          {snap.estimatedBpm != null ? (
-            <>
-              {' '}
-              · ≈ <b>{snap.estimatedBpm}</b> BPM
-            </>
-          ) : null}
-          {snap.anyClockForwarding ? <> · clock on</> : <> · clock off</>}
+          {snap.anyClockForwarding ? <> · app clock on</> : null}
         </p>
       </div>
 

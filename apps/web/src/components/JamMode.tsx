@@ -1,6 +1,7 @@
 import { destBadge, slotLabelText } from '@dawlessdaw/devices';
 import { saveJamSeen } from '../nav/tabs';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
+import { CircuitTempo } from './CircuitTempo';
 
 /**
  * Jam mode (J): big track tiles + named knobs + Panic.
@@ -18,6 +19,7 @@ export function JamMode({ onClose }: { onClose: () => void }) {
       <div className="jam-stage">
         <div className="jam-head">
           <h1>Jam</h1>
+          <CircuitTempo size="jam" />
           <div className="row">
             <button type="button" className="danger" onClick={() => panic()}>
               Panic
