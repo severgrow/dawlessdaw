@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react';
 import { loadWizardDismissed, saveWizardDismissed } from '../nav/tabs';
+import { resolveNextAction } from '../nav/nextAction';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 /**
- * First-run “Connect your rig” steps. Reopen from Settings.
- * One guided flow instead of stacked warning banners.
+ * First-run Connect flow (Pass B). One guided path — reopen via CONNECT.
+ * Less copy; one dominant CTA. Does not enable app clock forward.
  */
 export function ConnectWizard({
   forceOpen,
   onClose,
+  onOpenChange,
 }: {
   forceOpen?: boolean;
   onClose?: () => void;
+  /** StatusBar hides its CTA while the wizard owns the next-action. */
+  onOpenChange?: (open: boolean) => void;
 }) {
   const snap = useStudioStore();
   const { setWorkspace, rescanMidiPorts, start } = useStudioActions();
@@ -26,65 +30,79 @@ export function ConnectWizard({
     if (snap.onboarding.step !== 'play') setOpen(true);
   }, [snap.onboarding.step]);
 
-  if (!open && !forceOpen) return null;
+  useEffect(() => {
+    onOpenChange?.(open);
+  }, [open, onOpenChange]);
+
   if (!open) return null;
 
-  const step = snap.onboarding.step;
+  const connected = snap.ports.filter((p) => p.state === 'connected').length;
+  const next = resolveNextAction({
+    midiReady: snap.midiReady,
+    midiError: snap.midiError,
+    connectedPorts: connected,
+    onboardingStep: snap.onboarding.step,
+  });
+
   const close = (dismiss: boolean) => {
     if (dismiss) saveWizardDismissed(true);
     setOpen(false);
     onClose?.();
   };
 
+  const allowMidi = () => {
+    void start().then(() => {
+      // Browser may require a reload after permission grant.
+      void rescanMidiPorts();
+    });
+  };
+
   return (
     <div className="wizard-scrim" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
       <div className="wizard-card">
         <h2 id="wizard-title">Connect</h2>
-        <p className="lead">Three taps. Reopen anytime from Settings.</p>
+        <p className="lead">One path. Reopen with Connect anytime.</p>
 
-        <ol className="wizard-steps">
-          <li className={step === 'connect' ? 'current' : snap.midiReady ? 'done' : ''}>
-            <b>1. MIDI</b>
-            <p className="muted small">
-              {snap.midiReady ? 'On.' : snap.midiError ?? 'Allow MIDI when Chrome asks.'}
-            </p>
-            {!snap.midiReady ? (
-              <button type="button" onClick={() => void start()}>
-                Allow MIDI
-              </button>
-            ) : null}
-          </li>
-          <li className={step === 'identify' || step === 'assign' ? 'current' : step === 'play' ? 'done' : ''}>
-            <b>2. Ports</b>
-            <p className="muted small">Circuit USB · Scarlett → MPC · FM1 USB · SP optional.</p>
-            <div className="row">
-              <button type="button" className="ghost" onClick={() => void rescanMidiPorts()}>
-                Rescan
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  close(false);
-                  setWorkspace('setup');
-                }}
-              >
-                Assign ports
-              </button>
-            </div>
-          </li>
-          <li className={step === 'play' ? 'current done' : ''}>
-            <b>3. Play</b>
-            <p className="muted small">
-              {step === 'play' ? 'Ready — hit Play on the Circuit.' : 'Assign Circuit in, then Play.'}
-            </p>
-          </li>
-        </ol>
-
-        {snap.onboarding.message ? (
-          <p className="muted small wizard-status" role="status">
-            {snap.onboarding.message}
-          </p>
-        ) : null}
+        {next.kind === 'allow-midi' ? (
+          <div className="wizard-focus">
+            <p className="wizard-focus-hint muted small">{next.hint}</p>
+            <button type="button" className="wizard-cta" onClick={allowMidi}>
+              {next.cta}
+            </button>
+          </div>
+        ) : (
+          <ol className="wizard-steps">
+            <li className="done">
+              <b>1. MIDI</b>
+              <p className="muted small">On.</p>
+            </li>
+            <li className={next.kind === 'assign-ports' ? 'current' : 'done'}>
+              <b>2. Ports</b>
+              <p className="muted small">Circuit · Scarlett · FM1 · SP</p>
+              <div className="row">
+                <button type="button" className="ghost" onClick={() => void rescanMidiPorts()}>
+                  Rescan
+                </button>
+                <button
+                  type="button"
+                  className="wizard-cta"
+                  onClick={() => {
+                    close(false);
+                    setWorkspace('setup');
+                  }}
+                >
+                  {next.cta || 'Assign ports'}
+                </button>
+              </div>
+            </li>
+            <li className={next.kind === 'ready' ? 'current done' : ''}>
+              <b>3. Play</b>
+              <p className="muted small">
+                {next.kind === 'ready' ? 'Hit Play on the Circuit.' : 'After ports — Play on Circuit.'}
+              </p>
+            </li>
+          </ol>
+        )}
 
         <div className="row wizard-actions">
           <button type="button" className="ghost" onClick={() => close(true)}>

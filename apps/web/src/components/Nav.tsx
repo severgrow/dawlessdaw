@@ -64,7 +64,7 @@ export function Nav() {
           </span>
         </button>
       ))}
-      <div className="nav-hint">1–5 · J jam</div>
+      <div className="nav-hint">1–5 · J</div>
     </nav>
   );
 }

@@ -14,7 +14,7 @@ function ActivityLed({ at, label }: { at: number; label: string }) {
 
 export function RigWorkspace() {
   const snap = useStudioStore();
-  const { setClockToMpc, setClockToSp, setForwardClockToFm1, panic, setWorkspace } = useStudioActions();
+  const { setClockToMpc, setClockToSp, setForwardClockToFm1, setWorkspace } = useStudioActions();
   const presetName = snap.controllerPresets.find((p) => p.id === snap.controllerSavedId)?.name ?? '—';
   const noteHits = snap.trackActivity.slice(1, 9).filter((t) => t > 0).length;
 
@@ -22,11 +22,9 @@ export function RigWorkspace() {
     <div className="section-enter">
       <div className="page-head">
         <h1>rig</h1>
-        <button type="button" className="danger" onClick={() => panic()}>
-          Panic
-        </button>
+        {/* Global Panic lives in the transport strip (Pass B) */}
       </div>
-      <HowTo sentence="Your studio map. Tap a box for ports — J for Jam.">
+      <HowTo sentence="Studio map. Tap a box for ports. J = Jam.">
         <p>
           Edit Circuit destinations under{' '}
           <button type="button" className="linklike" onClick={() => setWorkspace('controller')}>

@@ -57,6 +57,7 @@ export function App() {
   const backToRig = () => setWorkspace('rig');
   const [jam, setJam] = useState(false);
   const [wizardForce, setWizardForce] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [experimental, setExperimental] = useState(loadExperimentalUi);
 
   useEffect(() => {
@@ -80,11 +81,16 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [jam]);
 
+  const openConnect = () => {
+    saveWizardDismissed(false);
+    setWizardForce(true);
+  };
+
   return (
     <div className={`app app-phase1${jam ? ' jam-open' : ''}`}>
-      <StatusBar />
-      <DeviceStrip />
-      <TransportStrip onOpenJam={() => setJam(true)} />
+      <StatusBar onOpenConnect={openConnect} connectOpen={wizardOpen} />
+      <DeviceStrip onOpenConnect={openConnect} />
+      <TransportStrip onOpenJam={() => setJam(true)} onOpenConnect={openConnect} />
       <div className="shell">
         <Nav />
         <main className="main">
@@ -142,13 +148,13 @@ export function App() {
       <ConnectWizard
         forceOpen={wizardForce}
         onClose={() => setWizardForce(false)}
+        onOpenChange={setWizardOpen}
       />
       {jam ? <JamMode onClose={() => setJam(false)} /> : null}
       <footer className="footer-bar">
         <span>Splot MIDI Brain · local</span>
-        <span className={`mono ${midiReady ? 'live' : 'err'}`}>
-          {midiReady ? '● midi' : '● no midi'}
-        </span>
+        {/* Pass B: don't repeat “no midi” — StatusBar owns that signal */}
+        {midiReady ? <span className="mono live">● midi</span> : null}
       </footer>
     </div>
   );

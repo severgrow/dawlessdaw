@@ -37,7 +37,8 @@ export function circuitTempoView(
     return {
       phase: 'no-midi',
       bpm: null,
-      label: 'No MIDI',
+      // Pass B: short label — StatusBar / Connect own the CTA copy
+      label: '—',
       detail: 'Allow MIDI in Chrome, then press Play on the Circuit.',
       barBeat: null,
       honesty,

@@ -1,4 +1,5 @@
 import { MY_STUDIO_ROLES, unmatchedConnectedPorts } from '@dawlessdaw/devices';
+import { resolveNextAction } from '../nav/nextAction';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import { DeviceArt, type DeviceKind } from './DeviceArt';
 
@@ -20,18 +21,20 @@ function midiStripStatus(
   if (hasUnmatchedPorts) {
     return {
       label: 'unassigned',
-      title:
-        'Web MIDI has connected ports not assigned to this role — open Setup and pick the port (e.g. Felucca → FM1)',
+      title: 'Ports connected but not assigned — open Connect / Setup',
     };
   }
   return {
-    label: 'no Web MIDI port',
-    title:
-      'Chrome Web MIDI does not list a port for this role. Check USB, power, and Audio MIDI Setup — Setup → Troubleshooting shows exactly what the browser sees.',
+    label: 'no port',
+    title: 'No Web MIDI port for this role yet',
   };
 }
 
-export function DeviceStrip() {
+/**
+ * Device strip (Pass B). When MIDI/ports missing, collapse to one CTA chip
+ * instead of five “NO WEB MIDI PORT” failures. Heavy Setup disclosure = Pass C.
+ */
+export function DeviceStrip({ onOpenConnect }: { onOpenConnect?: () => void }) {
   const snap = useStudioStore();
   const { setWorkspace } = useStudioActions();
   const customClaimed = Object.values(snap.customBindings ?? {}).flatMap((b) =>
@@ -39,6 +42,31 @@ export function DeviceStrip() {
   );
   const unmatched = unmatchedConnectedPorts(snap.ports, snap.assignments, customClaimed);
   const hasUnmatchedPorts = unmatched.length > 0;
+  const connectedPorts = snap.ports.filter((p) => p.state === 'connected').length;
+  const next = resolveNextAction({
+    midiReady: snap.midiReady,
+    midiError: snap.midiError,
+    connectedPorts,
+    onboardingStep: snap.onboarding.step,
+  });
+
+  // Pass B: collapse failure dashboard — StatusBar owns the primary CTA.
+  if (next.kind === 'allow-midi' || (next.kind === 'assign-ports' && connectedPorts === 0)) {
+    return (
+      <div className="device-strip device-strip-empty" role="status">
+        <button
+          type="button"
+          className="device-chip device-chip-quiet"
+          onClick={() => onOpenConnect?.()}
+          title={next.hint}
+        >
+          <DeviceArt kind="mac" lit={false} pulse={0} className="chip-art" />
+          <span className="name">No ports yet</span>
+          <span className="meta">Connect</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="device-strip" role="list">
@@ -48,18 +76,19 @@ export function DeviceStrip() {
         const status = role.midi
           ? midiStripStatus(connected, hasUnmatchedPorts)
           : {
-              label: 'usb audio · not checked',
-              title:
-                'USB audio only — the app cannot see it over MIDI. Check it in System Information or Audio MIDI Setup.',
+              label: 'usb audio',
+              title: 'USB audio only — not on MIDI',
             };
-        // Show the port actually used (e.g. MPC → "Scarlett 2i4 USB").
         const portName =
           role.id === 'circuit'
             ? assignment?.inputPortName
             : (assignment?.outputPortName ?? assignment?.inputPortName);
-        const via = connected && portName && !portName.toLowerCase().includes(role.label.split(' ').pop()!.toLowerCase())
-          ? `via ${portName}`
-          : null;
+        const via =
+          connected &&
+          portName &&
+          !portName.toLowerCase().includes(role.label.split(' ').pop()!.toLowerCase())
+            ? `via ${portName}`
+            : null;
         return (
           <button
             key={role.id}
@@ -67,7 +96,11 @@ export function DeviceStrip() {
             role="listitem"
             className={`device-chip ${role.midi && connected ? '' : 'disconnected'}`}
             onClick={() => setWorkspace('setup')}
-            title={connected ? `${assignment?.inputPortName ?? '—'} in · ${assignment?.outputPortName ?? '—'} out — click for Setup` : `${status.title} — click for Setup`}
+            title={
+              connected
+                ? `${assignment?.inputPortName ?? '—'} in · ${assignment?.outputPortName ?? '—'} out`
+                : status.title
+            }
           >
             <DeviceArt
               kind={ART[role.id] ?? 'mac'}

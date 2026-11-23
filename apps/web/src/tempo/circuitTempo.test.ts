@@ -77,6 +77,7 @@ describe('circuitTempoView', () => {
   it('no-midi phase when MIDI not ready', () => {
     const v = circuitTempoView(null, { midiReady: false });
     expect(v.phase).toBe('no-midi');
+    expect(v.label).toBe('—');
   });
 
   it('formats BPM without trailing .0', () => {

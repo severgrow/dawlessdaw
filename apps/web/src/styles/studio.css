@@ -528,21 +528,33 @@ label {
 @media (max-width: 720px) {
   .app {
     grid-template-rows: var(--bar-h) auto auto 1fr var(--foot-h);
+    overflow-x: hidden;
   }
   .shell {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto 1fr;
+    min-width: 0;
   }
   .nav {
     flex-direction: row !important;
     overflow-x: auto;
     border-right: none !important;
     border-bottom: 1px solid var(--line);
+    gap: 0.15rem;
+    padding: 0.35rem 0.25rem;
   }
-  .nav .nav-label,
   .nav .nav-sub,
   .nav .nav-hint {
-    display: none;
+    display: none !important;
+  }
+  .nav button {
+    min-width: auto;
+    min-height: 2.5rem;
+    padding: 0.4rem 0.55rem;
+    flex: 0 0 auto;
+  }
+  .nav button .nav-text {
+    font-size: 12px;
   }
   .status-bar .readout,
   .status-bar .status-line {
@@ -550,6 +562,25 @@ label {
   }
   .status-bar .spacer {
     flex: 1;
+  }
+  .status-bar {
+    gap: 0.35rem;
+    padding-inline: 0.55rem;
+  }
+  .device-strip {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .transport-strip {
+    gap: 0.35rem;
+    padding: 0.45rem 0.55rem;
+  }
+  .ts-btn {
+    min-width: 3.5rem !important;
+    padding: 0.45rem 0.65rem !important;
+  }
+  .circuit-tempo.ct-size-strip .circuit-tempo-meta {
+    display: none;
   }
 }
 
@@ -5456,6 +5487,74 @@ button.send-add {
 
 .wizard-status {
   margin: 0 0 0.85rem;
+}
+
+/* Pass B — one CTA focus in Connect wizard */
+.wizard-focus {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1.1rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--mint-2);
+  background: var(--mint-0);
+}
+
+.wizard-focus-hint {
+  margin: 0;
+}
+
+.wizard-cta,
+button.wizard-cta {
+  align-self: flex-start;
+  min-height: 2.5rem;
+  padding: 0.55rem 1.15rem;
+  font-weight: 700;
+  background: var(--mint-4);
+  border-color: var(--mint-3);
+  color: var(--accent-ink, #0c1210);
+}
+
+.status-cta {
+  min-height: 2.1rem;
+  padding: 0.35rem 0.85rem;
+  font-weight: 700;
+  background: var(--mint-4);
+  border-color: var(--mint-3);
+  color: var(--accent-ink, #0c1210);
+}
+
+.ts-connect {
+  border-color: var(--mint-3) !important;
+  color: var(--mint-5) !important;
+  font-weight: 700;
+}
+
+.ts-status-quiet {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Soften transport Panic — burgundy outline, not filled alarm */
+.transport-strip .ts-btn.danger {
+  background: transparent !important;
+  border-color: color-mix(in srgb, var(--burgundy, #8a4050) 55%, var(--line-hard)) !important;
+  color: color-mix(in srgb, var(--burgundy, #8a4050) 75%, var(--text)) !important;
+}
+
+.device-strip-empty {
+  justify-content: flex-start;
+}
+
+.device-chip-quiet {
+  min-width: min(14rem, 100%);
+  opacity: 0.85;
+}
+
+.device-chip-quiet .meta {
+  text-transform: none;
+  color: var(--text-dim);
 }
 
 .jam-stage {
