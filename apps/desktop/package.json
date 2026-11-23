@@ -1,6 +1,6 @@
 {
   "name": "@dawlessdaw/desktop",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "SPLOT MIDI Brain — MIDI routing, sequencing and audio capture for macOS",
   "author": "severgrow",
