@@ -18,6 +18,7 @@ Owner confirmed **"yeah all go"** on the handover confirmation questions. Phase 
 | 12 | Circuit Intelligence is **passive** (Circuit-in only). Activity labels never auto-mute hardware. Auto-focus from macros is optional (default on). |
 | 13 | Timing Lab: Clock Health is passive; Latency Lab is user-triggered only. Splot does not become clock master and does not auto-apply delay correction. |
 | 14 | Circuit tempo follow is **display only** (Transport / Play / Jam). BPM from Circuit-in clock. App MIDI clock forwarding stays off by default; hardware thru/DIN remains the sync path for SP etc. |
+| 15 | A3: route `forwardClock` is **opt-in** (`=== true` only). Undefined/false never forwards clock/transport. Studio builders emit at most one clock route per destination. |
 | 14 | Cross-device Super Macros are **opt-in**; A/B scenes are Splot-owned (not Circuit Scenes); only docs-backed/verified CC presets in the default catalog; Controller MIDI Learn stays single-destination. |
 | 15 | Performance Memory is analysis-only while recording; Section Bridge **event-actions** stay **off by default**; inferred events never auto-fill SP/MPC; original take audio/MIDI observations are kept. |
 | 16 | MIDI-guided FLIP logs note-ons for slice suggestions only — **no MIDI playback**, **no stem claim**, **no SP serial write**; original take PCM unchanged; existing FLIP edit/export preserved. |

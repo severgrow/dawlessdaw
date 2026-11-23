@@ -134,7 +134,9 @@ export class MidiRoutingEngine {
       if (route.sourcePortId !== message.portId) continue;
 
       if (clockLike) {
-        if (route.forwardClock === false) continue;
+        // A3: clock/transport is opt-in only (undefined === off). Matches
+        // studio preference — app clock forwarding stays off by default.
+        if (route.forwardClock !== true) continue;
         // Only the clock authority source may forward clock (if set)
         if (
           this.clockAuthorityPortId !== null &&

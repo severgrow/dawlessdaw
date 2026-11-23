@@ -126,8 +126,12 @@ export class MusicalPositionModel {
         this.bpm = Math.round(bpm * 10) / 10;
       }
     }
-    // Throttle UI: emit on beat boundaries (every PPQN clocks).
-    if (this.tickCount % PPQN === 0) this.emit();
+    // Always invalidate snapshot so getSnapshot() sees every tick (A3).
+    // Throttle listener notify to beat boundaries (every PPQN clocks).
+    this.cached = null;
+    if (this.tickCount % PPQN === 0) {
+      for (const fn of this.listeners) fn();
+    }
   }
 
   /**
