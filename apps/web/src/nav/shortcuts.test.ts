@@ -29,13 +29,16 @@ describe('keyboard nav shortcuts', () => {
     expect(panelIndexFromVerticalKey('j')).toBeNull();
   });
 
-  it('resolves vertical keys against Play / Build / Setup panels', () => {
+  it('resolves vertical keys against Play / Build / Sounds / Setup panels', () => {
     expect(workspaceForVerticalKey('q', 'play')).toBe('rig');
     expect(workspaceForVerticalKey('a', 'play')).toBe('controller');
     expect(workspaceForVerticalKey('z', 'play')).toBeNull(); // only 2 panels
     expect(workspaceForVerticalKey('q', 'build')).toBe('sequencer');
     expect(workspaceForVerticalKey('a', 'build')).toBe('circuit');
     expect(workspaceForVerticalKey('z', 'build')).toBe('sections');
+    expect(workspaceForVerticalKey('q', 'sounds')).toBe('sp');
+    expect(workspaceForVerticalKey('a', 'sounds')).toBe('samples');
+    expect(workspaceForVerticalKey('z', 'sounds')).toBe('mpc');
     expect(workspaceForVerticalKey('w', 'settings')).toBe('test');
   });
 });

@@ -28,6 +28,7 @@ const TABS: readonly WorkspaceId[] = [
   'sections',
   'circuit',
   'sp',
+  'mpc',
   'sessions',
   'test',
   'setup',

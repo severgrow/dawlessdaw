@@ -14,6 +14,7 @@ import { SamplesWorkspace } from './workspaces/SamplesWorkspace';
 import { SectionsWorkspace } from './workspaces/SectionsWorkspace';
 import { CircuitWorkspace } from './workspaces/CircuitWorkspace';
 import { SpWorkspace } from './workspaces/SpWorkspace';
+import { MpcWorkspace } from './workspaces/MpcWorkspace';
 import { SessionsWorkspace } from './workspaces/SessionsWorkspace';
 import { TestWorkspace } from './workspaces/TestWorkspace';
 import { SetupWorkspace } from './workspaces/SetupWorkspace';
@@ -105,6 +106,9 @@ export function App() {
           </WorkspacePanel>
           <WorkspacePanel id="samples" workspace={workspace} onReset={backToRig}>
             <SamplesWorkspace showLoopCatcher />
+          </WorkspacePanel>
+          <WorkspacePanel id="mpc" workspace={workspace} onReset={backToRig}>
+            <MpcWorkspace />
           </WorkspacePanel>
           <WorkspacePanel id="sections" workspace={workspace} onReset={backToRig}>
             <SectionsWorkspace />

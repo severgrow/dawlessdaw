@@ -165,6 +165,7 @@ export type WorkspaceId =
   | 'sections'
   | 'circuit'
   | 'sp'
+  | 'mpc'
   | 'sessions'
   | 'test'
   | 'setup'

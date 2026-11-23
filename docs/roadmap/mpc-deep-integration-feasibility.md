@@ -33,6 +33,13 @@ A Feasibility (this) → B Network MIDI first-class → C Library PoC → D UI �
 - Setup → Experimental: honest Offline UI (never fake Connected)
 - Separate from Network MIDI
 
+## Phase D (Project browser UI) — shipped in stack
+
+- Sounds → **MPC** panel: Projects / Audio / Expansions (read-only)
+- Fixture preview while Offline — never fakes Connected
+- Import / Backup buttons disabled stubs → Phase E
+- Soft mint · IBM Plex · dark glass
+
 ## Related
 
 - `docs/mpc-via-scarlett.md` · `docs/limitations.md` · Setup DIN next-action (PR #79)
