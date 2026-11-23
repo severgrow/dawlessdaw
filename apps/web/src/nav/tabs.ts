@@ -62,7 +62,10 @@ export const TOP_TABS: {
   },
 ];
 
-/** Old 1–8 pad-row shortcuts (and lastTab deep links) → workspace panels. */
+/**
+ * Historical panel order (docs / migration only).
+ * Live shortcuts: digits → TOP_TABS; letters → VERTICAL_MENU_KEYS (see shortcuts.ts).
+ */
 export const LEGACY_KEY_PANELS: readonly WorkspaceId[] = [
   'rig',
   'controller',

@@ -7382,7 +7382,48 @@ input[type='range'] {
 .nav button .key {
   border-radius: var(--radius-tech);
   border: none;
-  background: var(--glass-3);
+  background: transparent;
+}
+
+/* Keyboard nav — low-opacity shortcut glyphs on tabs / vertical menu */
+.nav-key-ghost,
+.panel-subnav-key {
+  opacity: 0.28;
+  font-family: var(--font-mono);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+.nav button .key.nav-key-ghost {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-mute);
+}
+
+.nav button.active .nav-key-ghost,
+.panel-subnav-btn.on .panel-subnav-key {
+  opacity: 0.45;
+  color: var(--mint-4) !important;
+  background: transparent !important;
+}
+
+.panel-subnav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.panel-subnav-key {
+  font-size: 10px;
+  min-width: 0.85em;
+  color: var(--text-mute);
+}
+
+.footer-keys {
+  opacity: 0.45;
+  margin-inline: var(--space-2);
 }
 
 .nav button {
