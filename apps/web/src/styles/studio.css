@@ -5501,3 +5501,164 @@ button.send-add {
 @media (min-width: 1280px) {
   .main { max-width: none; }
 }
+
+/* ─── Circuit Intelligence (Milestone 1) ───────────────── */
+
+.ci-panel {
+  margin-top: 1.1rem;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid var(--mint-2);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--mint-0) 55%, var(--bg-2));
+}
+
+.ci-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.35rem;
+}
+
+.ci-head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mint-5);
+}
+
+.ci-badge {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid var(--burgundy);
+  color: var(--burgundy-ink);
+  background: var(--burgundy-dim);
+}
+
+.ci-lead {
+  margin: 0 0 0.75rem;
+}
+
+.ci-grid-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+.ci-card {
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--line-hard);
+  background: var(--bg-3);
+}
+
+.ci-card h3,
+.ci-activity h3,
+.ci-events h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--mint-4);
+}
+
+.ci-autofocus {
+  margin-top: 0.55rem;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.ci-tracks {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.ci-track {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-3);
+  font-size: 0.75rem;
+}
+
+.ci-track.touched {
+  border-color: var(--mint-4);
+  box-shadow: 0 0 0 1px var(--mint-4);
+}
+
+.ci-track.focused {
+  background: var(--mint-0);
+}
+
+.ci-track .ci-label {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.ci-conf {
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.ci-conf-high { color: var(--mint-5); }
+.ci-conf-med { color: var(--mint-3); }
+.ci-conf-low { color: var(--burgundy-ink); opacity: 0.85; }
+.ci-conf-unknown { color: var(--text-mute); }
+
+.ci-act-active { border-color: var(--mint-3); }
+.ci-act-silent { opacity: 0.75; }
+.ci-act-mute { border-color: var(--burgundy); background: var(--burgundy-wash); }
+.ci-act-pattern { border-color: var(--mint-5); }
+.ci-act-unknown { border-style: dashed; }
+
+.ci-actions {
+  margin: 0.75rem 0 0.35rem;
+}
+
+.ci-event-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  max-height: 8rem;
+  overflow: auto;
+}
+
+.cm-row-touched .cm-track-meta b {
+  color: var(--mint-5);
+}
+
+.cm-act {
+  display: block;
+  font-size: 0.6rem;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  margin-top: 0.15rem;
+  color: var(--text-dim);
+  max-width: 7.5rem;
+}
+
+.cm-leg.cm-touched-leg {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  margin: 0 0.25rem 0 0.65rem;
+  border: 1px solid var(--mint-4);
+  background: var(--mint-0);
+  vertical-align: middle;
+}
+
+@media (max-width: 900px) {
+  .ci-grid-info,
+  .ci-tracks {
+    grid-template-columns: 1fr 1fr;
+  }
+}

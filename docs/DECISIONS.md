@@ -15,5 +15,6 @@ Owner confirmed **"yeah all go"** on the handover confirmation questions. Phase 
 | 9 | SP effect CTRL (bench h6) and Scarlett MPC Step 3 proceed as listed in HANDOVER — do **not** claim hardware Pass without owner confirmation. |
 | 10 | Product brand **Splot MIDI Brain** (header `splot / midi brain`). Do not rename packages, folders, or localStorage keys yet. |
 | 11 | Default Controller preset **Ploe Live v1** (T1–4 MPC, T5–6 Skiff 1–2, T7–8 SP A–B). Keep older My Studio presets. |
+| 12 | Circuit Intelligence is **passive** (Circuit-in only). Activity labels never auto-mute hardware. Auto-focus from macros is optional (default on). |
 
 See also [HANDOVER.md](./HANDOVER.md) and [circuit-controller.md](./circuit-controller.md).

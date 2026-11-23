@@ -1,4 +1,9 @@
-import type { CircuitMirrorSnapshot, MirrorCell } from '@dawlessdaw/sequencer';
+import type {
+  CircuitIntelligenceSnapshot,
+  CircuitMirrorSnapshot,
+  MirrorCell,
+} from '@dawlessdaw/sequencer';
+import { activityToCss, confidenceToCss } from '@dawlessdaw/sequencer';
 import { destBadge } from '@dawlessdaw/devices';
 import { useStudioStore } from '../store/useStudioStore';
 
@@ -19,17 +24,21 @@ function padClass(cell: MirrorCell, playhead: boolean): string {
 
 /**
  * Premium read-only 8×16 Circuit Mirror grid (Live or Saved cells).
+ * Live mode may pass intelligence for last-touched + activity labels.
  */
 export function CircuitMirrorGrid({
   snap,
   label,
   readOnlyHint,
+  intelligence,
 }: {
   snap: Pick<CircuitMirrorSnapshot, 'tracks' | 'playhead' | 'playing' | 'length' | 'cycle'>;
   label: string;
   readOnlyHint: string;
+  intelligence?: Pick<CircuitIntelligenceSnapshot, 'lastTouched' | 'tracks'> | null;
 }) {
   const controller = useStudioStore((s) => s.controller);
+  const touched = intelligence?.lastTouched.track ?? null;
 
   return (
     <div className="cm-grid-wrap">
@@ -38,6 +47,7 @@ export function CircuitMirrorGrid({
         <span className="cm-meta muted small">
           {snap.playing ? `cycle ${snap.cycle + 1}` : 'stopped'}
           {snap.playhead >= 0 ? ` · step ${snap.playhead + 1}` : ''}
+          {touched != null ? ` · last-touched T${touched}` : ''}
         </span>
       </div>
       <p className="muted small cm-hint">{readOnlyHint}</p>
@@ -53,13 +63,26 @@ export function CircuitMirrorGrid({
         {snap.tracks.map((row, ti) => {
           const trackNo = ti + 1;
           const dest = controller.tracks[ti]?.dest ?? null;
+          const act = intelligence?.tracks[ti];
           return (
-            <div key={trackNo} className="cm-row" role="row">
+            <div
+              key={trackNo}
+              className={`cm-row${touched === trackNo ? ' cm-row-touched' : ''}`}
+              role="row"
+            >
               <div className="cm-track-meta">
                 <b>T{trackNo}</b>
                 <span className={`cm-dest ${dest ? `dev-${dest.device}` : 'dev-off'}`}>
                   {destBadge(dest)}
                 </span>
+                {act ? (
+                  <span
+                    className={`cm-act ${activityToCss(act.label)} ${confidenceToCss(act.confidence)}`}
+                    title={act.reason}
+                  >
+                    {act.label}
+                  </span>
+                ) : null}
               </div>
               <div className="cm-pads">
                 {row.slice(0, snap.length).map((cell, si) => (
@@ -88,6 +111,11 @@ export function CircuitMirrorGrid({
         <span className="cm-leg cm-bright" /> bright (confirmed)
         <span className="cm-leg cm-dim" /> dim (this cycle / fading)
         <span className="cm-leg cm-empty" /> empty
+        {intelligence ? (
+          <>
+            <span className="cm-leg cm-touched-leg" /> last-touched
+          </>
+        ) : null}
       </div>
     </div>
   );

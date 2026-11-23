@@ -8,6 +8,7 @@ import {
   type MirrorCell,
   type SequencerViewMode,
 } from '@dawlessdaw/sequencer';
+import { CircuitIntelligencePanel } from '../components/CircuitIntelligencePanel';
 import { CircuitMirrorGrid } from '../components/CircuitMirrorGrid';
 import { MoreInfo } from '../components/MoreInfo';
 import { FlipLane } from '../flip/FlipLane';
@@ -63,6 +64,16 @@ function useCircuitMirror(): CircuitMirrorSnapshot {
   );
 }
 
+function useCircuitIntelligence() {
+  const { getRuntime } = useStudioActions();
+  const eng = getRuntime().getCircuitIntelligence();
+  return useSyncExternalStore(
+    (cb) => eng.subscribe(cb),
+    () => eng.getSnapshot(),
+    () => eng.getSnapshot(),
+  );
+}
+
 function emptyMirrorSnap(): CircuitMirrorSnapshot {
   const tracks: MirrorCell[][] = Array.from({ length: MIRROR_TRACK_COUNT }, () =>
     Array.from({ length: MIRROR_STEP_COUNT }, () => ({
@@ -92,6 +103,7 @@ export function SequencerWorkspace() {
   const snap = useStudioStore();
   const a = useStudioActions();
   const mirror = useCircuitMirror();
+  const intel = useCircuitIntelligence();
   const circuitIn = snap.assignments.find((x) => x.roleId === 'circuit')?.inputPortId;
   const seq = snap.sequencer;
   const pattern = seq.bank.patterns[seq.bank.activePatternIndex]!;
@@ -252,12 +264,20 @@ export function SequencerWorkspace() {
                 {noteName(mirror.lastNote.note)}) · v{mirror.lastNote.velocity}
               </span>
             ) : null}
+            {intel.position.bar > 0 ? (
+              <span className="mono small">
+                bar {intel.position.bar}:{intel.position.beat}
+                {intel.position.bpm != null ? ` · ≈${intel.position.bpm}` : ''}
+              </span>
+            ) : null}
           </div>
           <CircuitMirrorGrid
             snap={mirror}
             label="Circuit Live"
-            readOnlyHint="Bright = confirmed across loops · Dim = this cycle / fading · Empty = silent"
+            readOnlyHint="Bright = confirmed across loops · Dim = this cycle / fading · Empty = silent. Activity labels are guesses — never auto-mute."
+            intelligence={intel}
           />
+          <CircuitIntelligencePanel intel={intel} />
         </>
       ) : null}
 

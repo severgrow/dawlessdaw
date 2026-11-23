@@ -37,6 +37,10 @@ Mark **verified** only after you confirm. Until then leave **experimental / unte
 6. Confirm MPC / SP / FM1 still play exactly as before (Controller routing unchanged).
 7. Optional: **Circuit Saved** → Open a `.ncs` from disk (Components export / SD copy). Pattern 1–8 switcher shows saved steps.
 
+## Circuit Intelligence
+
+Milestone 1 extends Circuit Live with last-touched (CC 21–28), activity guesses, and musical position. See [circuit-intelligence.md](./circuit-intelligence.md). Still passive — no outbound MIDI from intelligence.
+
 ## Limits
 
 See [limitations.md](./limitations.md). Stock Circuit MIDI does not dump unsaved pattern RAM. Browser clock is main-thread.

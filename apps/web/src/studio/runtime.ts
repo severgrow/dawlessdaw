@@ -7,8 +7,10 @@ import {
   type MidiMessage,
 } from '@dawlessdaw/core';
 import {
+  CircuitIntelligenceEngine,
   CircuitMirrorEngine,
   SequencerEngine,
+  type CircuitIntelligenceSnapshot,
   type SeqClockSource,
   type SeqEngineSnapshot,
   type SeqScheduledNote,
@@ -243,6 +245,11 @@ export interface StudioRuntimeSnapshot {
   /** Dawlessdaw 8×16 sequencer (not Circuit's internal patterns). */
   sequencer: SeqEngineSnapshot;
   sequencerSelected: { track: number; step: number };
+  /**
+   * Circuit Intelligence (passive) — last-touched, activity guesses, musical position.
+   * Experimental until Patryk confirms on hardware. Never drives outbound MIDI.
+   */
+  circuitIntelligence: CircuitIntelligenceSnapshot;
 }
 
 type Listener = () => void;
@@ -293,6 +300,28 @@ function saveSetup(setup: PersistedStudioSetup): void {
   try {
     if (typeof localStorage === 'undefined') return;
     localStorage.setItem(STORAGE_KEY_STUDIO_SETUP, JSON.stringify(setup));
+  } catch {
+    // ignore
+  }
+}
+
+const CIRCUIT_INTEL_AUTOFOCUS_KEY = 'dawlessdaw.circuitIntel.autoFocus';
+
+function loadCircuitIntelAutoFocus(): boolean {
+  try {
+    if (typeof localStorage === 'undefined') return true;
+    const v = localStorage.getItem(CIRCUIT_INTEL_AUTOFOCUS_KEY);
+    if (v === null) return true;
+    return v !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function saveCircuitIntelAutoFocus(on: boolean): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(CIRCUIT_INTEL_AUTOFOCUS_KEY, on ? '1' : '0');
   } catch {
     // ignore
   }
@@ -394,6 +423,14 @@ export class StudioRuntime {
   private seqUnsub: (() => void) | null = null;
   /** Passive Circuit Live observer — Circuit input MIDI only; never routes out. */
   private circuitMirror = new CircuitMirrorEngine();
+  /**
+   * Passive Circuit Intelligence — analysis after routing; never emits MIDI.
+   * Auto-focus preference from localStorage (`dawlessdaw.circuitIntel.autoFocus`).
+   */
+  private circuitIntel = new CircuitIntelligenceEngine({
+    autoFocus: loadCircuitIntelAutoFocus(),
+  });
+  private intelUnsub: (() => void) | null = null;
 
   constructor() {
     this.transport = new WebMidiTransport();
@@ -403,10 +440,13 @@ export class StudioRuntime {
       onAllNotesOff: () => this.routing.allNotesOff(),
     });
     this.seqUnsub = this.sequencer.subscribe(() => this.notify());
+    this.intelUnsub = this.circuitIntel.subscribe(() => this.notify());
     // Dev/smoke helper: drive Circuit Mirror from Playwright without outbound MIDI.
     if (typeof window !== 'undefined') {
       (window as unknown as { __splotCircuitMirror?: CircuitMirrorEngine }).__splotCircuitMirror =
         this.circuitMirror;
+      (window as unknown as { __splotCircuitIntel?: CircuitIntelligenceEngine }).__splotCircuitIntel =
+        this.circuitIntel;
     }
     const saved = loadSetup();
     if (saved?.assignments?.length) {
@@ -556,6 +596,7 @@ export class StudioRuntime {
       onboarding: this.computeOnboarding(),
       sequencer: this.sequencer.getSnapshot(),
       sequencerSelected: this.sequencer.getSelected(),
+      circuitIntelligence: this.circuitIntel.getSnapshot(),
     };
   }
 
@@ -628,6 +669,8 @@ export class StudioRuntime {
           this.sequencer.onMidiClockMessage(event.message.kind, event.message.timestamp);
           // Circuit Mirror: same Circuit-in filter — never forwarded OUT clock.
           this.circuitMirror.onMidiMessage(event.message.kind);
+          // Intelligence analysis after mirror — still Circuit-in only; no outbound.
+          this.circuitIntel.onMidiTransport(event.message.kind);
         }
       }),
     );
@@ -987,6 +1030,27 @@ export class StudioRuntime {
     return JSON.stringify(this.circuitMirror.exportDiagnostic(), null, 2);
   }
 
+  /** Circuit Intelligence — passive analysis; subscribe via getSnapshot. */
+  getCircuitIntelligence(): CircuitIntelligenceEngine {
+    return this.circuitIntel;
+  }
+
+  resetCircuitIntelligence(): void {
+    this.circuitIntel.reset();
+    this.notify();
+  }
+
+  exportCircuitIntelligenceDiagnostic(): string {
+    return JSON.stringify(this.circuitIntel.exportDiagnostic(), null, 2);
+  }
+
+  setCircuitIntelAutoFocus(on: boolean): void {
+    this.circuitIntel.setAutoFocus(on);
+    saveCircuitIntelAutoFocus(on);
+    this.setStatus(`Circuit auto-focus ${on ? 'on' : 'off'} (macros CC 21–28)`);
+    this.notify();
+  }
+
   // —— Circuit Controller ——
 
   private controllerDirty(): boolean {
@@ -1336,8 +1400,19 @@ export class StudioRuntime {
         : -1;
     const resolved =
       message.kind === 'cc' ? resolveControlMapping(this.controller, message) : null;
-    if (!isNote && !resolved) return;
-    this.activeCircuitTrack = t;
+
+    // Last-touched from macros even when the track has no Controller mapping yet.
+    if (knob >= 0 && message.controller != null) {
+      const touch = this.circuitIntel.onMacroCc(t, message.controller, message.value ?? 0);
+      if (touch?.shouldAutoFocus) this.activeCircuitTrack = t;
+    }
+
+    if (!isNote && !resolved && knob < 0) return;
+
+    if (knob < 0) {
+      // Notes / non-macro CCs still update the live track highlight.
+      this.activeCircuitTrack = t;
+    }
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
     const learn = this.controllerLearn;
@@ -1835,6 +1910,8 @@ export class StudioRuntime {
           'circuit-project-pgm',
           `Project ${interpreted.projectIndex} (${interpreted.projectChangeKind})`,
         );
+        // Intelligence: Project Change is informational (never outbound from intel).
+        if (fromCircuit) this.circuitIntel.onProjectChange(message.value ?? 0);
         this.runSectionBridge(message.value ?? 0);
         this.notify();
         return;
@@ -1854,6 +1931,12 @@ export class StudioRuntime {
             // Circuit Mirror Live: Circuit **input** only (fromCircuit gate above).
             if (fromCircuit) {
               this.circuitMirror.onNoteOn(
+                message.channel,
+                message.note,
+                message.velocity ?? 0,
+              );
+              // Activity fingerprints — after routing path; analysis only.
+              this.circuitIntel.onNoteOn(
                 message.channel,
                 message.note,
                 message.velocity ?? 0,
