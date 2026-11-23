@@ -1,24 +1,32 @@
 /*
- * Splot MIDI Brain visual system — Hardware-Feel Pass E finish
- * Matte charcoal + bone type. Soft mint = activity / primary.
- * Burgundy = quiet accents only. Sparse amber = caution (CLIP / warn).
- * No neon / glow haze. Plex + full radius tokens = later Visual Consistency pass.
+ * Splot MIDI Brain — Visual Consistency polish
+ * IBM Plex Sans (UI) + IBM Plex Mono (technical values only).
+ * Machined radii · soft mint · quiet burgundy · Pass E charcoal/bone/caution.
+ * No neon · no SaaS pills · ≤3 surface levels.
  */
 :root {
-  /* Matte charcoal surfaces */
-  --bg-0: #0c0d0c; /* page */
-  --bg-1: #121312; /* bars, rails */
-  --bg-2: #181a18; /* modules */
-  --bg-3: #202220; /* hover / inset */
-  --bg-4: #2b2d2b; /* pressed / unlit pads */
-  --line: #2a2c2a;
+  /* Surfaces — use ≤3 levels: page / chrome / module */
+  --bg-0: #0c0d0c; /* page = surface-0 */
+  --bg-1: #121312; /* chrome = surface-1 */
+  --bg-2: #181a18; /* module = surface-2 */
+  --bg-3: #1e201e; /* hover only — not a 4th nesting level */
+  --bg-4: #282a28; /* pressed / unlit pads */
+  --surface-0: var(--bg-0);
+  --surface-1: var(--bg-1);
+  --surface-2: var(--bg-2);
+  /* Dark glass fills — hierarchy via opacity/blur, not outlines */
+  --glass-1: color-mix(in srgb, #1a1c1a 78%, transparent);
+  --glass-2: color-mix(in srgb, #222522 72%, transparent);
+  --glass-3: color-mix(in srgb, #2a2e2a 68%, transparent);
+  --glass-blur: blur(14px) saturate(1.05);
+  --line: #2a2c2a; /* reserved for state / hairline separators */
   --line-soft: #1c1e1c;
   --line-hard: #3a3c3a;
-  --text: #efece4; /* bone typography */
+  --text: #efece4; /* bone */
   --text-dim: #9c9a92;
   --text-mute: #66645e;
 
-  /* Mint scale — soft, lower saturation (activity) */
+  /* Mint — activity / primary */
   --mint-0: #151c19;
   --mint-1: #1e2925;
   --mint-2: #384d45;
@@ -27,7 +35,7 @@
   --mint-5: #a5c2b4;
   --mint-6: #c2d4cb;
 
-  /* Burgundy — quieter accents (Panic / experimental badges) */
+  /* Burgundy — quiet accents */
   --burgundy: #7a3d4a;
   --burgundy-2: #5f303b;
   --burgundy-dim: #24161a;
@@ -35,34 +43,30 @@
   --burgundy-wash: rgba(122, 61, 74, 0.06);
   --burgundy-ink: #ebe0e2;
 
-  /* Sparse amber — caution only (CLIP, warn callouts) */
+  /* Caution amber */
   --caution: #c4a574;
   --caution-2: #9a7f52;
   --caution-dim: #2a2418;
   --caution-wash: rgba(196, 165, 116, 0.12);
 
-  /* ON / selected / live — soft mint */
   --on: var(--mint-4);
   --on-2: var(--mint-3);
   --on-dim: var(--mint-1);
   --on-glow: rgba(139, 176, 161, 0.14);
   --on-wash: rgba(139, 176, 161, 0.08);
 
-  /* ALERT fills stay soft mint (not red alarm) */
   --alert: var(--mint-5);
   --alert-hi: var(--mint-6);
   --alert-dim: var(--mint-0);
   --alert-glow: rgba(165, 194, 180, 0.12);
   --alert-wash: rgba(165, 194, 180, 0.07);
 
-  /* Device colours */
-  --bone: #e4ddd0; /* MPC */
+  --bone: #e4ddd0;
   --bone-dim: #37342d;
   --bone-wash: rgba(228, 221, 208, 0.12);
   --sp-accent: var(--burgundy);
   --fm1-accent: var(--mint-4);
 
-  /* Roles */
   --accent: var(--on);
   --accent-dim: var(--on-dim);
   --accent-glow: var(--on-glow);
@@ -70,7 +74,7 @@
   --alert-ink: #0c0e0c;
   --ok: var(--on);
   --ok-glow: var(--on-glow);
-  --warn: var(--caution); /* Pass E: caution amber, not mint flood */
+  --warn: var(--caution);
   --err: var(--burgundy);
   --cyan: var(--mint-4);
 
@@ -79,15 +83,37 @@
   --amber-glow: var(--caution-wash);
   --focus: var(--mint-5);
 
-  /* Keep Syne for Pass E (IBM Plex = Visual Consistency pass) */
-  --font-display: 'Syne', 'Avenir Next', 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-ui: 'Syne', 'Avenir Next', 'Segoe UI', sans-serif;
-  --radius: 7px; /* tiny cohesion tweak — full token ladder later */
-  --radius-lg: 10px;
+  /* Type — Plex Sans UI; Mono only for technical readouts */
+  --font-display: 'IBM Plex Sans', 'Avenir Next', 'Segoe UI', sans-serif;
+  --font-ui: 'IBM Plex Sans', 'Avenir Next', 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Machined radii — not pills */
+  --radius-tech: 3px; /* leds, keys, tiny */
+  --radius-compact: 4px; /* compact controls / chips */
+  --radius: 6px; /* main controls */
+  --radius-panel: 8px; /* panels / cards */
+  --radius-lg: var(--radius-panel);
+
+  /* Control rhythm */
+  --ctrl-h: 36px;
+  --ctrl-h-compact: 28px;
+  --ctrl-h-lg: 44px;
   --bar-h: 40px;
-  --strip-h: 64px;
+  --strip-h: 56px;
   --foot-h: 26px;
+  --shell-gutter: var(--space-4);
 }
 
 *,
@@ -170,23 +196,22 @@ textarea {
 
 button {
   cursor: pointer;
-  background: var(--bg-3);
-  border: 1px solid var(--line-hard);
+  background: var(--glass-2);
+  border: 1px solid transparent; /* frameless — contour only for state */
   border-radius: var(--radius);
-  padding: 0.5rem 0.95rem;
-  min-height: 2.25rem;
+  padding: 0 0.85rem;
+  min-height: var(--ctrl-h);
   color: var(--text);
   font-family: var(--font-ui);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 90ms ease;
 }
 
 button:hover:not(:disabled) {
-  border-color: var(--text-mute);
-  background: var(--bg-4);
+  background: var(--glass-3);
 }
 
 button:active:not(:disabled) {
@@ -258,9 +283,9 @@ button.verdict-unsure.active:hover:not(:disabled) {
 select,
 input:not([type='checkbox']):not([type='radio']),
 .select-inline {
-  background: var(--bg-0);
-  border: 1px solid var(--line-hard);
-  border-radius: var(--radius);
+  background: var(--glass-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-compact);
   padding: 0.28rem 0.45rem;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -810,9 +835,11 @@ kbd {
   position: relative;
   margin-bottom: 0.9rem;
   padding: 0 0.95rem 0.85rem;
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  background: var(--glass-2);
+  border: none; /* frameless — fill/blur hierarchy */
+  border-radius: var(--radius-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 /* First heading becomes the module's header strip (Ableton device title bar) */
@@ -822,9 +849,9 @@ kbd {
   gap: 0.55rem;
   margin: 0 -0.95rem 0.85rem;
   padding: 0.5rem 0.95rem;
-  border-bottom: 1px solid var(--line);
-  background: var(--bg-1);
-  border-radius: var(--radius) var(--radius) 0 0;
+  border-bottom: none;
+  background: color-mix(in srgb, var(--surface-1) 55%, transparent);
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
   color: var(--text);
 }
 
@@ -2516,7 +2543,7 @@ button.rig-backdrop-toggle {
   color: var(--text-mute);
   background: var(--bg-0);
   border: 1px solid var(--line-hard);
-  border-radius: 999px;
+  border-radius: var(--radius-compact);
 }
 
 button.rig-backdrop-toggle:disabled {
@@ -2862,18 +2889,18 @@ button {
 
 .switch-row button,
 button.ap-start {
-  border-radius: 999px;
+  border-radius: var(--radius);
 }
 
 .send-chip,
 button.send-add {
-  border-radius: 999px;
+  border-radius: var(--radius-compact);
 }
 
 .sim-badge,
 .readout,
 .verdict-tag {
-  border-radius: 999px;
+  border-radius: var(--radius-compact);
 }
 
 .route-grid,
@@ -3521,7 +3548,7 @@ button.send-add {
 .range2 input[type='range']::-webkit-slider-runnable-track {
   height: 4px;
   background: var(--bg-4);
-  border-radius: 999px;
+  border-radius: var(--radius-tech);
 }
 
 .range2 input[type='range']::-webkit-slider-thumb {
@@ -3544,7 +3571,7 @@ button.send-add {
 .range2 input[type='range']::-moz-range-track {
   height: 4px;
   background: var(--bg-4);
-  border-radius: 999px;
+  border-radius: var(--radius-tech);
 }
 
 .range2 input[type='range']::-moz-range-thumb {
@@ -3574,7 +3601,7 @@ button.send-add {
   gap: 0.25rem;
   padding: 0.2rem 0.45rem;
   border: 1px solid var(--line-hard);
-  border-radius: 999px;
+  border-radius: var(--radius-compact);
   background: var(--bg-0);
   color: var(--text-dim);
   font-size: 11.5px;
@@ -3825,7 +3852,7 @@ button.send-add {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 0.2rem 0.55rem;
-  border-radius: 999px;
+  border-radius: var(--radius-compact);
   border: 1px solid var(--line);
   color: var(--text-mute);
 }
@@ -4381,7 +4408,7 @@ button.send-add {
   color: var(--accent-ink);
   background: var(--on);
   padding: 0.1rem 0.45rem;
-  border-radius: 999px;
+  border-radius: var(--radius-compact);
 }
 
 .onboard-banner p {
@@ -4441,7 +4468,7 @@ button.send-add {
   text-transform: uppercase;
   border: 1px solid var(--line-hard);
   padding: 0.05rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius-compact);
   color: var(--text-dim);
 }
 
@@ -4512,7 +4539,7 @@ button.send-add {
   color: var(--mint-5);
   text-decoration: none;
   border: 1px solid var(--mint-2);
-  border-radius: 999px;
+  border-radius: var(--radius-compact);
   padding: 0.25rem 0.65rem;
 }
 
@@ -5559,7 +5586,7 @@ button.send-add {
   width: 1.35rem !important;
   height: 1.35rem !important;
   padding: 0 !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-compact) !important;
   font-size: 11px !important;
   vertical-align: middle;
   border-color: var(--mint-3) !important;
@@ -5713,7 +5740,7 @@ button.wizard-cta {
   max-width: min(18rem, 100%);
   padding: 0.2rem 0.35rem 0.2rem 0.55rem;
   border: 1px solid var(--mint-2);
-  border-radius: 999px;
+  border-radius: var(--radius-compact);
   background: color-mix(in srgb, var(--mint-0) 70%, transparent);
   font-size: 0.78rem;
   letter-spacing: 0.02em;
@@ -7018,75 +7045,285 @@ button.setup-cta {
   color: var(--mint-4);
 }
 
-/* ─── Hardware-Feel Pass E — shell optical finish ─────────
-   Cohesion across B–D chrome. No Plex / no full radius ladder. */
+/* ═══════════════════════════════════════════════════════════
+   Visual Consistency — Plex · button family · dark glass shell
+   Contour-frameless: borders only for focus / selected / error
+   ═══════════════════════════════════════════════════════════ */
 
+/* —— Button family (frameless fill hierarchy) —— */
+.btn-secondary,
+.ts-btn,
+.seq-btn,
+.panel-subnav-btn,
+.ts-connect,
+button:not(.ghost):not(.danger) {
+  background: var(--glass-2) !important;
+  border: 1px solid transparent !important;
+  color: var(--text) !important;
+  border-radius: var(--radius) !important;
+  min-height: var(--ctrl-h) !important;
+  box-shadow: none !important;
+  font-family: var(--font-ui) !important;
+  font-weight: var(--fw-semibold) !important;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ts-btn,
+.seq-btn,
+.ts-connect {
+  min-width: 4.25rem;
+  padding: 0 var(--space-3) !important;
+}
+
+.btn-primary,
+button.status-cta,
+button.setup-cta,
+button.wizard-cta,
+.rec-big.record,
+.ts-btn.on,
+.seq-btn.on:not(.rec) {
+  background: var(--mint-4) !important;
+  border: 1px solid transparent !important;
+  color: var(--accent-ink) !important;
+  border-radius: var(--radius) !important;
+  min-height: var(--ctrl-h) !important;
+  box-shadow: none !important;
+}
+
+/* Selected / pressed — state border allowed */
+.btn-toggle.on,
+.panel-subnav-btn.on,
+button.active:not(.ghost):not(.danger):not(.ts-btn):not(.seq-btn),
+button[aria-pressed='true']:not(.ghost):not(.danger):not(.ts-btn):not(.seq-btn) {
+  background: var(--mint-1) !important;
+  border: 1px solid color-mix(in srgb, var(--mint-3) 55%, transparent) !important;
+  color: var(--mint-5) !important;
+}
+
+/* Error / destructive — state border allowed */
+.btn-destructive,
+.ts-btn.danger,
+.rec-big.stop,
+.transport-strip .ts-btn.danger,
+button.danger {
+  background: color-mix(in srgb, var(--burgundy-dim) 80%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--burgundy) 50%, transparent) !important;
+  color: color-mix(in srgb, var(--burgundy) 75%, var(--text)) !important;
+  border-radius: var(--radius) !important;
+  min-height: var(--ctrl-h) !important;
+}
+
+.btn-compact,
+button.ghost {
+  min-height: var(--ctrl-h-compact) !important;
+  padding: 0 var(--space-2) !important;
+  border-radius: var(--radius-compact) !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  font-size: 11px !important;
+}
+
+.rec-big,
+.rec-big.record,
+.rec-big.stop {
+  min-height: var(--ctrl-h-lg) !important;
+  min-width: 7.5rem !important;
+  border-radius: var(--radius) !important;
+  font-family: var(--font-ui) !important;
+  font-size: 13px !important;
+}
+
+.seq-btn.rec.on {
+  background: color-mix(in srgb, var(--burgundy-dim) 70%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--burgundy) 50%, transparent) !important;
+  color: color-mix(in srgb, var(--burgundy) 80%, var(--text)) !important;
+}
+
+.ts-btn.jam {
+  background: color-mix(in srgb, var(--mint-0) 70%, transparent) !important;
+  border: 1px solid transparent !important;
+  color: var(--mint-5) !important;
+}
+
+/* —— Depill: machined chips (no SaaS pills) —— */
+.context-chip,
+.seq-flip-jump,
+.rec-phase-chip,
+.honesty-pill,
+.check-pill,
+.howto-q,
+.c2-live-pill,
+.sp3-live-pill,
+.readout,
+.verdict-tag,
+.send-chip {
+  border-radius: var(--radius-compact) !important;
+  border: 1px solid transparent !important;
+  background: var(--glass-1) !important;
+}
+
+/* —— Technical mono (BPM / channels / values / timers / ports) —— */
+.mono,
+.readout,
+.readout b,
+.circuit-tempo-bpm,
+.circuit-tempo-unit,
+.circuit-tempo-label,
+.circuit-tempo-meta,
+.rec-elapsed,
+.ports-table,
+.port-select,
+.select-inline,
+.num-input,
+.seq-field,
+.seq-meta,
+.ct-badge,
+.ts-status,
+.status-bar .status-line,
+.footer-bar .mono,
+.pt-device .mono,
+.cap-list,
+.event-log,
+.mlg-mono,
+.ci-card .mono,
+.live-strip .ls-now,
+.live-strip .ls-list {
+  font-family: var(--font-mono) !important;
+  font-feature-settings: 'zero' 1, 'ss01' 1;
+}
+
+.brand,
+.page-head h1,
+.nav button .nav-text {
+  font-family: var(--font-display);
+  font-weight: var(--fw-semibold);
+}
+
+/* —— Shell ≤3 glass surfaces · aligned gutters · no contours —— */
 .app {
-  background: var(--bg-0);
+  background: var(--surface-0);
 }
 
 .status-bar,
 .footer-bar,
 .nav {
-  background: var(--bg-1);
+  background: var(--glass-1);
+  border: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .transport-strip {
-  background: color-mix(in srgb, var(--mint-0) 35%, var(--bg-1));
+  background: color-mix(in srgb, var(--mint-0) 22%, var(--glass-1));
+  border: none !important;
+  padding: var(--space-2) var(--shell-gutter);
+  min-height: var(--strip-h);
+  gap: var(--space-2) var(--space-3);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.status-bar,
+.footer-bar {
+  padding-inline: var(--shell-gutter);
+}
+
+.main {
+  background: transparent;
+  padding: var(--space-5) var(--space-5) var(--space-6);
+}
+
+.panel,
+.wizard-card,
+.seq-transport,
+.seq-transport-dominant,
+.flip-lane,
+.flip-lane-discover,
+.midi-learn-glass,
+.device-chip-quiet,
+.ci-card,
+.rec-capture,
+.live-strip {
+  background: var(--glass-2) !important;
+  border: none !important;
+  border-radius: var(--radius-panel) !important;
+  box-shadow: none !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.panel {
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.panel > h2:first-child {
+  margin: 0 calc(-1 * var(--space-4)) var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+  border-bottom: none !important;
+  background: color-mix(in srgb, var(--surface-0) 35%, transparent);
+}
+
+/* Nested modules: quieter glass, still no outline */
+.panel .panel,
+.panel details.panel,
+.rec-capture-advanced {
+  background: var(--glass-1) !important;
+  border: none !important;
+}
+
+.page-head {
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .page-head h1 {
-  font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
   letter-spacing: 0.02em;
   color: var(--text);
   text-transform: lowercase;
 }
 
-.page-head .readout,
-.page-head .seq-brand-chip {
-  font-family: var(--font-mono);
+.device-strip {
+  background: transparent;
+  gap: var(--space-1);
 }
 
-.status-cta,
-button.status-cta,
-.setup-cta,
-button.setup-cta {
-  background: var(--mint-4);
-  border-color: var(--mint-3);
-  color: var(--accent-ink);
-  box-shadow: none;
+.device-chip {
+  background: var(--glass-1);
+  border: none !important;
+  border-radius: var(--radius-compact);
 }
 
-.status-cta:hover:not(:disabled),
-.setup-cta:hover:not(:disabled) {
-  background: var(--mint-5);
+.seq-transport,
+.seq-transport-dominant {
+  padding: var(--space-3);
+  gap: var(--space-2);
+}
+
+.flip-lane,
+.flip-lane-discover {
+  padding: var(--space-4);
+}
+
+.wizard-card {
+  box-shadow: 0 24px 64px color-mix(in srgb, #000 55%, transparent) !important;
+}
+
+/* Focus / selected surfaces — state contour only */
+.wizard-focus,
+.midi-learn-glass.mlg-focus {
+  border: 1px solid color-mix(in srgb, var(--mint-3) 40%, transparent) !important;
+  background: color-mix(in srgb, var(--mint-0) 55%, var(--glass-2)) !important;
+  box-shadow: 0 14px 36px color-mix(in srgb, #000 45%, transparent) !important;
 }
 
 .context-chip {
-  border-radius: 999px;
-  border-color: var(--mint-2);
-  background: color-mix(in srgb, var(--mint-0) 55%, var(--bg-2));
-}
-
-.device-chip-quiet {
-  background: var(--bg-1);
-  border: 1px solid var(--line);
-}
-
-.seq-transport-dominant {
-  background:
-    radial-gradient(ellipse at 8% 0%, var(--on-wash), transparent 55%),
-    var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: none;
-}
-
-.flip-lane-discover {
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--mint-0) 45%, var(--glass-1)) !important;
+  padding: var(--space-1) var(--space-2);
 }
 
 .rec-meter.clip {
@@ -7099,38 +7336,177 @@ button.setup-cta {
 }
 
 .rec-phase-chip-recording {
-  border-color: color-mix(in srgb, var(--burgundy) 45%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--burgundy) 45%, transparent) !important;
   color: color-mix(in srgb, var(--burgundy) 70%, var(--text-dim));
 }
 
-.wizard-card {
-  background: var(--bg-2);
-  border: 1px solid var(--line-hard);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 18px 48px color-mix(in srgb, #000 55%, transparent);
+/* Hardware strip: knobs / sliders / selects */
+.ctl-knob,
+input[type='range'] {
+  accent-color: var(--mint-4);
 }
 
-.wizard-focus {
-  border-color: var(--mint-2);
-  background: color-mix(in srgb, var(--mint-0) 70%, var(--bg-2));
+input[type='range'] {
+  height: var(--space-2);
+  border-radius: var(--radius-tech);
 }
 
-.midi-learn-glass.mlg-focus {
-  border-color: var(--mint-2);
-  box-shadow:
-    0 14px 36px color-mix(in srgb, #000 50%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--mint-3) 28%, transparent);
+.select-inline,
+.port-select,
+.big-select,
+.text-input,
+.num-input {
+  min-height: var(--ctrl-h-compact);
+  border-radius: var(--radius-compact);
+  border: 1px solid transparent !important;
+  background: var(--glass-1) !important;
+  font-family: var(--font-mono);
+  font-size: 12px;
 }
 
-.panel {
-  border-radius: var(--radius);
+.select-inline:focus-visible,
+.port-select:focus-visible,
+.big-select:focus-visible,
+.text-input:focus-visible,
+.num-input:focus-visible {
+  border-color: color-mix(in srgb, var(--mint-3) 50%, transparent) !important;
 }
 
-.main {
-  background: transparent;
+.knob-row,
+.ct-knobs,
+.slot-row {
+  gap: var(--space-2);
 }
 
-/* Multi-viewport: keep shell from sideways scroll after B–D chrome */
+/* Nav keys machined */
+.nav button .key {
+  border-radius: var(--radius-tech);
+  border: none;
+  background: var(--glass-3);
+}
+
+.nav button {
+  min-height: var(--ctrl-h-lg);
+  padding: var(--space-2) var(--space-3);
+  background: transparent !important;
+  border: 1px solid transparent !important;
+}
+
+.nav button.active,
+.nav button[aria-current='page'] {
+  background: var(--glass-2) !important;
+  border: 1px solid color-mix(in srgb, var(--mint-3) 35%, transparent) !important;
+  color: var(--mint-5) !important;
+}
+
+/* —— Workspaces optical (Play / Pattern / Sessions / Setup) —— */
+.seq-page .seq-transport,
+.seq-page .seq-transport-dominant {
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.seq-page .seq-grid,
+.seq-pads {
+  gap: var(--space-1);
+}
+
+.seq-page .seq-meta,
+.seq-page .seq-field {
+  gap: var(--space-2);
+}
+
+.sessions-page .rec-capture,
+.sessions-page .rec-transport {
+  gap: var(--space-3);
+}
+
+.sessions-page .field {
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.flip-lane .flip-controls,
+.flip-lane-discover .flip-controls {
+  gap: var(--space-2);
+}
+
+.setup-page .panel + .panel,
+.ci-page .panel + .panel {
+  margin-top: var(--space-4);
+}
+
+.live-strip,
+.device-strip {
+  gap: var(--space-1);
+}
+
+.ct-knobs .ctl,
+.knob-row .ctl {
+  min-width: 4.5rem;
+}
+
+.panel-subnav {
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.panel-subnav-btn {
+  min-width: 0 !important;
+  padding: 0 var(--space-3) !important;
+}
+
+/* Strip leftover decorative outlines from Pass B–E chrome */
+.status-bar,
+.footer-bar,
+.nav,
+.transport-strip,
+.device-strip,
+.page-head,
+.seq-honesty,
+.honesty-pill,
+.check-pill,
+.howto-q,
+.ct-size-jam {
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.ct-size-jam {
+  background: color-mix(in srgb, var(--mint-0) 55%, transparent) !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--radius) !important;
+}
+
+/* Rig map / audio path — fill only, no decorative contours */
+.rig-map,
+.rig-map.with-backdrop,
+.ap-stage,
+.ap-bar {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.rig-map,
+.ap-stage {
+  background: var(--glass-1) !important;
+  border-radius: var(--radius-panel) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+select.ap-select {
+  border: 1px solid transparent !important;
+  background: var(--glass-1) !important;
+  border-radius: var(--radius-compact) !important;
+}
+
+select.ap-select.ap-output,
+select.ap-select:focus-visible {
+  border: 1px solid color-mix(in srgb, var(--mint-3) 45%, transparent) !important;
+}
+
+/* Multi-viewport */
 @media (max-width: 720px) {
   html,
   body,
@@ -7139,7 +7515,7 @@ button.setup-cta {
     max-width: 100vw;
   }
   .main {
-    padding: 1rem 0.85rem 1.75rem;
+    padding: var(--space-4) var(--space-3) var(--space-5);
   }
   .page-head h1 {
     font-size: 1.35rem;
@@ -7150,9 +7526,14 @@ button.setup-cta {
   .device-strip-empty {
     max-width: 100%;
   }
-  .status-cta {
-    min-height: 2rem;
-    padding: 0.3rem 0.65rem;
-    font-size: 11px;
+  .status-cta,
+  button.status-cta {
+    min-height: var(--ctrl-h-compact) !important;
+    padding: 0 var(--space-2) !important;
+    font-size: 11px !important;
+  }
+  .ts-btn,
+  .seq-btn {
+    min-width: 3.25rem !important;
   }
 }
