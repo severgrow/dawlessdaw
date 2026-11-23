@@ -48,7 +48,7 @@ const PLACES: Record<string, Place> = {
   scarlett: { kind: 'scarlett', x: 520, y: 18, w: 100, name: 'Scarlett 2i4' },
   mpc: { kind: 'mpc', x: 740, y: 8, w: 120, name: 'MPC One' },
   sp: { kind: 'sp', x: 780, y: 155, w: 90, name: 'SP-404MKII' },
-  fm1: { kind: 'fm1', x: 700, y: 295, w: 170, name: 'FM1 · Skiff' },
+  fm1: { kind: 'fm1', x: 700, y: 304, w: 170, name: 'FM1 · Skiff' },
   zed: { kind: 'zed', x: 420, y: 275, w: 100, name: 'ZED-10FX' },
 };
 
@@ -115,8 +115,9 @@ export function RigMap() {
     });
   };
   const port = (role: string, which: 'in' | 'out') => {
-    const a = snap.assignments.find((x) => x.roleId === role);
-    return which === 'in' ? a?.inputPortId : a?.outputPortId;
+    const assignment = snap.assignments.find((entry) => entry.roleId === role);
+    const id = which === 'in' ? assignment?.inputPortId : assignment?.outputPortId;
+    return snap.ports.some((entry) => entry.id === id && entry.state === 'connected');
   };
   const sends = (dest: 'mpc' | 'sp' | 'fm1') =>
     Object.values(snap.trackPlan).some((list) => list.some((s) => s.dest === dest));
@@ -172,87 +173,91 @@ export function RigMap() {
           </button>
         </span>
       </h2>
-      <div className={`rig-map${backdrop ? ' with-backdrop' : ''}`} role="group" aria-label="Studio map">
-        <RigMixerBackdrop active={backdrop} showDrawings={drawings} />
-        <svg className="rig-cables" viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
-          {/* audio first, under the MIDI */}
-          <Cable kind="audio" on d="M800 120 C 720 190, 600 250, 520 290" />
-          <Cable kind="audio" on d="M790 250 C 700 270, 600 295, 520 305" />
-          <Cable kind="audio" on d="M740 345 C 660 345, 580 325, 520 320" />
-          <Cable kind="audio" on d="M430 275 C 420 255, 410 240, 400 220" label="USB audio" lx={370} ly={268} />
+      <div className="rig-map-scroll">
+        <div className={`rig-map${backdrop ? ' with-backdrop' : ''}`} role="group" aria-label="Studio map">
+          <RigMixerBackdrop active={backdrop} showDrawings={drawings} />
+          <svg className="rig-cables" viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+            {/* audio first, under the MIDI */}
+            <Cable kind="audio" on d="M750 100 C 675 190, 595 250, 520 290" />
+            <Cable kind="audio" on d="M780 226 C 700 270, 600 295, 520 305" />
+            <Cable kind="audio" on d="M700 345 C 660 345, 580 325, 520 320" />
+            <Cable kind="audio" on d="M450 275 C 445 245, 435 231, 420 211" label="USB audio" lx={412} ly={262} />
 
-          <Cable kind="midi" on={circuitOn} pulse={lastCircuit} d="M202 175 L 280 175" label="USB" lx={240} ly={166} />
-          <Cable kind="clock" on d="M100 230 C 100 270, 90 290, 85 300" label="DIN" lx={70} ly={275} />
-          <Cable
-            kind="clock"
-            on
-            d="M120 320 C 380 390, 920 390, 900 230 C 890 200, 860 195, 825 200"
-            label="clock via thru"
-            lx={520}
-            ly={385}
-          />
-          <Cable
-            kind="midi"
-            on={mpcOn}
-            pulse={snap.destActivity.mpc}
-            d="M428 150 C 480 150, 490 55, 520 55"
-            label="USB"
-            lx={470}
-            ly={95}
-          />
-          <Cable
-            kind="midi"
-            on={mpcOn}
-            pulse={snap.destActivity.mpc}
-            d="M620 55 L 740 55"
-            label={snap.clockToMpc ? 'DIN · notes+clock' : 'DIN · notes'}
-            lx={680}
-            ly={42}
-          />
-          <Cable
-            kind="midi"
-            on={spOn && (sends('sp') || snap.clockToSp)}
-            pulse={snap.destActivity.sp}
-            d="M428 185 C 580 185, 680 200, 780 200"
-            label="USB"
-            lx={620}
-            ly={176}
-          />
-          <Cable
-            kind="midi"
-            on={fm1On}
-            pulse={snap.destActivity.fm1}
-            d="M428 210 C 560 220, 620 320, 700 330"
-            label={snap.forwardClockToFm1 ? 'USB · notes+clock' : 'USB'}
-            lx={600}
-            ly={285}
-          />
-        </svg>
+            <Cable kind="midi" on={circuitOn} pulse={lastCircuit} d="M202 175 L 280 175" label="USB" lx={240} ly={166} />
+            <Cable kind="clock" on d="M100 230 C 100 270, 90 290, 85 300" label="DIN" lx={70} ly={275} />
+            <Cable
+              kind="clock"
+              on
+              d="M120 320 C 315 397, 937 416, 920 225 C 916 207, 889 201, 870 200"
+              label="clock via thru"
+              lx={590}
+              ly={382}
+            />
+            <Cable
+              kind="midi"
+              on={mpcOn}
+              pulse={snap.destActivity.mpc}
+              d="M428 150 C 480 150, 490 55, 520 55"
+              label="USB"
+              lx={470}
+              ly={95}
+            />
+            <Cable
+              kind="midi"
+              on={mpcOn}
+              pulse={snap.destActivity.mpc}
+              d="M620 55 L 740 55"
+              label={snap.clockToMpc ? 'DIN · notes+clock' : 'DIN · notes'}
+              lx={680}
+              ly={42}
+            />
+            <Cable
+              kind="midi"
+              on={spOn && (sends('sp') || snap.clockToSp)}
+              pulse={snap.destActivity.sp}
+              d="M428 185 C 580 185, 680 200, 780 200"
+              label="USB"
+              lx={620}
+              ly={176}
+            />
+            <Cable
+              kind="midi"
+              on={fm1On}
+              pulse={snap.destActivity.fm1}
+              d="M428 210 C 560 220, 620 320, 700 330"
+              label={snap.forwardClockToFm1 ? 'USB · notes+clock' : 'USB'}
+              lx={600}
+              ly={285}
+            />
+          </svg>
 
-        {devices.map((d) => {
-          const p = PLACES[d.id]!;
-          const roleId = SETUP_ROLE[d.id] ?? null;
-          return (
-            <button
-              key={d.id}
-              type="button"
-              className={`rig-device rig-${d.id}${d.lit ? ' lit' : ' off'}${d.pulse ? ' pulsing' : ''}`}
-              style={boxStyle(p)}
-              title={`${d.title} — open Setup`}
-              onClick={() => {
-                carrySetupRole(roleId, roleId ? `Ports · ${p.name}` : 'Setup');
-                setWorkspace('setup');
-              }}
-            >
-              <DeviceArt kind={p.kind} lit={d.lit} pulse={d.pulse} title={p.name} />
-              <span className="rig-name">
-                {p.name}
-                {p.sub ? <em>{p.sub}</em> : null}
-              </span>
-              <span className={`rig-link-dot${d.lit ? ' on' : ''}`} aria-hidden="true" />
-            </button>
-          );
-        })}
+          {devices.map((d) => {
+            const p = PLACES[d.id]!;
+            const roleId = SETUP_ROLE[d.id] ?? null;
+            return (
+              <button
+                key={d.id}
+                type="button"
+                className={`rig-device rig-${d.id}${d.lit ? ' lit' : ' off'}${d.pulse ? ' pulsing' : ''}`}
+                style={boxStyle(p)}
+                title={`${d.title} — open Setup`}
+                onClick={() => {
+                  carrySetupRole(roleId, roleId ? `Ports · ${p.name}` : 'Setup');
+                  setWorkspace('setup');
+                }}
+              >
+                <span className="rig-equipment-art" aria-hidden="true">
+                  <DeviceArt kind={p.kind} lit={d.lit} pulse={d.pulse} title={p.name} />
+                </span>
+                <span className="rig-name">
+                  {p.name}
+                  {p.sub ? <em>{p.sub}</em> : null}
+                </span>
+                <span className={`rig-link-dot${d.lit ? ' on' : ''}`} aria-hidden="true" />
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="rig-legend">
         <span>

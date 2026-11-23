@@ -90,25 +90,19 @@ export function App() {
 
   return (
     <div className={`app app-phase1 app-premium-v2 app-premium-v3 app-premium-v4${jam ? ' jam-open' : ''}`}>
-      {/*
-        v3: one horizontal chrome baseline —
-        brand · tabs · transport · midi CTA. No stacked toolbars.
-      */}
-      <div className="chrome chrome--single">
-        <StatusBar onOpenConnect={openConnect} connectOpen={wizardOpen} compact />
-        <Nav orientation="horizontal" />
-        <TransportStrip
-          onOpenJam={() => setJam(true)}
-          onOpenConnect={openConnect}
-          compact
-          hideConnect={wizardOpen}
-        />
+      <div className="chrome studio-console">
+        <div className="console-navigation">
+          <StatusBar onOpenConnect={openConnect} />
+          <Nav orientation="horizontal" />
+        </div>
+        <div className="console-transport">
+          <PanelSubnav workspace={workspace} />
+          <TransportStrip onOpenJam={() => setJam(true)} compact hideConnect />
+        </div>
       </div>
       {showDeviceStrip ? <DeviceStrip onOpenConnect={openConnect} /> : null}
       <div className="shell shell--bleed">
         <main className="main">
-          <PanelSubnav workspace={workspace} />
-
           <WorkspacePanel id="rig" workspace={workspace} onReset={backToRig}>
             <RigWorkspace />
           </WorkspacePanel>

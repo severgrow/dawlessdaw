@@ -18,7 +18,8 @@ export function RigWorkspace() {
   const { setClockToMpc, setClockToSp, setForwardClockToFm1, setWorkspace } = useStudioActions();
   const presetName = snap.controllerPresets.find((p) => p.id === snap.controllerSavedId)?.name ?? '—';
   const noteHits = snap.trackActivity.slice(1, 9).filter((t) => t > 0).length;
-  const circuitIn = Boolean(snap.assignments.find((a) => a.roleId === 'circuit')?.connected);
+  const circuitInputId = snap.assignments.find((a) => a.roleId === 'circuit')?.inputPortId;
+  const circuitIn = snap.ports.some((port) => port.id === circuitInputId && port.state === 'connected');
 
   const openController = (track: number) => {
     const tr = snap.controller.tracks[track - 1];
@@ -32,7 +33,7 @@ export function RigWorkspace() {
       <div className="page-head">
         <h1>rig</h1>
         <span className={`readout rig-midi-readout${circuitIn ? ' live' : ''}`}>
-          {circuitIn ? 'Circuit in' : 'Circuit —'}
+          {circuitIn ? 'Circuit input connected' : 'Circuit input disconnected'}
           {noteHits > 0 ? (
             <>
               {' '}

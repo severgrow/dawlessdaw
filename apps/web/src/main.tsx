@@ -9,6 +9,7 @@ import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import { App } from './App';
 import './styles/studio.css';
+import './styles/console.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
