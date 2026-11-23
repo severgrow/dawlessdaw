@@ -9803,3 +9803,51 @@ textarea:focus-visible,
   box-shadow: inset 0 2px 4px color-mix(in srgb, #000 48%, transparent) !important;
   transform: translateY(1px);
 }
+
+/* v4 tactile — gradient + edge borders (box-shadow inset unreliable here) */
+.app-premium-v4 .ts-btn,
+.app-premium-v4 .nav.nav--horizontal button,
+.app-premium-v4 .panel-subnav-btn,
+.app-premium-v4 .mpc-lib-toolbar button,
+.app-premium-v4 .mpc-lib-primary {
+  border: 1px solid transparent !important;
+  border-top-color: color-mix(in srgb, #fff 10%, transparent) !important;
+  border-bottom-color: color-mix(in srgb, #000 38%, transparent) !important;
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, #fff 7%, transparent),
+    transparent 42%
+  ) !important;
+  background-blend-mode: soft-light;
+}
+
+.app-premium-v4 .ts-play:not(.on) {
+  background-color: color-mix(in srgb, var(--mint-3) 32%, var(--glass-2)) !important;
+}
+
+.app-premium-v4 .ts-play.on {
+  background-color: var(--mint-4) !important;
+  border-top-color: color-mix(in srgb, #fff 14%, transparent) !important;
+}
+
+.app-premium-v4 .ts-panic {
+  border-left-color: color-mix(in srgb, var(--burgundy) 45%, transparent) !important;
+  border-right-color: color-mix(in srgb, var(--burgundy) 45%, transparent) !important;
+  border-top-color: color-mix(in srgb, var(--burgundy) 35%, #fff 8%) !important;
+  border-bottom-color: color-mix(in srgb, var(--burgundy) 55%, #000 20%) !important;
+}
+
+.app-premium-v4 .ts-btn:active:not(:disabled),
+.app-premium-v4 .nav.nav--horizontal button:active:not(:disabled),
+.app-premium-v4 .panel-subnav-btn:active:not(:disabled),
+.app-premium-v4 .mpc-lib-toolbar button:active:not(:disabled),
+.app-premium-v4 .mpc-lib-primary:active:not(:disabled) {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, #000 22%, transparent),
+    transparent 55%
+  ) !important;
+  border-top-color: color-mix(in srgb, #000 40%, transparent) !important;
+  border-bottom-color: color-mix(in srgb, #fff 6%, transparent) !important;
+  transform: translateY(1px);
+}
