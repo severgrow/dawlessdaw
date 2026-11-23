@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SP_MODE_A_BANKS, type SpModeABank } from '@dawlessdaw/devices';
 import { MoreInfo } from '../components/MoreInfo';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
@@ -190,6 +191,29 @@ export function SectionsWorkspace() {
                   />
                 </label>
                 <label className="section-card-field">
+                  SP bank (Mode A PC)
+                  <select
+                    className="select-inline"
+                    aria-label="SP bank for Mode A pattern PC"
+                    value={row.spBank ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      updateSectionBridgeRow(i, {
+                        spBank: v && (SP_MODE_A_BANKS as readonly string[]).includes(v)
+                          ? (v as SpModeABank)
+                          : null,
+                      });
+                    }}
+                  >
+                    <option value="">ch13 (legacy bridge)</option>
+                    {SP_MODE_A_BANKS.map((b) => (
+                      <option key={b} value={b}>
+                        Bank {b} · ch {SP_MODE_A_BANKS.indexOf(b) + 1}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="section-card-field">
                   MPC sequence
                   <PcInput
                     value={row.mpcProgramChange}
@@ -206,14 +230,18 @@ export function SectionsWorkspace() {
           + Add section
         </button>
         {spInModeA ? (
-          <p className="warn">SP Mode A (notes) — pattern PC on ch 13 may fail (bench e).</p>
+          <p className="warn">
+            SP Mode A (notes) — legacy pattern PC on ch 13 may fail (bench e). Prefer a Mode A bank
+            above (PC on that bank’s channel) — still unverified until you confirm.
+          </p>
         ) : null}
         <MoreInfo>
           <p className="muted small">
-            Empty box = send nothing. SP pattern PC on ch 13{' '}
-            {pass('sp-pattern-pc') ? '(bench pass)' : '(bench e pending)'}. MPC sequence PC on ch 15{' '}
-            {pass('mpc-sequence-pc') ? '(bench pass)' : '(bench f pending)'}. Drag the grip to reorder —
-            order is for your setlist view only; matching still uses Circuit project number.
+            Empty SP pattern = send nothing. Legacy bridge uses ch 13{' '}
+            {pass('sp-pattern-pc') ? '(bench pass)' : '(bench e pending)'}. Mode A bank PC (Phase 3)
+            is hardware-testing-required. MPC sequence PC on ch 15{' '}
+            {pass('mpc-sequence-pc') ? '(bench pass)' : '(bench f pending)'}. Drag to reorder the
+            setlist view only — matching still uses Circuit project number.
           </p>
         </MoreInfo>
       </div>

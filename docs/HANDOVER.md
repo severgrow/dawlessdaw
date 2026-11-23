@@ -97,6 +97,10 @@ FLIP lane: capture MIDI note-ons with audio; grid / MIDI / manual slice suggesti
 
 Build → Circuit: setup checklist + live Note/CC/PC/Clock ticks; What’s my Circuit doing (Intelligence); 64 project names/colours; Controller soft takeover **off by default** (shared with Super Macros); song section cards + drag reorder; local `.ncs` first (USB file protocol only after confirm); mute bench doc; Arrhythmia design-only. **Experimental** until hardware. See [circuit-phase-2.md](./circuit-phase-2.md), [mute-bench.md](./mute-bench.md), [arrhythmia-module.md](./arrhythmia-module.md).
 
+## Phase 3 — deeper SP-404MKII
+
+Sounds → SP-404: checklist (Mode A/B, channels, clock), live ticks, effect-by-ear (untested until owner verify), pad map + lights, sections Mode A bank PC, Send→IMPORT/, USB browse read-only (5.52 needs explicit OK), DOOM note. Never USB write / never flash. See [sp404-phase-3.md](./sp404-phase-3.md).
+
 ## Phase 0 (stability + Splot rename) — software
 
 - Test-tab React #185: `deepSyncController.getSnapshot()` caches; rebuild only in `emit()` (see #38 + unit test). Other stores audited: StudioRuntime uses Zustand hydrate-on-notify (safe); Flip/capture use `subscribe`→`setState` (not `useSyncExternalStore`).

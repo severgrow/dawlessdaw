@@ -400,4 +400,22 @@ describe('Section Bridge', () => {
   it('does nothing when disabled', () => {
     expect(resolveSectionBridge(0, { ...DEFAULT_SECTION_BRIDGE, enabled: false })).toBeNull();
   });
+
+  it('Phase 3 Mode A bank pattern PC uses bank channel (unverified until bench)', () => {
+    const action = resolveSectionBridge(0, {
+      enabled: true,
+      rows: [
+        {
+          projectIndex: 1,
+          spProgramChange: 2,
+          spBank: 'A',
+          mpcProgramChange: null,
+          sceneId: null,
+        },
+      ],
+    })!;
+    const sp = action.outbound.find((o) => o.portRole === 'sp404')!;
+    expect(sp.data[0]).toBe(0xc0 | 0); // ch1 = bank A
+    expect(sp.data[1]).toBe(2);
+  });
 });

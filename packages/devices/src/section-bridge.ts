@@ -1,10 +1,17 @@
 import { decodeProjectProgramChange, type ProjectChangeKind } from './circuit-rhythm/midi-map';
+import { isSpModeABank, spModeAChannel, type SpModeABank } from './sp404-setup';
 
 export interface SectionBridgeRow {
   /** Circuit Project slot 1–64 */
   projectIndex: number;
   /** Optional SP-404 pattern PC value 0–15 (Pattern 1–16) — hardware testing required until bench pass */
   spProgramChange: number | null;
+  /**
+   * Phase 3 — Mode A bank for pattern PC (A–J → ch 1–10).
+   * When null/omitted, use legacy bridge channel 13 (bench e).
+   * Mode A per-bank PC is **unverified** until Patryk confirms.
+   */
+  spBank?: SpModeABank | null;
   /** Optional MPC sequence PC value — hardware testing required until bench pass */
   mpcProgramChange: number | null;
   /** Optional Dawlessdaw Studio Scene id */
@@ -96,9 +103,11 @@ export function resolveSectionBridge(
 
   const outbound: SectionBridgeAction['outbound'] = [];
   if (row.spProgramChange !== null && row.spProgramChange >= 0) {
+    const bank = row.spBank && isSpModeABank(row.spBank) ? row.spBank : null;
+    const spCh = bank ? spModeAChannel(bank) : SP_PATTERN_PC_CHANNEL;
     outbound.push({
       portRole: 'sp404',
-      data: [programChangeStatus(SP_PATTERN_PC_CHANNEL), row.spProgramChange & 0x7f],
+      data: [programChangeStatus(spCh), row.spProgramChange & 0x7f],
     });
   }
   if (row.mpcProgramChange !== null && row.mpcProgramChange >= 0) {

@@ -34,9 +34,12 @@ export const TOP_TABS: {
   {
     id: 'sounds',
     label: 'Sounds',
-    hint: 'SP samples + loop catcher',
-    panels: [{ id: 'samples', label: 'SP samples' }],
-    defaultPanel: 'samples',
+    hint: 'SP setup, pads, samples + loop catcher',
+    panels: [
+      { id: 'sp', label: 'SP-404' },
+      { id: 'samples', label: 'SP samples' },
+    ],
+    defaultPanel: 'sp',
   },
   {
     id: 'record',

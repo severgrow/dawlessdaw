@@ -52,6 +52,7 @@ import {
   SuperMacroEngine,
   buildControllerRoutes,
   bumpCircuitTick,
+  bumpSpTick,
   clonePreset,
   controlMappingKey,
   CONTROLLER_KNOB_PICKUP_KEY,
@@ -60,11 +61,19 @@ import {
   destChannel,
   emptyCircuitLiveTicks,
   emptyProjectGrid,
+  emptySpLiveTicks,
   isLearnGlassIgnoredMidi,
+  isSpModeABank,
   knobTarget,
   myStudioPreset,
   normalizeProjectGrid,
+  normalizeSpEffectProfile,
   CIRCUIT_PROJECTS_STORAGE_KEY,
+  SP_EFFECT_CCS,
+  SP_EFFECT_NAMES_KEY,
+  defaultSpEffectProfile,
+  setEffectKnobLabel,
+  spModeANoteToPad,
   ploeLiveV1Preset,
   presetFromTrackPlan,
   resolveControlMapping,
@@ -79,6 +88,9 @@ import {
   type KnobSlot,
   type MacroSceneBank,
   type ResolvedControlMapping,
+  type SpEffectNameProfile,
+  type SpLiveTicks,
+  type SpModeABank,
   type SuperMacro,
   type SuperMacroSnapshot,
   type SuperMacroTrafficConfig,
@@ -149,6 +161,7 @@ export type WorkspaceId =
   | 'samples'
   | 'sections'
   | 'circuit'
+  | 'sp'
   | 'sessions'
   | 'test'
   | 'setup'
@@ -295,6 +308,14 @@ export interface StudioRuntimeSnapshot {
    * **Off by default.**
    */
   controllerKnobPickup: boolean;
+  /** Phase 3 — live ticks on SP out (and SP in when present). */
+  spLiveTicks: SpLiveTicks;
+  /** Phase 3 — last SP pad lit from Mode A note (bank + pad 1–16). */
+  lastSpPadHit: { bank: SpModeABank; pad: number; note: number; at: number } | null;
+  /** Phase 3 — effect CTRL names from guided ear test. */
+  spEffectNames: SpEffectNameProfile;
+  /** Phase 3 — effect-by-ear sweep in progress. */
+  spEffectSweep: { cc: number; step: number; running: boolean } | null;
 }
 
 type Listener = () => void;
@@ -310,10 +331,12 @@ function sanitizeSectionBridge(raw: unknown): SectionBridgeConfig | null {
     const row = x as Record<string, unknown>;
     const projectIndex = num(row.projectIndex, 1, 64);
     if (projectIndex == null) return [];
+    const bankRaw = typeof row.spBank === 'string' ? row.spBank.toUpperCase() : null;
     return [
       {
         projectIndex,
         spProgramChange: num(row.spProgramChange, 0, 127),
+        spBank: bankRaw && isSpModeABank(bankRaw) ? bankRaw : null,
         mpcProgramChange: num(row.mpcProgramChange, 0, 127),
         sceneId: typeof row.sceneId === 'string' ? row.sceneId : null,
         label: typeof row.label === 'string' ? row.label.slice(0, 40) : undefined,
@@ -351,6 +374,24 @@ function loadControllerKnobPickup(): boolean {
     return localStorage.getItem(CONTROLLER_KNOB_PICKUP_KEY) === '1';
   } catch {
     return false;
+  }
+}
+
+function loadSpEffectNames(): SpEffectNameProfile {
+  try {
+    const raw = localStorage.getItem(SP_EFFECT_NAMES_KEY);
+    if (!raw) return defaultSpEffectProfile();
+    return normalizeSpEffectProfile(JSON.parse(raw) as unknown);
+  } catch {
+    return defaultSpEffectProfile();
+  }
+}
+
+function saveSpEffectNames(profile: SpEffectNameProfile): void {
+  try {
+    localStorage.setItem(SP_EFFECT_NAMES_KEY, JSON.stringify(profile));
+  } catch {
+    /* ignore */
   }
 }
 
@@ -552,6 +593,11 @@ export class StudioRuntime {
   private circuitLiveTicks: CircuitLiveTicks = emptyCircuitLiveTicks();
   private circuitProjects: CircuitProjectSlot[] = loadCircuitProjects();
   private controllerKnobPickup = loadControllerKnobPickup();
+  private spLiveTicks: SpLiveTicks = emptySpLiveTicks();
+  private lastSpPadHit: StudioRuntimeSnapshot['lastSpPadHit'] = null;
+  private spEffectNames: SpEffectNameProfile = loadSpEffectNames();
+  private spEffectSweep: StudioRuntimeSnapshot['spEffectSweep'] = null;
+  private spEffectSweepTimers: ReturnType<typeof setTimeout>[] = [];
 
   constructor() {
     this.transport = new WebMidiTransport();
@@ -750,6 +796,18 @@ export class StudioRuntime {
       },
       circuitProjects: this.circuitProjects.map((s) => ({ ...s })),
       controllerKnobPickup: this.controllerKnobPickup,
+      spLiveTicks: {
+        note: { ...this.spLiveTicks.note },
+        cc: { ...this.spLiveTicks.cc },
+        pc: { ...this.spLiveTicks.pc },
+        clock: { ...this.spLiveTicks.clock },
+      },
+      lastSpPadHit: this.lastSpPadHit ? { ...this.lastSpPadHit } : null,
+      spEffectNames: {
+        ...this.spEffectNames,
+        knobs: this.spEffectNames.knobs.map((k) => ({ ...k })),
+      },
+      spEffectSweep: this.spEffectSweep ? { ...this.spEffectSweep } : null,
     };
   }
 
@@ -1985,6 +2043,139 @@ export class StudioRuntime {
     this.notify();
   }
 
+  resetSpLiveTicks(): void {
+    this.spLiveTicks = emptySpLiveTicks();
+    this.notify();
+  }
+
+  setSpEffectChannel(channel: number): void {
+    this.spEffectNames = {
+      ...this.spEffectNames,
+      channel: Math.min(16, Math.max(1, Math.round(channel))),
+    };
+    saveSpEffectNames(this.spEffectNames);
+    this.notify();
+  }
+
+  nameSpEffectKnob(cc: number, label: string): void {
+    this.spEffectNames = setEffectKnobLabel(this.spEffectNames, cc, label);
+    saveSpEffectNames(this.spEffectNames);
+    this.setStatus(`Saved SP effect CC ${cc} as “${label.trim()}” — untested until you confirm`);
+    this.notify();
+  }
+
+  /** Owner-only: mark ear names verified after Patryk confirms on hardware. */
+  markSpEffectNamesVerified(on: boolean): void {
+    this.spEffectNames = {
+      ...this.spEffectNames,
+      ownerVerified: on,
+      knobs: this.spEffectNames.knobs.map((k) => ({
+        ...k,
+        honesty: on && k.namedAt ? 'verified' : k.honesty === 'verified' ? 'untested' : k.honesty,
+      })),
+    };
+    saveSpEffectNames(this.spEffectNames);
+    this.setStatus(
+      on
+        ? 'SP effect names marked verified (owner confirm)'
+        : 'SP effect names back to untested / docs-backed',
+    );
+    this.notify();
+  }
+
+  /**
+   * Guided effect-by-ear sweep: send each CTRL CC 0→127→0 slowly on the SP channel.
+   * Never SysEx. User names which physical knob moved.
+   */
+  startSpEffectSweep(cc?: number): void {
+    const spOut = portsForRoles(this.assignments).spOut;
+    if (!spOut) {
+      this.setStatus('SP output port not assigned — Settings → Ports');
+      this.notify();
+      return;
+    }
+    for (const t of this.spEffectSweepTimers) clearTimeout(t);
+    this.spEffectSweepTimers = [];
+    const list = cc != null ? [cc] : [...SP_EFFECT_CCS];
+    const ch = this.spEffectNames.channel;
+    let delay = 0;
+    this.spEffectSweep = { cc: list[0]!, step: 0, running: true };
+    this.setStatus(`Effect-by-ear: sweeping CC ${list.join(', ')} on ch${ch} — watch the SP`);
+    this.notify();
+    for (const targetCc of list) {
+      const values = [
+        ...Array.from({ length: 17 }, (_, i) => Math.round((i / 16) * 127)),
+        ...Array.from({ length: 16 }, (_, i) => Math.round(((15 - i) / 16) * 127)),
+      ];
+      for (const v of values) {
+        const at = delay;
+        delay += 40;
+        this.spEffectSweepTimers.push(
+          setTimeout(() => {
+            const data = new Uint8Array([0xb0 | ((ch - 1) & 0x0f), targetCc & 0x7f, v & 0x7f]);
+            this.transport.send(spOut, data);
+            this.recordSpOutbound(data);
+            this.spEffectSweep = { cc: targetCc, step: v, running: true };
+            this.notify();
+          }, at),
+        );
+      }
+    }
+    this.spEffectSweepTimers.push(
+      setTimeout(() => {
+        this.spEffectSweep = null;
+        this.setStatus('Effect sweep done — name the knob that moved (still untested)');
+        this.notify();
+      }, delay + 50),
+    );
+  }
+
+  stopSpEffectSweep(): void {
+    for (const t of this.spEffectSweepTimers) clearTimeout(t);
+    this.spEffectSweepTimers = [];
+    this.spEffectSweep = null;
+    this.setStatus('Effect sweep stopped');
+    this.notify();
+  }
+
+  /** Record MIDI bytes leaving toward the SP (ticks + pad lights). */
+  private recordSpOutbound(data: Uint8Array): void {
+    const at = Date.now();
+    const status = data[0] ?? 0;
+    const hi = status & 0xf0;
+    const ch = (status & 0x0f) + 1;
+    if (hi === 0x90 && (data[2] ?? 0) > 0) {
+      this.spLiveTicks = bumpSpTick(this.spLiveTicks, 'note', at);
+      const note = data[1] ?? 0;
+      // Outbound note is already transposed for Mode A — map 36–51 → pad directly.
+      const pad = spModeANoteToPad(note, 0);
+      if (pad != null && ch >= 1 && ch <= 10) {
+        const bank = (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'] as const)[ch - 1]!;
+        this.lastSpPadHit = { bank, pad, note, at };
+      }
+    } else if (hi === 0xb0) {
+      this.spLiveTicks = bumpSpTick(this.spLiveTicks, 'cc', at);
+    } else if (hi === 0xc0) {
+      this.spLiveTicks = bumpSpTick(this.spLiveTicks, 'pc', at);
+    } else if (status === 0xf8 || status === 0xfa || status === 0xfb) {
+      this.spLiveTicks = bumpSpTick(this.spLiveTicks, 'clock', at);
+    }
+  }
+
+  /** Host hook: midi:out toward the assigned SP port. */
+  observeSpOutbound(portId: string | undefined, data: Uint8Array): void {
+    const spOut = portsForRoles(this.assignments).spOut;
+    if (!spOut || !portId || portId !== spOut) return;
+    this.recordSpOutbound(data);
+    // Throttle UI for clock floods
+    const status = data[0] ?? 0;
+    if (status === 0xf8) {
+      if (this.spLiveTicks.clock.count % 24 === 0) this.notify();
+      return;
+    }
+    this.notify();
+  }
+
   reorderSectionBridgeRows(from: number, to: number): void {
     const rows = [...this.sectionBridge.rows];
     if (from < 0 || from >= rows.length || to < 0 || to >= rows.length || from === to) return;
@@ -2874,6 +3065,8 @@ export function getStudioRuntime(): StudioRuntime {
         const note = data[1] ?? 0;
         singleton?.recordOutboundLatency(note, channel, ev.message.portId);
       }
+      // Phase 3 — SP live ticks + pad lights from any SP-bound outbound MIDI.
+      singleton?.observeSpOutbound(ev.message.portId, data);
     });
   }
   return singleton;

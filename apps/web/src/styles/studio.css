@@ -6132,3 +6132,191 @@ button.send-add {
     min-height: 4rem;
   }
 }
+
+/* ─── Phase 3 SP-404 deeper ─────────────────────────────── */
+
+.sp-phase3 .sp3-tick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: stretch;
+}
+
+.sp3-tick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 5rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--line, #333);
+  background: linear-gradient(160deg, rgba(159, 220, 194, 0.06), transparent);
+}
+
+.sp3-tick.live {
+  border-color: var(--mint-2, #9fdcc2);
+}
+
+.sp3-tick b {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-mute, #9a9a94);
+}
+
+.sp3-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sp3-checklist li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7.5rem;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px dashed var(--line, #333);
+}
+
+.sp3-checklist li.done {
+  opacity: 0.72;
+}
+
+.sp3-check-label {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  grid-column: 1 / -1;
+}
+
+.sp3-live-pill {
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--mint-2, #9fdcc2);
+}
+
+.sp3-pic {
+  grid-row: 2 / span 2;
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 5.5rem;
+  padding: 0.5rem;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(154, 42, 69, 0.18), transparent 55%),
+    linear-gradient(145deg, #1a1518, #0e100f);
+  border: 1px solid var(--line, #333);
+}
+
+.sp3-pic-glyph {
+  font-size: 1.6rem;
+  color: var(--mint-2, #9fdcc2);
+}
+
+.sp3-pic-caption {
+  font-size: 0.65rem;
+  text-align: center;
+  color: var(--text-mute, #9a9a94);
+}
+
+.sp3-fx-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.sp3-fx-row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.sp3-honesty {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-mute, #9a9a94);
+}
+
+.sp3-honesty.verified {
+  color: var(--mint-2, #9fdcc2);
+}
+
+.sp3-honesty.untested {
+  color: #c4b8a4;
+}
+
+.sp3-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-mute, #9a9a94);
+}
+
+.sp3-pad-maps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.sp3-pad-map header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sp3-pads {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.sp3-pad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--line, #333);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.sp3-pad.lit {
+  border-color: var(--mint-2, #9fdcc2);
+  background: rgba(159, 220, 194, 0.2);
+  color: var(--mint-2, #9fdcc2);
+}
+
+.sp-pad.playing {
+  outline: 2px solid var(--mint-2, #9fdcc2);
+  box-shadow: inset 0 0 0 1px rgba(159, 220, 194, 0.35);
+}
+
+@media (max-width: 720px) {
+  .sp3-checklist li {
+    grid-template-columns: 1fr;
+  }
+
+  .sp3-pic {
+    grid-row: auto;
+    grid-column: auto;
+  }
+
+  .sp3-fx-row {
+    grid-template-columns: 1fr;
+  }
+}

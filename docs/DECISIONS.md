@@ -21,5 +21,6 @@ Owner confirmed **"yeah all go"** on the handover confirmation questions. Phase 
 | 15 | Performance Memory is analysis-only while recording; Section Bridge **event-actions** stay **off by default**; inferred events never auto-fill SP/MPC; original take audio/MIDI observations are kept. |
 | 16 | MIDI-guided FLIP logs note-ons for slice suggestions only — **no MIDI playback**, **no stem claim**, **no SP serial write**; original take PCM unchanged; existing FLIP edit/export preserved. |
 | 17 | Phase 2 Circuit: soft takeover **off by default**; `.ncs` prefers SD/local; USB file protocol only after confirm (stops transport); Arrhythmia is **design-only** (no firmware install); inferred mute stays labelled. |
+| 18 | Phase 3 SP: effect names stay **untested** until owner verifies; Mode A bank pattern PC is hardware-testing-required; USB CDC stays read-only allow-list; FW **5.52** needs explicit OK (do not treat as fine without asking); never write pads over USB / never flash. |
 
 See also [HANDOVER.md](./HANDOVER.md) and [circuit-controller.md](./circuit-controller.md).

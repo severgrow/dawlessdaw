@@ -151,6 +151,7 @@ export function SamplesWorkspace({ showLoopCatcher = false }: { showLoopCatcher?
   const [sdProjectId, setSdProjectId] = useState<string | null>(null);
   const [sdBusy, setSdBusy] = useState(false);
   const [sdStatus, setSdStatus] = useState('');
+  const [sdScannedAt, setSdScannedAt] = useState<number | null>(null);
   const sdHandle = useRef<FsDirectoryHandle | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -179,6 +180,7 @@ export function SamplesWorkspace({ showLoopCatcher = false }: { showLoopCatcher?
     try {
       const result = await scanSpVolume(handle, { onProgress: setSdStatus });
       setSdResult(result);
+      setSdScannedAt(Date.now());
       setSdProjectId((prev) => {
         if (prev && result.projects.some((p) => p.path === prev || p.id === prev)) return prev;
         return result.projects[0]?.path ?? null;
@@ -401,6 +403,11 @@ export function SamplesWorkspace({ showLoopCatcher = false }: { showLoopCatcher?
   const seqSnap = useStudioStore();
   const { seqSetTrackMute } = useStudioActions();
   const seq = seqSnap.sequencer;
+  const lastSpPad = seqSnap.lastSpPadHit;
+  const padLit =
+    lastSpPad && lastSpPad.bank === bank && Date.now() - lastSpPad.at < 700
+      ? lastSpPad.pad
+      : null;
   const pattern = seq.bank.patterns[seq.bank.activePatternIndex]!;
 
   return (
@@ -490,6 +497,14 @@ export function SamplesWorkspace({ showLoopCatcher = false }: { showLoopCatcher?
               </>
             ) : null}
             {' '}
+            · source <span className="mono">{sdProject.source}</span>
+            {sdScannedAt ? (
+              <>
+                {' '}
+                · scanned {new Date(sdScannedAt).toLocaleTimeString()}
+              </>
+            ) : null}
+            {' '}
             · <span className="sp-on-sd-mark" aria-hidden>SD</span> on occupied pads
           </p>
         ) : null}
@@ -552,7 +567,7 @@ export function SamplesWorkspace({ showLoopCatcher = false }: { showLoopCatcher?
                 key={pad}
                 type="button"
                 draggable={Boolean(s)}
-                className={`sp-pad${selected === pad ? ' selected' : ''}${s ? ' filled' : ''}${sdOcc ? ' on-sd' : ''}${!s && sdOcc ? ' sd-only' : ''}${dragPad && dragPad !== k ? ' drop-ok' : ''}`}
+                className={`sp-pad${selected === pad ? ' selected' : ''}${s ? ' filled' : ''}${sdOcc ? ' on-sd' : ''}${!s && sdOcc ? ' sd-only' : ''}${dragPad && dragPad !== k ? ' drop-ok' : ''}${padLit === pad ? ' playing' : ''}`}
                 onClick={() => {
                   setSelected(pad);
                   if (s) playAudio(applyEdit(s.audio, s.edit));

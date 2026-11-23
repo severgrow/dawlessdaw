@@ -12,4 +12,6 @@ export * from './super-macros';
 export * from './soft-takeover';
 export * from './circuit-projects';
 export * from './circuit-setup';
+export * from './sp404-setup';
+export * from './sp-effect-names';
 export * from './generic-profile';

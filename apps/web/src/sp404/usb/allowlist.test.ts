@@ -134,4 +134,18 @@ describe('SP USB read-only allow-list', () => {
     expect(isFirmwareTested('5.52')).toBe(false);
     expect(isFirmwareTested('v5.51')).toBe(true);
   });
+
+  it('Phase 3: write/erase short ops stay blocked (PatternDelete, PadAlloc, …)', () => {
+    for (const op of [
+      Op.PatternDelete,
+      Op.PadAlloc,
+      Op.ProjectInit,
+      Op.Truncate,
+      Op.Normalize,
+      Op.BounceExecute,
+    ]) {
+      const frame = shortPacket(op, 0x00, [0, 0, 0, 0, 0], 0x05);
+      expect(() => assertReadOnlyAllowed(frame)).toThrow(ReadOnlyViolation);
+    }
+  });
 });

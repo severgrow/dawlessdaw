@@ -1061,7 +1061,9 @@ export function SessionsWorkspace() {
                     <span className="rec-sp-dest-vol">no volume yet</span>
                   )}
                 </div>
-                <p className="rec-sp-hint mono">{SP_IMPORT_HINT}</p>
+                <p className="rec-sp-hint mono">
+                  {SP_IMPORT_HINT} · Roland Reference Manual (or check the manual if menus differ)
+                </p>
                 {spGrantWarning ? <p className="warn small">{spGrantWarning}</p> : null}
                 <div className="row wrap">
                   <button
