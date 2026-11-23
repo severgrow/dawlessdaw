@@ -66,6 +66,8 @@ export class DeepSyncController {
   private listeners = new Set<Listener>();
   private boundHandler: ((ev: MIDIMessageEvent) => void) | null = null;
   private boundInput: MIDIInput | null = null;
+  /** Cached for useSyncExternalStore — must be referentially stable between emits. */
+  private cachedSnapshot: DeepSyncSnapshot | null = null;
 
   subscribe(fn: Listener): () => void {
     this.listeners.add(fn);
@@ -73,10 +75,24 @@ export class DeepSyncController {
   }
 
   private emit(): void {
+    this.cachedSnapshot = this.buildSnapshot();
     for (const fn of this.listeners) fn();
   }
 
+  /**
+   * React useSyncExternalStore requires getSnapshot to return the same
+   * object reference until the store notifies. Returning a fresh object
+   * each call triggers “Maximum update depth exceeded” and blanks #root
+   * (Test tab / lastTab=test cold start).
+   */
   getSnapshot(): DeepSyncSnapshot {
+    if (!this.cachedSnapshot) {
+      this.cachedSnapshot = this.buildSnapshot();
+    }
+    return this.cachedSnapshot;
+  }
+
+  private buildSnapshot(): DeepSyncSnapshot {
     const inputs: DeepSyncPort[] = [];
     const outputs: DeepSyncPort[] = [];
     if (this.access) {

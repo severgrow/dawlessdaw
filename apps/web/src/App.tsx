@@ -12,12 +12,13 @@ import { SessionsWorkspace } from './workspaces/SessionsWorkspace';
 import { TestWorkspace } from './workspaces/TestWorkspace';
 import { SetupWorkspace } from './workspaces/SetupWorkspace';
 import { MidiLearnGlass } from './components/MidiLearnGlass';
+import { WorkspaceErrorBoundary } from './components/WorkspaceErrorBoundary';
 
 export function App() {
   useBindStudio();
   const workspace = useStudioStore((s) => s.workspace);
   const midiReady = useStudioStore((s) => s.midiReady);
-  const { start } = useStudioActions();
+  const { start, setWorkspace } = useStudioActions();
 
   // Start Web MIDI once. (`start` is a new function each render; as a dependency
   // it re-ran on every update and, after a refused MIDI request, retried forever.)
@@ -33,14 +34,16 @@ export function App() {
       <div className="shell">
         <Nav />
         <main className="main">
-          {workspace === 'rig' && <RigWorkspace />}
-          {workspace === 'controller' && <ControllerWorkspace />}
-          {workspace === 'sequencer' && <SequencerWorkspace />}
-          {workspace === 'samples' && <SamplesWorkspace />}
-          {workspace === 'sections' && <SectionsWorkspace />}
-          {workspace === 'sessions' && <SessionsWorkspace />}
-          {workspace === 'test' && <TestWorkspace />}
-          {workspace === 'setup' && <SetupWorkspace />}
+          <WorkspaceErrorBoundary workspace={workspace} onReset={() => setWorkspace('rig')}>
+            {workspace === 'rig' && <RigWorkspace />}
+            {workspace === 'controller' && <ControllerWorkspace />}
+            {workspace === 'sequencer' && <SequencerWorkspace />}
+            {workspace === 'samples' && <SamplesWorkspace />}
+            {workspace === 'sections' && <SectionsWorkspace />}
+            {workspace === 'sessions' && <SessionsWorkspace />}
+            {workspace === 'test' && <TestWorkspace />}
+            {workspace === 'setup' && <SetupWorkspace />}
+          </WorkspaceErrorBoundary>
         </main>
       </div>
       <MidiLearnGlass />
