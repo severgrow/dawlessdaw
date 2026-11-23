@@ -7750,3 +7750,11 @@ select.ap-select:focus-visible {
 .mpc-lib-err {
   margin: 0;
 }
+
+.mpc-lib-action-msg {
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  background: var(--glass-2);
+  border-radius: var(--radius);
+  color: var(--mint-5);
+}

@@ -3,5 +3,7 @@ export * from './contract';
 export * from './origin';
 export * from './fixtures';
 export * from './sections';
+export * from './backup';
+export * from './fixture-content';
 export * from './ssh-stub';
 export * from './client';
