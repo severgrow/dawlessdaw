@@ -140,6 +140,75 @@ export function SpWorkspace() {
       </div>
 
       <div className="panel">
+        <h2>Circuit → SP pad map</h2>
+        <p className="muted small">
+          Visual map from Controller tracks that target the SP. Learn walk: pick a Circuit track,
+          press “Learn first note”, play the Circuit note that should hit pad 1.
+        </p>
+        {spTracks.length === 0 ? (
+          <p className="warn">No Controller track points at the SP — set T7/T8 (or others) to SP banks.</p>
+        ) : (
+          <div className="sp3-pad-maps">
+            {spTracks.map(({ track, dest }) => {
+              const bank = dest ? SP_MODE_A_BANKS[(dest.slot - 1) % 10]! : 'A';
+              const tr = snap.controller.tracks[track - 1]!;
+              const first = tr.firstNote;
+              const hitHere =
+                hit &&
+                dest &&
+                hit.bank === bank &&
+                Date.now() - hit.at < 600;
+              return (
+                <div key={track} className="sp3-pad-map">
+                  <header>
+                    <b>
+                      T{track} → SP bank {bank}
+                    </b>
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => {
+                        setLearnTrack(track);
+                        a.learnFirstNote(track);
+                      }}
+                    >
+                      Learn first note
+                    </button>
+                  </header>
+                  <p className="mono small muted">
+                    Pad 1 note = {first ?? '—'} · macros{' '}
+                    {CIRCUIT_MACRO_CCS.map((c) => c).slice(0, 2).join('/')}…
+                    {snap.controllerLearn?.kind === 'first-note' &&
+                    snap.controllerLearn.track === track
+                      ? ' · listening…'
+                      : ''}
+                  </p>
+                  <div className="sp3-pads" aria-label={`Pads for bank ${bank}`}>
+                    {Array.from({ length: 16 }, (_, i) => {
+                      const pad = i + 1;
+                      const lit = hitHere && hit!.pad === pad;
+                      return (
+                        <span key={pad} className={`sp3-pad${lit ? ' lit' : ''}`}>
+                          {bank}
+                          {String(pad).padStart(2, '0')}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <MoreInfo>
+          <p className="muted small">
+            Learn track currently armed: T{learnTrack}. Pad lights follow notes Splot sends to the
+            SP (Mode A 36–51). SD / USB pad <em>names</em> live under Sounds → SP samples.
+          </p>
+        </MoreInfo>
+      </div>
+
+      <div className="panel">
         <h2>SP setup checklist</h2>
         <ol className="sp3-checklist">
           {SP_SETUP_STEPS.map((step) => (
@@ -234,75 +303,6 @@ export function SpWorkspace() {
         >
           {fx.ownerVerified ? 'Clear verified' : 'Mark verified (owner only)'}
         </button>
-      </div>
-
-      <div className="panel">
-        <h2>Circuit → SP pad map</h2>
-        <p className="muted small">
-          Visual map from Controller tracks that target the SP. Learn walk: pick a Circuit track,
-          press “Learn first note”, play the Circuit note that should hit pad 1.
-        </p>
-        {spTracks.length === 0 ? (
-          <p className="warn">No Controller track points at the SP — set T7/T8 (or others) to SP banks.</p>
-        ) : (
-          <div className="sp3-pad-maps">
-            {spTracks.map(({ track, dest }) => {
-              const bank = dest ? SP_MODE_A_BANKS[(dest.slot - 1) % 10]! : 'A';
-              const tr = snap.controller.tracks[track - 1]!;
-              const first = tr.firstNote;
-              const hitHere =
-                hit &&
-                dest &&
-                hit.bank === bank &&
-                Date.now() - hit.at < 600;
-              return (
-                <div key={track} className="sp3-pad-map">
-                  <header>
-                    <b>
-                      T{track} → SP bank {bank}
-                    </b>
-                    <button
-                      type="button"
-                      className="ghost"
-                      onClick={() => {
-                        setLearnTrack(track);
-                        a.learnFirstNote(track);
-                      }}
-                    >
-                      Learn first note
-                    </button>
-                  </header>
-                  <p className="mono small muted">
-                    Pad 1 note = {first ?? '—'} · macros{' '}
-                    {CIRCUIT_MACRO_CCS.map((c) => c).slice(0, 2).join('/')}…
-                    {snap.controllerLearn?.kind === 'first-note' &&
-                    snap.controllerLearn.track === track
-                      ? ' · listening…'
-                      : ''}
-                  </p>
-                  <div className="sp3-pads" aria-label={`Pads for bank ${bank}`}>
-                    {Array.from({ length: 16 }, (_, i) => {
-                      const pad = i + 1;
-                      const lit = hitHere && hit!.pad === pad;
-                      return (
-                        <span key={pad} className={`sp3-pad${lit ? ' lit' : ''}`}>
-                          {bank}
-                          {String(pad).padStart(2, '0')}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <MoreInfo>
-          <p className="muted small">
-            Learn track currently armed: T{learnTrack}. Pad lights follow notes Splot sends to the
-            SP (Mode A 36–51). SD / USB pad <em>names</em> live under Sounds → SP samples.
-          </p>
-        </MoreInfo>
       </div>
 
       <div className="panel">

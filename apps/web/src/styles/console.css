@@ -3,7 +3,7 @@
   --splot-bone: #f3efe5;
   --splot-charcoal: #171819;
   --splot-rule: #383736;
-  --control-corner: 6px;
+  --control-corner: 4px;
   --radius: var(--control-corner);
   --radius-compact: var(--control-corner);
   --radius-panel: var(--control-corner);
@@ -11,9 +11,9 @@
   --control-gap: 8px;
   --section-gap: 16px;
   --align-gap: var(--control-gap);
-  --control-fill: #282e2c;
-  --control-border: #48524f;
-  --control-idle-ink: #a1aaa5;
+  --control-fill: #292a2b;
+  --control-border: #494a4b;
+  --control-idle-ink: #a39f96;
   --chrome-h: 112px;
   --align-ctrl: var(--control-height);
 }
@@ -174,7 +174,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #daa874;
+  background: #e4ddd0;
 }
 
 [data-midi-connected='true'] .midi-port-dot {
@@ -192,14 +192,14 @@
 }
 
 .app-premium-v4 .console-transport .circuit-tempo-label {
-  color: #b1bdb7;
+  color: #c7c3b9;
   font-size: 12px !important;
 }
 
 .app-premium-v4 .rig-map-scroll {
   overflow-x: auto;
-  background: #161b19;
-  border: 1px solid #343d39;
+  background: #18191a;
+  border: 1px solid #343536;
   border-radius: var(--control-corner);
 }
 
@@ -240,27 +240,27 @@
   margin-top: 2px;
   padding: 3px 6px;
   border-radius: var(--control-corner);
-  color: #edf1ee;
-  background: #171c1a;
+  color: #f3efe5;
+  background: #191a1b;
   font-size: 13px;
   line-height: 1.15;
 }
 
 .app-premium-v4 .rig-map .rig-name em,
 .app-premium-v4 .rig-legend {
-  color: #b5bdb8;
+  color: #b9b5ac;
   font-size: 12px;
 }
 
 .app-premium-v4 .rig-map .cable-label {
-  fill: #b8c4bd;
-  stroke: #19201d;
+  fill: #c7c3b9;
+  stroke: #1b1c1d;
   stroke-width: 3px;
   paint-order: stroke;
 }
 
 .app-premium-v4 .rig-map .cable.off .cable-base {
-  stroke: #45534d;
+  stroke: #494a4b;
 }
 
 .app-premium-v4 .rig-map-head > span:first-child {
@@ -273,8 +273,8 @@
 }
 
 .app-premium-v4 .seq-page :is(.seq-transport, .pattern-workflow, .seq-grid-wrap) {
-  background: #1b211e !important;
-  border: 1px solid #3a4640 !important;
+  background: #222324 !important;
+  border: 1px solid #414243 !important;
   border-radius: var(--control-corner);
 }
 
@@ -300,14 +300,14 @@
 
 .app-premium-v4 .seq-page button.seq-btn:disabled {
   opacity: 1 !important;
-  background: #202623 !important;
-  border-color: #3d4843 !important;
+  background: #222324 !important;
+  border-color: #343536 !important;
   color: var(--control-idle-ink) !important;
 }
 
 .app-premium-v4 .seq-page :is(.seq-btn.on:not(.rec), .cm-mode-btn.on) {
   background: var(--selection-fill) !important;
-  border-color: var(--mint-4) !important;
+  border-color: var(--text-dim) !important;
   color: var(--text) !important;
 }
 
@@ -317,19 +317,19 @@
 }
 
 .app-premium-v4 .seq-page button.seq-btn.pattern-primary:not(:disabled) {
-  background: var(--mint-4) !important;
-  border-color: var(--mint-4) !important;
+  background: var(--bone) !important;
+  border-color: var(--bone) !important;
   color: var(--accent-ink) !important;
 }
 
 .app-premium-v4 .seq-page :is(button.seq-btn, button.cm-mode-btn):hover:not(:disabled),
 .app-premium-v4 .seq-page .pattern-settings summary:hover,
 .app-premium-v4 .seq-page .seq-flip-jump:hover {
-  border-color: #acbeb4 !important;
+  border-color: #c7c3b9 !important;
 }
 
 .app-premium-v4 .seq-page .seq-field {
-  color: #b8c4bd;
+  color: #c7c3b9;
   font-size: 12px;
 }
 
@@ -369,7 +369,7 @@
 }
 
 .app-premium-v4 .pattern-workflow .pattern-feedback {
-  color: #c1cbc5;
+  color: #d3cfc5;
   font-size: 13px;
 }
 
@@ -422,7 +422,7 @@
 .app-premium-v4 .seq-page .seq-step-nums {
   grid-template-columns: var(--track-gutter) repeat(16, minmax(0, 1fr));
   gap: var(--space-1);
-  color: #aebbb4;
+  color: #bab6ad;
   font-size: 11px;
 }
 
@@ -458,7 +458,7 @@
 }
 
 .app-premium-v4 .seq-page .seq-pad.playhead {
-  border-color: var(--mint-4) !important;
+  box-shadow: inset 2px 0 var(--mint-4) !important;
 }
 
 /* Keep the hardware rack clear of transport and make both lines readable. */
@@ -535,7 +535,7 @@
     min-width: 0;
   }
 
-  .app-premium-v4 .console-transport .circuit-tempo-label {
+  .app-premium-v4 .console-transport .circuit-tempo:not(.phase-lost) .circuit-tempo-label {
     display: none;
   }
 }
@@ -566,12 +566,12 @@
 }
 
 .app-premium-v4 .seq-page button.seq-btn[data-queued='true'] {
-  border: 1px dashed #dcb780 !important;
-  color: #f2d4a3 !important;
+  border: 1px dashed #e4ddd0 !important;
+  color: #f3efe5 !important;
 }
 
 .app-premium-v4 .seq-page .seq-pad.mutated {
-  outline: 2px solid #dcb780;
+  outline: 2px solid #e4ddd0;
   outline-offset: -2px;
 }
 
@@ -608,7 +608,7 @@
   padding: var(--control-gap);
   border: 1px solid var(--control-border);
   border-radius: var(--control-corner);
-  background: #191d1c;
+  background: #191a1b;
 }
 
 .app-premium-v4 .rig-map .cable-midi.on .cable-base {
@@ -630,4 +630,322 @@
 
 @media (prefers-reduced-motion: reduce) {
   .rig-link-dot.activity { animation: none; }
+}
+
+/* Navigation reads as a rail; transport reads as a group of hardware controls. */
+.app-premium-v4 .console-navigation .nav.nav--horizontal button,
+.app-premium-v4 .console-transport .panel-subnav-btn {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: inset 0 -1px var(--line) !important;
+  color: var(--text-dim) !important;
+}
+
+.app-premium-v4 .console-navigation .nav.nav--horizontal button.active,
+.app-premium-v4 .console-transport .panel-subnav-btn.on {
+  background: var(--bg-2) !important;
+  box-shadow: inset 0 -2px var(--bone) !important;
+  color: var(--text) !important;
+}
+
+.app-premium-v4 .console-navigation .nav.nav--horizontal button:hover:not(:disabled),
+.app-premium-v4 .console-transport .panel-subnav-btn:hover:not(:disabled) {
+  background: var(--bg-3) !important;
+  color: var(--text) !important;
+}
+
+.app-premium-v4 .console-transport .ts-cluster {
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-corner);
+  background: var(--bg-0);
+}
+
+.app-premium-v4 .console-transport .ts-play.on .ts-glyph {
+  color: var(--mint-4);
+}
+
+.app-premium-v4 .chrome .circuit-tempo {
+  padding-inline: var(--control-gap);
+  border-left: 1px solid var(--line);
+  color: var(--text-dim);
+}
+
+.circuit-tempo-main {
+  align-items: center;
+}
+
+.circuit-tempo-led {
+  flex: 0 0 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--line-hard);
+}
+
+.circuit-tempo.phase-live .circuit-tempo-led {
+  background: var(--mint-4);
+}
+
+.circuit-tempo.phase-variable .circuit-tempo-led,
+.circuit-tempo.phase-listening .circuit-tempo-led {
+  background: var(--bone);
+}
+
+.circuit-tempo.phase-lost .circuit-tempo-led {
+  background: var(--burgundy);
+}
+
+.app-premium-v4 .circuit-tempo-bpm {
+  min-width: 3ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-premium-v4 .context-chip {
+  background: var(--bg-2) !important;
+  color: var(--text-dim);
+}
+
+/* One bank of channel strips, with destination colour confined to a line. */
+.track-summary {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 1px;
+  padding: 1px;
+  margin: var(--control-gap) 0;
+  background: var(--line);
+  border-radius: var(--control-corner);
+}
+
+.app-premium-v4 .ts-cell,
+.app-premium-v4 .ct-track .ct-pad,
+.app-premium-v4 .jam-tile {
+  --destination-ink: var(--line-hard);
+  background: var(--bg-2) !important;
+  color: var(--text) !important;
+}
+
+.track-summary .ts-cell {
+  min-height: 48px !important;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  align-content: center;
+  gap: 1px 6px;
+  padding: 5px 8px;
+  border: 0 !important;
+  box-shadow: inset 0 -2px var(--destination-ink);
+}
+
+.track-summary .ts-cell > span:last-child {
+  grid-column: 1 / -1;
+}
+
+.app-premium-v4 :is(.ts-cell, .jam-tile).dev-sp,
+.app-premium-v4 .ct-track.dev-sp .ct-pad {
+  --destination-ink: var(--burgundy);
+}
+
+.app-premium-v4 :is(.ts-cell, .jam-tile).dev-fm1,
+.app-premium-v4 .ct-track.dev-fm1 .ct-pad {
+  --destination-ink: var(--mint-3);
+}
+
+.app-premium-v4 :is(.ts-cell, .jam-tile).dev-mpc,
+.app-premium-v4 .ct-track.dev-mpc .ct-pad {
+  --destination-ink: var(--text-dim);
+}
+
+.app-premium-v4 .ct-track .ct-pad,
+.app-premium-v4 .jam-tile {
+  border: 1px solid var(--line) !important;
+  border-bottom: 2px solid var(--destination-ink) !important;
+  border-radius: var(--control-corner);
+}
+
+.app-premium-v4 .jam-tile.active,
+.app-premium-v4 .ct-track.selected .ct-pad {
+  outline: 1px solid var(--bone);
+  outline-offset: -1px;
+}
+
+.app-premium-v4 .ct-pad.hit {
+  animation-name: console-track-hit;
+}
+
+@keyframes console-track-hit {
+  from { color: var(--mint-6); box-shadow: inset 0 0 0 1px var(--mint-4); }
+  to { color: var(--text); box-shadow: none; }
+}
+
+.app-premium-v4 .track-summary .ts-cell:hover:not(:disabled) {
+  background: var(--bg-4) !important;
+}
+
+@media (max-width: 850px) {
+  .track-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 420px) {
+  .track-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Empty monitoring remains legible and leaves room for the rig. */
+.app-premium-v4 .ap-stage {
+  background: var(--bg-0) !important;
+  border: 1px solid var(--line) !important;
+}
+
+.app-premium-v4 .ap-stage.ap-stage-idle {
+  height: 76px;
+}
+
+.ap-stage-idle .ap-idle {
+  place-content: end start;
+  padding: 8px 12px;
+  color: var(--text-mute);
+}
+
+.app-premium-v4 .ap-styles button.active {
+  background: var(--selection-fill) !important;
+  color: var(--text) !important;
+  border-color: var(--text-dim) !important;
+}
+
+.app-premium-v4 .seq-page .seq-grid-wrap {
+  background: var(--bg-1) !important;
+}
+
+.app-premium-v4 .seq-page .seq-pad:not(.lit) {
+  background: var(--bg-3) !important;
+}
+
+.app-premium-v4 .seq-page .seq-pad:nth-child(4n + 1):not(.lit) {
+  background: var(--bg-4) !important;
+}
+
+.app-premium-v4 .seq-page .seq-pad.lit:not(.dev-sp) {
+  background: var(--bone) !important;
+  border-color: var(--text-dim) !important;
+}
+
+.app-premium-v4 .seq-page .seq-pad.selected {
+  outline: 2px solid var(--bone);
+  outline-offset: -2px;
+}
+
+.app-premium-v4 .sessions-page .rec-capture .rec-transport {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-0);
+  border-radius: var(--control-corner);
+}
+
+.app-premium-v4 .sessions-page .rec-elapsed {
+  color: var(--text);
+  font-size: clamp(17px, 2vw, 25px);
+  min-width: 5ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-premium-v4 .sessions-page .rec-meters {
+  min-width: 0;
+}
+
+.app-premium-v4 .sessions-page .rec-meter-track {
+  height: 7px;
+}
+
+.app-premium-v4 .sessions-page .rec-big {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 5.5rem !important;
+  background: var(--burgundy-dim) !important;
+  color: var(--burgundy-ink) !important;
+  border: 1px solid var(--burgundy) !important;
+}
+
+.rec-control-glyph {
+  width: 8px;
+  height: 8px;
+  background: currentColor;
+}
+
+.rec-big.record .rec-control-glyph { border-radius: 50%; }
+.rec-options { padding-top: var(--control-gap); }
+
+.app-premium-v4 .rec-meter.clip .rec-meter-track i,
+.app-premium-v4 .ap-clip.on {
+  background: var(--burgundy) !important;
+  color: var(--burgundy-ink) !important;
+}
+
+@media (max-width: 520px) {
+  .app-premium-v4 .sessions-page .rec-capture .rec-transport {
+    grid-template-columns: auto 1fr;
+  }
+
+  .sessions-page .rec-meters { grid-column: 1 / -1; }
+}
+
+/* Device checklists and library rows share the same compact, neutral states. */
+:is(.c2-checklist, .sp3-checklist) {
+  gap: 0;
+}
+
+:is(.c2-checklist, .sp3-checklist) li {
+  gap: 3px 12px;
+  padding-block: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+:is(.c2-checklist, .sp3-checklist) li p {
+  margin: 0;
+}
+
+:is(.c2-pic, .sp3-pic) {
+  min-height: 54px;
+  background: var(--bg-1);
+}
+
+:is(.c2-live-pill, .sp3-live-pill) {
+  color: var(--mint-5);
+}
+
+.section-card {
+  background: var(--bg-1);
+}
+
+.section-card-field :is(input, select) {
+  min-height: 32px;
+}
+
+.app-premium-v4 .mpc-lib-row.selected {
+  box-shadow: inset 2px 0 var(--bone) !important;
+}
+
+.app-premium-v4 :is(.bank-tab.active, .sp-pad.active, .sp-pad.selected) {
+  background: var(--selection-fill) !important;
+  border-color: var(--text-dim) !important;
+  color: var(--text) !important;
+}
+
+.app-premium-v4 .bench-head {
+  min-height: 34px;
+}
+
+.app-premium-v4 .bench-head .verdict-tag {
+  margin-left: auto;
+}
+
+.app-premium-v4 .tl-metrics > div:nth-child(-n + 3) {
+  border-top: 2px solid var(--text-dim);
+}
+
+.app-premium-v4 .sessions-page .grid-2 > .panel:has(> .muted:only-of-type) {
+  min-height: 0;
 }

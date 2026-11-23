@@ -10,10 +10,10 @@ import { loadExperimentalUi } from '../nav/tabs';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 const VERDICT_LABEL: Record<BenchVerdict, string> = {
-  pass: 'pass',
-  fail: 'fail',
-  unsure: 'unsure',
-  pending: '—',
+  pass: '✓ Pass',
+  fail: '× Fail',
+  unsure: '? Unsure',
+  pending: '· Pending',
 };
 
 export function TestWorkspace() {

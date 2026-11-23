@@ -429,97 +429,6 @@ export function SamplesWorkspace({ showLoopCatcher = false }: { showLoopCatcher?
         <p>Pick a bank, drop audio, trim, export. Clearing a bank asks first.</p>
       </HowTo>
 
-      {showLoopCatcher ? (
-        <div className="panel sounds-loop-catcher">
-          <h2>
-            Loop catcher <span className="muted small">(FLIP)</span>
-          </h2>
-          <p className="muted small">Stereo from Scarlett / ZED / USB — not a MIDI track.</p>
-          <FlipLane
-            bpm={pattern.bpm}
-            playhead={seq.playhead}
-            playing={seq.playing}
-            clockSource={seq.bank.clockSource}
-            trackMutes={pattern.tracks.map((t) => t.muted)}
-            setTrackMute={(track, muted) => seqSetTrackMute(track, muted)}
-          />
-        </div>
-      ) : null}
-
-      <div className="panel">
-        <h2>Pads already on the SP</h2>
-        <p className="muted small">SD card in a reader — not USB alone. Read-only.</p>
-        <div className="row">
-          <button type="button" disabled={sdBusy || !canPickFolder} onClick={() => void openSpVolume()}>
-            {sdHandle.current ? 'Choose folder…' : 'Open SP volume…'}
-          </button>
-          <button
-            type="button"
-            className="ghost"
-            disabled={sdBusy || !sdHandle.current}
-            onClick={() => void refreshSpVolume()}
-          >
-            Refresh
-          </button>
-          {sdResult?.projects.length && sdResult.projects.length > 1 ? (
-            <label className="sd-project-pick">
-              Project
-              <select
-                value={sdProject?.path ?? ''}
-                onChange={(e) => setSdProjectId(e.target.value)}
-                disabled={sdBusy}
-              >
-                {sdResult.projects.map((p) => (
-                  <option key={p.path} value={p.path}>
-                    {p.projectName || p.id} ({p.occupiedCount} pads) · {p.path}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-        </div>
-        {!canPickFolder ? (
-          <p className="muted small">Folder access needs Chrome or Edge.</p>
-        ) : null}
-        {sdStatus ? <p className="mono small status-line-inline">{sdBusy ? `… ${sdStatus}` : sdStatus}</p> : null}
-        {sdResult?.warnings.map((w) => (
-          <p key={w} className="muted small">
-            {w}
-          </p>
-        ))}
-        {sdProject ? (
-          <p className="muted small">
-            <span className="mono">{sdProject.projectName}</span>
-            {sdProject.path ? (
-              <>
-                {' '}
-                · <span className="mono">{sdProject.path}</span>
-              </>
-            ) : null}
-            {' '}
-            · source <span className="mono">{sdProject.source}</span>
-            {sdScannedAt ? (
-              <>
-                {' '}
-                · scanned {new Date(sdScannedAt).toLocaleTimeString()}
-              </>
-            ) : null}
-            {' '}
-            · <span className="sp-on-sd-mark" aria-hidden>SD</span> on occupied pads
-          </p>
-        ) : null}
-        <MoreInfo>
-          <p className="muted small">
-            Export the project on the SP first (SHIFT + pad 14 → EXPORT → PROJECT), or open an{' '}
-            <span className="mono">IMPORT/PROJECT_*</span> folder. Names from{' '}
-            <span className="mono">PADCONF.BIN</span>; length from <span className="mono">.SMP</span> when present. Never
-            writes the card; no MIDI dump; no live SD audio preview.
-          </p>
-        </MoreInfo>
-      </div>
-
-      {showSpUsb ? <SpUsbPanel /> : null}
-
       <div className="panel">
         <h2>Bank {bank}</h2>
         <div className="bank-tabs" role="tablist" aria-label="SP banks">
@@ -761,6 +670,97 @@ export function SamplesWorkspace({ showLoopCatcher = false }: { showLoopCatcher?
           </div>
         )}
       </div>
+
+      {showLoopCatcher ? (
+        <div className="panel sounds-loop-catcher">
+          <h2>
+            Loop catcher <span className="muted small">(FLIP)</span>
+          </h2>
+          <p className="muted small">Stereo from Scarlett / ZED / USB — not a MIDI track.</p>
+          <FlipLane
+            bpm={pattern.bpm}
+            playhead={seq.playhead}
+            playing={seq.playing}
+            clockSource={seq.bank.clockSource}
+            trackMutes={pattern.tracks.map((t) => t.muted)}
+            setTrackMute={(track, muted) => seqSetTrackMute(track, muted)}
+          />
+        </div>
+      ) : null}
+
+      <div className="panel">
+        <h2>Pads already on the SP</h2>
+        <p className="muted small">SD card in a reader — not USB alone. Read-only.</p>
+        <div className="row">
+          <button type="button" disabled={sdBusy || !canPickFolder} onClick={() => void openSpVolume()}>
+            {sdHandle.current ? 'Choose folder…' : 'Open SP volume…'}
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            disabled={sdBusy || !sdHandle.current}
+            onClick={() => void refreshSpVolume()}
+          >
+            Refresh
+          </button>
+          {sdResult?.projects.length && sdResult.projects.length > 1 ? (
+            <label className="sd-project-pick">
+              Project
+              <select
+                value={sdProject?.path ?? ''}
+                onChange={(e) => setSdProjectId(e.target.value)}
+                disabled={sdBusy}
+              >
+                {sdResult.projects.map((p) => (
+                  <option key={p.path} value={p.path}>
+                    {p.projectName || p.id} ({p.occupiedCount} pads) · {p.path}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+        </div>
+        {!canPickFolder ? (
+          <p className="muted small">Folder access needs Chrome or Edge.</p>
+        ) : null}
+        {sdStatus ? <p className="mono small status-line-inline">{sdBusy ? `… ${sdStatus}` : sdStatus}</p> : null}
+        {sdResult?.warnings.map((w) => (
+          <p key={w} className="muted small">
+            {w}
+          </p>
+        ))}
+        {sdProject ? (
+          <p className="muted small">
+            <span className="mono">{sdProject.projectName}</span>
+            {sdProject.path ? (
+              <>
+                {' '}
+                · <span className="mono">{sdProject.path}</span>
+              </>
+            ) : null}
+            {' '}
+            · source <span className="mono">{sdProject.source}</span>
+            {sdScannedAt ? (
+              <>
+                {' '}
+                · scanned {new Date(sdScannedAt).toLocaleTimeString()}
+              </>
+            ) : null}
+            {' '}
+            · <span className="sp-on-sd-mark" aria-hidden>SD</span> on occupied pads
+          </p>
+        ) : null}
+        <MoreInfo>
+          <p className="muted small">
+            Export the project on the SP first (SHIFT + pad 14 → EXPORT → PROJECT), or open an{' '}
+            <span className="mono">IMPORT/PROJECT_*</span> folder. Names from{' '}
+            <span className="mono">PADCONF.BIN</span>; length from <span className="mono">.SMP</span> when present. Never
+            writes the card; no MIDI dump; no live SD audio preview.
+          </p>
+        </MoreInfo>
+      </div>
+
+      {showSpUsb ? <SpUsbPanel /> : null}
 
       <div className="panel">
         <h2>Save for the SP</h2>

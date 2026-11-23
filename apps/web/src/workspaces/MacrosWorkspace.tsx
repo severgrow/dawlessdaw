@@ -72,59 +72,6 @@ export function MacrosWorkspace() {
         </p>
       </HowTo>
 
-      <div className="panel sm-traffic">
-        <h2>MIDI traffic</h2>
-        <div className="row" style={{ gap: '0.75rem', flexWrap: 'wrap' }}>
-          <label className="row" style={{ gap: '0.35rem', alignItems: 'center' }}>
-            <span className="small">Max Hz / dest</span>
-            <input
-              type="number"
-              min={1}
-              max={120}
-              value={sm.traffic.maxHz}
-              onChange={(e) =>
-                a.getRuntime().setSuperMacroTraffic({ maxHz: Number(e.target.value) || 30 })
-              }
-              style={{ width: '4rem' }}
-            />
-          </label>
-          {sm.traffic.disabled ? (
-            <button type="button" onClick={() => a.getRuntime().enableSuperMacrosAfterPanic()}>
-              Re-enable after panic
-            </button>
-          ) : (
-            <button type="button" className="danger" onClick={() => a.getRuntime().panicSuperMacros()}>
-              Panic · disable Super Macros
-            </button>
-          )}
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => {
-              const json = a.getRuntime().exportSuperMacrosDiagnostic();
-              const blob = new Blob([json], { type: 'application/json' });
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = `splot-super-macros-${Date.now()}.json`;
-              link.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            Export JSON
-          </button>
-        </div>
-        <p className="muted small">
-          Output monitor (last-sent by Splot — device state not verified from the wire):
-        </p>
-        <ul className="sm-monitor mono small">
-          {sm.monitor.length === 0 ? <li className="muted">No Super Macro CC sent yet.</li> : null}
-          {sm.monitor.slice(0, 8).map((line, i) => (
-            <li key={`${line.at}-${i}`}>{line.text}</li>
-          ))}
-        </ul>
-      </div>
-
       <div className="sm-layout">
         <div className="panel sm-list">
           <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -343,6 +290,59 @@ export function MacrosWorkspace() {
             </>
           )}
         </div>
+      </div>
+
+      <div className="panel sm-traffic">
+        <h2>MIDI traffic</h2>
+        <div className="row" style={{ gap: '0.75rem', flexWrap: 'wrap' }}>
+          <label className="row" style={{ gap: '0.35rem', alignItems: 'center' }}>
+            <span className="small">Max Hz / dest</span>
+            <input
+              type="number"
+              min={1}
+              max={120}
+              value={sm.traffic.maxHz}
+              onChange={(e) =>
+                a.getRuntime().setSuperMacroTraffic({ maxHz: Number(e.target.value) || 30 })
+              }
+              style={{ width: '4rem' }}
+            />
+          </label>
+          {sm.traffic.disabled ? (
+            <button type="button" onClick={() => a.getRuntime().enableSuperMacrosAfterPanic()}>
+              Re-enable after panic
+            </button>
+          ) : (
+            <button type="button" className="danger" onClick={() => a.getRuntime().panicSuperMacros()}>
+              Panic · disable Super Macros
+            </button>
+          )}
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              const json = a.getRuntime().exportSuperMacrosDiagnostic();
+              const blob = new Blob([json], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `splot-super-macros-${Date.now()}.json`;
+              link.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Export JSON
+          </button>
+        </div>
+        <p className="muted small">
+          Output monitor (last-sent by Splot — device state not verified from the wire):
+        </p>
+        <ul className="sm-monitor mono small">
+          {sm.monitor.length === 0 ? <li className="muted">No Super Macro CC sent yet.</li> : null}
+          {sm.monitor.slice(0, 8).map((line, i) => (
+            <li key={`${line.at}-${i}`}>{line.text}</li>
+          ))}
+        </ul>
       </div>
 
       <div className="panel sm-scenes">

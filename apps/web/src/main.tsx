@@ -8,11 +8,14 @@ import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import '@fontsource/ibm-plex-mono/600.css';
 import { App } from './App';
+import { CircuitTempoDisplayProvider } from './components/CircuitTempo';
 import './styles/studio.css';
 import './styles/console.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <CircuitTempoDisplayProvider>
+      <App />
+    </CircuitTempoDisplayProvider>
   </StrictMode>,
 );

@@ -46,7 +46,7 @@ function createWindow() {
     height: 900,
     minWidth: 960,
     minHeight: 640,
-    backgroundColor: '#0c0d0c',
+    backgroundColor: '#101112',
     title: 'Splot MIDI Brain',
     show: false,
     webPreferences: {
