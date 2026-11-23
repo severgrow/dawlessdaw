@@ -78,17 +78,10 @@ export function SectionsWorkspace() {
           Section Bridge {bridge.enabled ? 'on' : 'off'}
         </button>
       </div>
-      <p className="lead">
-        When you change Project on the Circuit, jump SP pattern + MPC sequence together. Needs Circuit{' '}
-        <strong>Program Change Tx</strong> on (ch 16). Drag cards to reorder the setlist.
-      </p>
+      <p className="lead">Project change → SP + MPC together. Needs PC Tx (ch 16).</p>
 
       <div className="panel">
-        <h2>Performance Memory event-actions</h2>
-        <p className="muted small">
-          Optional replay of <strong>confirmed</strong> project-change markers through Section Bridge.
-          Off by default. Inferred events (possible pattern change / mute) never auto-fill SP or MPC.
-        </p>
+        <h2>Event actions</h2>
         <button
           type="button"
           className={bridge.eventActionsEnabled ? 'active' : ''}

@@ -15,7 +15,7 @@ import { MoreInfo } from '../components/MoreInfo';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import { formatRouteChannelDetail } from './routeChannelDetail';
 
-const COLOURS = ['#9a2a45', '#9fdcc2', '#e8e1d2', '#4a7c59', '#5b7c99', '#888888'] as const;
+const COLOURS = ['#8a4050', '#8fb5a6', '#e4ddd0', '#4a6b5a', '#5b7c99', '#888888'] as const;
 
 function PortSelect({
   role,
@@ -384,13 +384,11 @@ export function SetupWorkspace({
           Rescan ports
         </button>
       </div>
-      <p className="lead">
-        Tell Splot which USB port is which. Status is in the top strip — reopen the connect guide anytime.
-      </p>
+      <p className="lead">Assign USB ports. Status lives in the top strip.</p>
       <div className="row" style={{ marginBottom: '0.85rem' }}>
         {onReopenWizard ? (
           <button type="button" onClick={onReopenWizard}>
-            Connect your rig…
+            Connect guide
           </button>
         ) : null}
         {setExperimental ? (
@@ -400,13 +398,13 @@ export function SetupWorkspace({
               checked={experimental}
               onChange={(e) => setExperimental(e.target.checked)}
             />
-            <span className="small">Show experimental tools (Deep Sync, SP USB)</span>
+            <span className="small">Experimental tools</span>
           </label>
         ) : null}
       </div>
       {!experimental ? (
         <p className="muted small">
-          Bench tests: open the <b>Tests</b> sub-tab. Deep Sync stays behind the experimental toggle.
+          Bench tests: <b>Tests</b> sub-tab. Deep Sync needs the experimental toggle.
         </p>
       ) : (
         <p className="callout seq-honesty">

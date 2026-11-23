@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  filterSelectableAudioInputs,
+  pickPreferredInputId,
+  PLUG_IN_INTERFACE,
+} from '../recorder/devices';
 import { clearMixerOutLevels, publishMixerOutLevels } from './mixerOutBus';
 
 /**
@@ -68,7 +73,14 @@ export function AudioPreview() {
   const refreshDevices = useCallback(async () => {
     if (!navigator.mediaDevices?.enumerateDevices) return [];
     const all = await navigator.mediaDevices.enumerateDevices();
-    const ins = all.filter((d) => d.kind === 'audioinput' && d.deviceId !== 'communications');
+    const rawIns = all.filter((d) => d.kind === 'audioinput');
+    // Never offer MacBook / iPhone / Continuity mics — interfaces only.
+    const allowed = new Set(
+      filterSelectableAudioInputs(
+        rawIns.map((d) => ({ deviceId: d.deviceId, label: d.label || '' })),
+      ).map((d) => d.deviceId),
+    );
+    const ins = rawIns.filter((d) => allowed.has(d.deviceId));
     setInputs(ins);
     setOutputs(all.filter((d) => d.kind === 'audiooutput' && d.deviceId !== 'communications'));
     return ins;
@@ -113,24 +125,43 @@ export function AudioPreview() {
           autoGainControl: false,
           channelCount: 2,
         };
-        let stream = await navigator.mediaDevices.getUserMedia({
-          audio: deviceId ? { ...audio, deviceId: { exact: deviceId } } : audio,
-        });
-        // First run: labels only appear after permission. Prefer the ZED / last-used source.
-        const ins = await refreshDevices();
-        if (!deviceId) {
-          const want =
-            ins.find((d) => prefs.current.sourceLabel && d.label === prefs.current.sourceLabel) ??
-            ins.find((d) => /usb audio codec|zed/i.test(d.label));
-          const current = stream.getAudioTracks()[0]?.getSettings().deviceId;
-          if (want && want.deviceId !== current) {
-            stream.getTracks().forEach((t) => t.stop());
-            stream = await navigator.mediaDevices.getUserMedia({
-              audio: { ...audio, deviceId: { exact: want.deviceId } },
-            });
+
+        // Resolve a selectable interface first — never auto-open a built-in mic.
+        let ins = await refreshDevices();
+        if (!ins.length && !deviceId) {
+          // One short permission grant so labels appear, then re-filter.
+          try {
+            const probe = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            probe.getTracks().forEach((t) => t.stop());
+          } catch {
+            // ignore
           }
+          ins = await refreshDevices();
         }
-        const usedId = stream.getAudioTracks()[0]?.getSettings().deviceId ?? '';
+        const wantId =
+          deviceId ||
+          pickPreferredInputId(
+            ins.map((d) => ({ deviceId: d.deviceId, label: d.label || '' })),
+            ins.find((d) => d.label === prefs.current.sourceLabel)?.deviceId ?? null,
+          );
+        if (!wantId) {
+          setSourceId('');
+          setError(PLUG_IN_INTERFACE);
+          return;
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { ...audio, deviceId: { exact: wantId } },
+        });
+        ins = await refreshDevices();
+        // If the opened device was filtered out (built-in), abort.
+        if (!ins.some((d) => d.deviceId === wantId)) {
+          stream.getTracks().forEach((t) => t.stop());
+          setSourceId('');
+          setError(PLUG_IN_INTERFACE);
+          return;
+        }
+        const usedId = wantId;
         setSourceId(usedId);
         const label = ins.find((d) => d.deviceId === usedId)?.label;
         prefs.current = { ...prefs.current, sourceLabel: label };
@@ -260,8 +291,8 @@ export function AudioPreview() {
         g.fill();
         g.strokeStyle = accent;
         g.lineWidth = 2.6 * dpr;
-        g.shadowColor = accent;
-        g.shadowBlur = 14 * dpr;
+        g.shadowColor = 'transparent';
+        g.shadowBlur = 0;
         g.lineJoin = 'round';
         g.beginPath();
         for (let i = 0; i < n; i++) {
@@ -339,8 +370,8 @@ export function AudioPreview() {
         g.globalAlpha = 1;
         g.strokeStyle = accent;
         g.lineWidth = 2.4 * dpr;
-        g.shadowColor = accent;
-        g.shadowBlur = 16 * dpr;
+        g.shadowColor = 'transparent';
+        g.shadowBlur = 0;
         g.beginPath();
         const pts = 256;
         for (let i = 0; i <= pts; i++) {
@@ -414,7 +445,11 @@ export function AudioPreview() {
             disabled={!inputs.length}
             onChange={(e) => void start(e.target.value)}
           >
-            {!sourceId ? <option value="">Press Start to pick</option> : null}
+            {!inputs.length ? (
+              <option value="">{PLUG_IN_INTERFACE}</option>
+            ) : !sourceId ? (
+              <option value="">Pick Scarlett / ZED / USB</option>
+            ) : null}
             {inputs.map((d, i) => (
               <option key={d.deviceId || i} value={d.deviceId}>
                 {d.label || `Audio input ${i + 1}`}
@@ -451,7 +486,13 @@ export function AudioPreview() {
         {!running ? (
           <div className="ap-idle">
             <p>
-              Press <b>Start</b> — mixer USB in (nothing recorded).
+              {inputs.length ? (
+                <>
+                  Press <b>Start</b> — interface in only.
+                </>
+              ) : (
+                PLUG_IN_INTERFACE
+              )}
             </p>
           </div>
         ) : null}

@@ -29,14 +29,20 @@ export function StatusBar() {
           clk <b>{snap.clockActivity.inTicks}</b>↓ <b>{snap.clockActivity.outTicks}</b>↑
         </span>
       ) : null}
-      <span className="status-line">{snap.statusLine}</span>
+      <span className="status-line" title={snap.statusLine || snap.midiError || undefined}>
+        {snap.midiError
+          ? 'No MIDI — allow in Chrome'
+          : snap.statusLine.length > 64
+            ? `${snap.statusLine.slice(0, 61)}…`
+            : snap.statusLine}
+      </span>
       <span className="spacer" />
       <button
         type="button"
         onClick={() => void rescanMidiPorts()}
         title="Ask Chrome for the MIDI port list again"
       >
-        rescan
+        Rescan
       </button>
     </header>
   );

@@ -161,16 +161,18 @@ export class CaptureEngine {
       persistMonitorInput(this.monitorInput);
     }
 
+    if (!opts.deviceId) {
+      throw new Error('Plug in an interface');
+    }
+
     const audioConstraints: MediaTrackConstraints = {
       echoCancellation: false,
       noiseSuppression: false,
       autoGainControl: false,
       channelCount: 2,
       sampleRate: 48000,
+      deviceId: { exact: opts.deviceId },
     };
-    if (opts.deviceId) {
-      audioConstraints.deviceId = { exact: opts.deviceId };
-    }
 
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: audioConstraints,

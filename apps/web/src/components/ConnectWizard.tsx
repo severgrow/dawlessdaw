@@ -39,31 +39,27 @@ export function ConnectWizard({
   return (
     <div className="wizard-scrim" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
       <div className="wizard-card">
-        <h2 id="wizard-title">Connect your rig</h2>
-        <p className="lead">Three short steps. You can reopen this anytime from Settings.</p>
+        <h2 id="wizard-title">Connect</h2>
+        <p className="lead">Three taps. Reopen anytime from Settings.</p>
 
         <ol className="wizard-steps">
           <li className={step === 'connect' ? 'current' : snap.midiReady ? 'done' : ''}>
-            <b>1. Allow MIDI in Chrome</b>
+            <b>1. MIDI</b>
             <p className="muted small">
-              {snap.midiReady
-                ? 'MIDI is on.'
-                : snap.midiError ?? 'Click Allow when Chrome asks for MIDI devices.'}
+              {snap.midiReady ? 'On.' : snap.midiError ?? 'Allow MIDI when Chrome asks.'}
             </p>
             {!snap.midiReady ? (
               <button type="button" onClick={() => void start()}>
-                Try MIDI again
+                Allow MIDI
               </button>
             ) : null}
           </li>
           <li className={step === 'identify' || step === 'assign' ? 'current' : step === 'play' ? 'done' : ''}>
-            <b>2. Plug in &amp; assign ports</b>
-            <p className="muted small">
-              Circuit USB → Mac. Scarlett MIDI Out → MPC. FM1 (Felucca) USB. SP USB optional.
-            </p>
+            <b>2. Ports</b>
+            <p className="muted small">Circuit USB · Scarlett → MPC · FM1 USB · SP optional.</p>
             <div className="row">
               <button type="button" className="ghost" onClick={() => void rescanMidiPorts()}>
-                Rescan ports
+                Rescan
               </button>
               <button
                 type="button"
@@ -72,23 +68,23 @@ export function ConnectWizard({
                   setWorkspace('setup');
                 }}
               >
-                Open Ports &amp; devices
+                Assign ports
               </button>
             </div>
           </li>
           <li className={step === 'play' ? 'current done' : ''}>
             <b>3. Play</b>
             <p className="muted small">
-              {step === 'play'
-                ? 'You’re set — press Play on the Circuit.'
-                : 'When Circuit in is assigned, go to Play and press Play on the Circuit.'}
+              {step === 'play' ? 'Ready — hit Play on the Circuit.' : 'Assign Circuit in, then Play.'}
             </p>
           </li>
         </ol>
 
-        <p className="muted small wizard-status" role="status">
-          {snap.onboarding.message}
-        </p>
+        {snap.onboarding.message ? (
+          <p className="muted small wizard-status" role="status">
+            {snap.onboarding.message}
+          </p>
+        ) : null}
 
         <div className="row wizard-actions">
           <button type="button" className="ghost" onClick={() => close(true)}>

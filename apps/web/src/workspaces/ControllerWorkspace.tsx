@@ -459,17 +459,10 @@ export function ControllerWorkspace() {
           ) : null}
         </span>
       </div>
-      <p className="lead">
-        Circuit tracks play SP / FM1 / MPC. Twist macros — named knobs flash live. Unmapped knobs are
-        dropped. <strong>Advanced</strong> shows MIDI numbers.
-      </p>
+      <p className="lead">Route Circuit tracks · twist knobs · Advanced shows MIDI #s.</p>
 
       <div className="panel ctl-pickup">
-        <h2>Knob soft takeover</h2>
-        <p className="muted small">
-          Off by default. When on, Super Macro fan-out waits for pickup before jumping a parameter
-          (same engine as Settings → Macros). Experimental until hardware confirm.
-        </p>
+        <h2>Soft takeover</h2>
         <button
           type="button"
           className={snap.controllerKnobPickup ? 'active' : ''}

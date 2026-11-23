@@ -145,9 +145,9 @@ export function App() {
       />
       {jam ? <JamMode onClose={() => setJam(false)} /> : null}
       <footer className="footer-bar">
-        <span>Splot MIDI Brain · local · no sysex</span>
+        <span>Splot MIDI Brain · local</span>
         <span className={`mono ${midiReady ? 'live' : 'err'}`}>
-          {midiReady ? '● live web midi' : '● no midi access'}
+          {midiReady ? '● midi' : '● no midi'}
         </span>
       </footer>
     </div>

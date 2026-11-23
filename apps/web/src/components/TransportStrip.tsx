@@ -9,24 +9,28 @@ export function TransportStrip({ onOpenJam }: { onOpenJam?: () => void }) {
   const { panic, seqPlay, seqStop, setWorkspace } = useStudioActions();
   const playing = snap.sequencer.playing;
   const bpm = snap.estimatedBpm ?? snap.sequencer.bank.patterns[snap.sequencer.bank.activePatternIndex]?.bpm;
-  const status =
+  const rawStatus =
     snap.midiError ??
     (snap.onboarding.step !== 'play' ? snap.onboarding.message : snap.statusLine);
+  const status =
+    snap.midiError
+      ? 'No MIDI — allow in Chrome, then Rescan'
+      : rawStatus;
 
   return (
     <div className="transport-strip" role="region" aria-label="Transport">
-      <button type="button" className={playing ? 'ts-btn on' : 'ts-btn'} onClick={() => seqPlay()} title="Arm / follow Circuit Play">
+      <button type="button" className={playing ? 'ts-btn on' : 'ts-btn'} onClick={() => seqPlay()} title="Play">
         Play
       </button>
-      <button type="button" className="ts-btn" onClick={() => seqStop()} title="Stop Splot pattern">
+      <button type="button" className="ts-btn" onClick={() => seqStop()} title="Stop">
         Stop
       </button>
       <button type="button" className="ts-btn danger" onClick={() => panic()} title="All notes off">
         Panic
       </button>
       {onOpenJam ? (
-        <button type="button" className="ts-btn jam" onClick={onOpenJam} title="Jam mode (J)">
-          Jam <span className="ts-key">J</span>
+        <button type="button" className="ts-btn jam" onClick={onOpenJam} title="Jam (J)">
+          Jam
         </button>
       ) : null}
       <span className="ts-meta mono small">
@@ -38,7 +42,7 @@ export function TransportStrip({ onOpenJam }: { onOpenJam?: () => void }) {
       </span>
       {snap.onboarding.step !== 'play' ? (
         <button type="button" className="ts-btn ghost" onClick={() => setWorkspace('setup')}>
-          Connect…
+          Connect
         </button>
       ) : null}
     </div>

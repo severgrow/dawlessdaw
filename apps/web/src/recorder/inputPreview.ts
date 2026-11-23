@@ -91,15 +91,20 @@ export class InputPreviewEngine {
       return;
     }
 
+    // Never open the default/built-in mic — require an explicit interface id.
+    if (!deviceId) {
+      this.error = 'Plug in an interface';
+      this.notify();
+      return;
+    }
+
     const audioConstraints: MediaTrackConstraints = {
       echoCancellation: false,
       noiseSuppression: false,
       autoGainControl: false,
       channelCount: 2,
+      deviceId: { exact: deviceId },
     };
-    if (deviceId) {
-      audioConstraints.deviceId = { exact: deviceId };
-    }
 
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({

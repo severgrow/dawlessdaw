@@ -90,11 +90,15 @@ export async function runLatencyLab(opts: RunLatencyLabOpts): Promise<LatencyLab
     throw new Error('Latency Lab needs a browser with getUserMedia (Chrome).');
   }
 
+  if (!opts.audioInputId) {
+    throw new Error('Plug in an interface (Scarlett / ZED / USB).');
+  }
+
   progress({ phase: 'arming', index: 0, total: count, message: 'Opening audio input (no monitor)…' });
 
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
-      deviceId: opts.audioInputId ? { exact: opts.audioInputId } : undefined,
+      deviceId: { exact: opts.audioInputId },
       echoCancellation: false,
       noiseSuppression: false,
       autoGainControl: false,

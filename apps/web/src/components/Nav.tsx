@@ -64,7 +64,7 @@ export function Nav() {
           </span>
         </button>
       ))}
-      <div className="nav-hint">click 1–5 · keys 1–8 panels · J jam</div>
+      <div className="nav-hint">1–5 · J jam</div>
     </nav>
   );
 }

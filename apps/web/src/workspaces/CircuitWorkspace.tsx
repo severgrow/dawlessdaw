@@ -99,20 +99,11 @@ export function CircuitWorkspace() {
         </span>
       </div>
       <p className="lead">
-        Setup checklist, live MIDI ticks, and your 64 Projects. Passive listen only — never SysEx,
-        never firmware. Cites{' '}
-        <a href={CIRCUIT_RHYTHM_DOC.userGuideMidi} target="_blank" rel="noreferrer">
-          User Guide MIDI appendix
-        </a>{' '}
-        + {CIRCUIT_RHYTHM_DOC.programmersReference}.
+        Checklist · live ticks · 64 Projects. Listen only — no SysEx.
       </p>
 
       <div className="panel c2-ticks" role="status" aria-label="Live Circuit TX ticks">
         <h2>Live ticks</h2>
-        <p className="muted small">
-          Lights when Note / CC / Program Change / Clock arrive on Circuit USB in. Confirm Transmit
-          settings on the device if a light stays dark.
-        </p>
         <div className="c2-tick-row">
           {(
             [

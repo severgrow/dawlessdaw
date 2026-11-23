@@ -13,7 +13,7 @@ export const TOP_TABS: {
   {
     id: 'play',
     label: 'Play',
-    hint: 'Your rig map + live Circuit controller',
+    hint: 'Rig + live pads',
     panels: [
       { id: 'rig', label: 'Rig' },
       { id: 'controller', label: 'Live controller' },
@@ -23,7 +23,7 @@ export const TOP_TABS: {
   {
     id: 'build',
     label: 'Build',
-    hint: 'Splot pattern, Circuit status, song sections',
+    hint: 'Pattern · Circuit · sections',
     panels: [
       { id: 'sequencer', label: 'Splot pattern' },
       { id: 'circuit', label: 'Circuit' },
@@ -34,7 +34,7 @@ export const TOP_TABS: {
   {
     id: 'sounds',
     label: 'Sounds',
-    hint: 'SP setup, pads, samples + loop catcher',
+    hint: 'SP pads + samples',
     panels: [
       { id: 'sp', label: 'SP-404' },
       { id: 'samples', label: 'SP samples' },
@@ -44,14 +44,14 @@ export const TOP_TABS: {
   {
     id: 'record',
     label: 'Record',
-    hint: 'Session takes / export',
+    hint: 'Takes + export',
     panels: [{ id: 'sessions', label: 'Sessions' }],
     defaultPanel: 'sessions',
   },
   {
     id: 'settings',
     label: 'Settings',
-    hint: 'Ports, timing, macros, tests',
+    hint: 'Ports · timing · tests',
     panels: [
       { id: 'setup', label: 'Ports & devices' },
       { id: 'timing', label: 'Timing' },

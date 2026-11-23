@@ -214,10 +214,7 @@ export function SequencerWorkspace() {
           Splot MIDI Brain
         </span>
       </div>
-      <p className="lead">
-        Circuit is the instrument. Splot is the window — Live observation, Saved .ncs view, or your
-        own Splot Pattern.
-      </p>
+      <p className="lead">Live view · saved .ncs · or your Splot pattern.</p>
 
       <div className="cm-mode-row" role="tablist" aria-label="Sequencer mode">
         {MODES.map((m) => (
@@ -238,9 +235,7 @@ export function SequencerWorkspace() {
       {mode === 'circuit-live' ? (
         <>
           <p className="callout seq-honesty" role="status">
-            <strong>Circuit Live · experimental</strong> — passive observation of Circuit{' '}
-            <b>input</b> MIDI only. Does not change what is sent to MPC / SP / FM1. Not a dump of
-            Circuit&apos;s stored pattern RAM.
+            <strong>Live · experimental</strong> — watches Circuit in only.
           </p>
           {!circuitIn ? (
             <p className="callout warn-callout">
@@ -284,10 +279,7 @@ export function SequencerWorkspace() {
       {mode === 'circuit-saved' ? (
         <>
           <p className="callout seq-honesty" role="status">
-            <strong>Circuit Saved · experimental</strong> — prefer a local <code>.ncs</code> from an{' '}
-            <strong>SD card reader</strong> (Components / Remix export). Never opens the USB file
-            protocol automatically — that <strong>stops playback</strong> on the Circuit. USB read
-            stays behind Tests → Deep Sync + explicit confirm only.
+            <strong>Saved · experimental</strong> — open a local <code>.ncs</code> from SD (never auto USB).
           </p>
           <div className="row cm-actions">
             <label className="seq-btn">
@@ -328,14 +320,11 @@ export function SequencerWorkspace() {
       {mode === 'splot-pattern' ? (
         <>
           <p className="callout seq-honesty" role="status">
-            <strong>Splot Pattern</strong> — editable 8×16 grid owned by Splot. Routes through
-            Controller destinations. Not Circuit&apos;s internal project.
+            <strong>Splot pattern</strong> — your 8×16 grid via Controller routes.
           </p>
 
           {!circuitIn ? (
-            <p className="callout warn-callout">
-              Assign Circuit input in Setup — sequencer notes reuse Controller routes from that port.
-            </p>
+            <p className="callout warn-callout">Assign Circuit in under Ports.</p>
           ) : null}
 
           <div className="seq-transport" role="toolbar" aria-label="Sequencer transport">

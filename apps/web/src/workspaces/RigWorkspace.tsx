@@ -22,16 +22,16 @@ export function RigWorkspace() {
       <div className="page-head">
         <h1>rig</h1>
         <button type="button" className="danger" onClick={() => panic()}>
-          Panic · all notes off
+          Panic
         </button>
       </div>
-      <HowTo sentence="Left → right picture of your studio. Status lives in the top strip — use Connect… if something’s missing.">
+      <HowTo sentence="Your studio map. Tap a box for ports — J for Jam.">
         <p>
-          Click a box to open Ports &amp; devices. Edit where Circuit tracks play under{' '}
+          Edit Circuit destinations under{' '}
           <button type="button" className="linklike" onClick={() => setWorkspace('controller')}>
             Live controller
           </button>
-          . Press <kbd>J</kbd> for Jam mode.
+          .
         </p>
       </HowTo>
 

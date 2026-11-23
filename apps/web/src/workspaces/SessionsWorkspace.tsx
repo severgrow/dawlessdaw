@@ -154,7 +154,8 @@ export function SessionsWorkspace() {
   const stopRecordRef = useRef<() => Promise<void>>(async () => undefined);
 
   const selected = takes.find((t) => t.id === selectedId) ?? null;
-  const selectedInput = inputs.find((d) => d.deviceId === deviceId) ?? inputs[0] ?? null;
+  // Never fall back to a random input — empty means “plug in an interface”.
+  const selectedInput = inputs.find((d) => d.deviceId === deviceId) ?? null;
   selectedInputRef.current = selectedInput;
 
   const refreshTakes = useCallback(async () => {
@@ -169,6 +170,7 @@ export function SessionsWorkspace() {
       const saved = loadPersistedInputId();
       if (saved && list.some((d) => d.deviceId === saved)) setDeviceId(saved);
       else if (list[0]) setDeviceId(list[0].deviceId);
+      else setDeviceId(null);
     })();
     void refreshTakes();
     void (async () => {
@@ -359,13 +361,17 @@ export function SessionsWorkspace() {
   const startRecord = useCallback(async () => {
     setMsg(null);
     const input = selectedInputRef.current;
-    const label = input ? formatInputLabel(input) : 'Default input';
+    if (!input?.deviceId) {
+      setMsg('Plug in an interface');
+      return;
+    }
+    const label = formatInputLabel(input);
     const live = useStudioStore.getState();
     const scene = live.scenes.find((s) => s.id === live.activeSceneId);
     try {
       const engine = getCaptureEngine();
       await engine.start({
-        deviceId: input?.deviceId ?? null,
+        deviceId: input.deviceId,
         deviceLabel: label,
         tags: {
           tempoBpm: live.estimatedBpm,
@@ -638,9 +644,7 @@ export function SessionsWorkspace() {
         <h1>sessions</h1>
         <span className="readout mono">{spaceHint}</span>
       </div>
-      <p className="lead">
-        Record stereo from any USB input Chrome sees. Takes stay on this Mac — nothing uploaded.
-      </p>
+      <p className="lead">Stereo from Scarlett / ZED / USB. Stays on this Mac.</p>
 
       {recoverNote ? <p className="warn">{recoverNote}</p> : null}
       {msg ? <p className="mono small">{msg}</p> : null}
@@ -655,12 +659,18 @@ export function SessionsWorkspace() {
             onChange={(e) => onPickDevice(e.target.value)}
             disabled={recording}
           >
-            {inputs.length === 0 ? <option value="">No inputs yet — allow mic access</option> : null}
-            {inputs.map((d) => (
-              <option key={d.deviceId} value={d.deviceId}>
-                {formatInputLabel(d)}
-              </option>
-            ))}
+            {inputs.length === 0 ? (
+              <option value="">Plug in an interface</option>
+            ) : (
+              <>
+                {!selectedInput ? <option value="">Pick Scarlett / ZED / USB…</option> : null}
+                {inputs.map((d) => (
+                  <option key={d.deviceId} value={d.deviceId}>
+                    {formatInputLabel(d)}
+                  </option>
+                ))}
+              </>
+            )}
           </select>
         </label>
         <div className="rec-transport">
