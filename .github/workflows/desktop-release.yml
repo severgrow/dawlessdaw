@@ -59,7 +59,15 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run dist:mac -w @dawlessdaw/desktop -- --arm64 --x64 --publish "$PUBLISH_MODE"
+        run: |
+          # GitHub exports missing secrets as empty strings. The packager reads
+          # an empty certificate path as the current directory.
+          for credential in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!credential}" ]; then
+              unset "$credential"
+            fi
+          done
+          npm run dist:mac -w @dawlessdaw/desktop -- --arm64 --x64 --publish "$PUBLISH_MODE"
 
       - name: Attach test installers
         if: github.ref_type != 'tag' && (github.event_name != 'workflow_dispatch' || inputs.dry_run)
