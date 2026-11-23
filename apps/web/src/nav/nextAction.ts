@@ -3,6 +3,8 @@
  * Display helpers only; never enables clock forward or SysEx.
  */
 
+import { isSplotDesktop } from '../desktop/env';
+
 export type NextActionKind = 'allow-midi' | 'assign-ports' | 'ready';
 
 export interface NextAction {
@@ -28,7 +30,9 @@ export function resolveNextAction(input: NextActionInput): NextAction {
     return {
       kind: 'allow-midi',
       cta: 'Allow MIDI',
-      hint: 'Chrome address bar → allow MIDI → reload',
+      hint: isSplotDesktop()
+        ? 'Click Allow MIDI — desktop shell grants access'
+        : 'Chrome address bar → allow MIDI → reload',
     };
   }
   if (input.connectedPorts === 0 || input.onboardingStep !== 'play') {

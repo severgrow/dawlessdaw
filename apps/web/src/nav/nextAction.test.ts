@@ -11,6 +11,7 @@ describe('resolveNextAction', () => {
     });
     expect(a.kind).toBe('allow-midi');
     expect(a.cta).toBe('Allow MIDI');
+    expect(a.hint).toMatch(/Chrome|Allow MIDI/i);
   });
 
   it('asks for ports when MIDI is on but not ready to play', () => {

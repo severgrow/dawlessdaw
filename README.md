@@ -6,7 +6,11 @@ Local-first web app for hardware music studio connectivity (Mac + Chrome + Web M
 
 Formerly prototyped as NervOS / dawlessdaw. This repository is the source of truth. Package and folder names still use `dawlessdaw` for now.
 
-## Quick start (macOS + Chrome)
+## Quick start (macOS)
+
+**Desktop app (recommended):** download the latest **Splot MIDI Brain** `.dmg` from [GitHub Releases](https://github.com/severgrow/dawlessdaw/releases), drag to Applications, open once (Right-click → Open if Gatekeeper warns). The app auto-checks for updates from Releases — no Terminal/`npm` each time.
+
+**Dev (Chrome):**
 
 ```bash
 git clone https://github.com/severgrow/dawlessdaw.git
@@ -16,6 +20,11 @@ npm run dev
 ```
 
 Open **http://localhost:5173**. Allow MIDI when your Circuit / MPC / SP-404 / FM1 are on USB.
+
+```bash
+npm run build:desktop   # Vite build with relative paths for the Electron shell
+npm run desktop         # run the desktop shell against that build (dev machine)
+```
 
 ```bash
 npm test          # unit tests (Vitest)
