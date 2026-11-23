@@ -49,28 +49,49 @@ function buildInfoList(tags: WavInfoTags): ArrayBuffer | null {
   return buf;
 }
 
-function floatToInt16(v: number): number {
-  const c = Math.max(-1, Math.min(1, v));
+export type WavEncodeOpts = {
+  /**
+   * TPDF dither when quantising float → int (16/24). Never applied to float32 WAV.
+   * Default true for int depths; pass false for deterministic bit-exact tests.
+   */
+  dither?: boolean;
+  /** Inject RNG for deterministic dither tests. */
+  random?: () => number;
+};
+
+function tpdf(random: () => number): number {
+  return random() + random() - 1;
+}
+
+function floatToInt16(v: number, dither: boolean, random: () => number): number {
+  let x = v;
+  if (dither) x += tpdf(random) / 0x8000;
+  const c = Math.max(-1, Math.min(1, x));
   return c < 0 ? Math.round(c * 0x8000) : Math.round(c * 0x7fff);
 }
 
-function floatToInt24(v: number): number {
-  const c = Math.max(-1, Math.min(1, v));
+function floatToInt24(v: number, dither: boolean, random: () => number): number {
+  let x = v;
+  if (dither) x += tpdf(random) / 0x800000;
+  const c = Math.max(-1, Math.min(1, x));
   return c < 0 ? Math.round(c * 0x800000) : Math.round(c * 0x7fffff);
 }
 
 /**
  * Encode stereo WAV at the recorded sample rate.
- * bitDepth 16/24 = integer PCM; 32 = IEEE float.
+ * bitDepth 16/24 = integer PCM (optional TPDF dither); 32 = IEEE float (transparent, no dither).
  */
 export function encodeWav(
   audio: StereoAudio,
   bitDepth: WavBitDepth = 24,
   tags?: WavInfoTags,
+  opts: WavEncodeOpts = {},
 ): ArrayBuffer {
   const frames = Math.min(audio.left.length, audio.right.length);
   const numChannels = 2;
   const isFloat = bitDepth === 32;
+  const dither = !isFloat && opts.dither !== false;
+  const random = opts.random ?? Math.random;
   const bytesPerSample = bitDepth / 8;
   const blockAlign = numChannels * bytesPerSample;
   const dataSize = frames * blockAlign;
@@ -121,13 +142,13 @@ export function encodeWav(
     const L = audio.left[i] ?? 0;
     const R = audio.right[i] ?? 0;
     if (bitDepth === 16) {
-      view.setInt16(o, floatToInt16(L), true);
+      view.setInt16(o, floatToInt16(L, dither, random), true);
       o += 2;
-      view.setInt16(o, floatToInt16(R), true);
+      view.setInt16(o, floatToInt16(R, dither, random), true);
       o += 2;
     } else if (bitDepth === 24) {
       const write24 = (sample: number) => {
-        const n = floatToInt24(sample);
+        const n = floatToInt24(sample, dither, random);
         view.setUint8(o, n & 0xff);
         view.setUint8(o + 1, (n >> 8) & 0xff);
         view.setUint8(o + 2, (n >> 16) & 0xff);
@@ -136,6 +157,7 @@ export function encodeWav(
       write24(L);
       write24(R);
     } else {
+      // float32 — transparent, no dither
       view.setFloat32(o, L, true);
       o += 4;
       view.setFloat32(o, R, true);

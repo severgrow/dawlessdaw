@@ -86,20 +86,45 @@ export function chopEqual(
   return out;
 }
 
+export type RenderFlipOpts = {
+  /**
+   * When false, skip clip.gain (P2 single-gain path: bake edits only;
+   * live GainNode applies gain once during playback).
+   * Default true — export / getRenderedAudio bake gain into PCM.
+   */
+  applyClipGain?: boolean;
+};
+
 export function renderFlipAudio(
   source: StereoAudio,
   clip: Pick<
     FlipClipMeta,
     'trim' | 'reverse' | 'fadeInMs' | 'fadeOutMs' | 'gain'
   >,
+  opts: RenderFlipOpts = {},
 ): StereoAudio {
+  const applyClipGain = opts.applyClipGain !== false;
   let audio = applyTrim(source, clip.trim);
   if (clip.reverse) audio = reverseStereo(audio);
   if (clip.fadeInMs > 0 || clip.fadeOutMs > 0) {
     audio = applyFades(audio, clip.fadeInMs, clip.fadeOutMs);
   }
-  if (clip.gain !== 1) audio = applyGain(audio, clip.gain);
+  if (applyClipGain && clip.gain !== 1) audio = applyGain(audio, clip.gain);
   return audio;
+}
+
+/**
+ * P2 gain matrix: playback must apply gain **once**.
+ * - bufferGain: always 1 (edits without bake)
+ * - nodeGain: clip.gain on the live GainNode
+ * Export keeps `renderFlipAudio(..., { applyClipGain: true })` (default).
+ */
+export function resolveFlipPlaybackGain(clipGain: number): {
+  bufferApplyClipGain: false;
+  nodeGain: number;
+} {
+  const g = Number.isFinite(clipGain) ? Math.max(0, Math.min(4, clipGain)) : 1;
+  return { bufferApplyClipGain: false, nodeGain: g };
 }
 
 export function softEdge(audio: StereoAudio, ms = 10): StereoAudio {

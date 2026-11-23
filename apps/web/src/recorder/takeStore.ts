@@ -5,6 +5,8 @@
 import type { TakeMarker, TakeMeta, TakeTags } from './types';
 import { stitchChunks, type PcmChunk } from './stitch';
 import type { StereoAudio } from './types';
+import { commitTakeKeepingRecovery, type TakeCommitPhase } from './takeCommit';
+
 
 const DB_NAME = 'dawlessdaw-session-recorder';
 const DB_VERSION = 1;
@@ -134,6 +136,29 @@ export async function saveCompleteTake(
   } catch {
     return false;
   }
+}
+
+/**
+ * Persist take, verify read-back, then clear draft/chunks.
+ * On save/verify failure recovery is left intact (P1).
+ */
+export async function finalizeCompleteTake(
+  meta: TakeMeta,
+  audio: StereoAudio,
+): Promise<TakeCommitPhase> {
+  return commitTakeKeepingRecovery({
+    save: () => saveCompleteTake(meta, audio),
+    verify: async () => {
+      const loaded = await loadTakeMeta(meta.id);
+      if (!loaded || loaded.frameCount <= 0) return false;
+      const pcm = await loadTakeAudio(meta.id);
+      return pcm !== null && pcm.left.length > 0;
+    },
+    clearRecovery: async () => {
+      await clearChunks(meta.id);
+      await clearDraft();
+    },
+  });
 }
 
 export async function updateTakeMeta(id: string, patch: Partial<TakeMeta>): Promise<boolean> {
@@ -318,14 +343,9 @@ export async function recoverUnsavedTake(): Promise<{ meta: TakeMeta; audio: Ste
   }
   const assembled = assembleRecoveredTake(draft, chunks);
   if (!assembled) return null;
-  try {
-    await saveCompleteTake(assembled.meta, assembled.audio);
-    await clearChunks(draft.takeId);
-    await clearDraft();
-    return assembled;
-  } catch {
-    return null;
-  }
+  const phase = await finalizeCompleteTake(assembled.meta, assembled.audio);
+  if (phase !== 'saved_and_cleared') return null;
+  return assembled;
 }
 
 export function makeTakeId(): string {

@@ -4,7 +4,7 @@ export type { FlipEngineStatus, FlipClockSnapshot, FlipHandoffHooks } from './fl
 export * from './types';
 export { barDurationMs, planCaptureWindow, buildTrimFromCapture, assessAlignment } from './timing';
 export { transition, initialFlipMachine, phaseLabel } from './stateMachine';
-export { renderFlipAudio, chopEqual } from './process';
+export { renderFlipAudio, chopEqual, resolveFlipPlaybackGain } from './process';
 export { loadFlipSession, saveFlipSession, emptyFlipSession } from './flipStore';
 export {
   downloadFlipWav,

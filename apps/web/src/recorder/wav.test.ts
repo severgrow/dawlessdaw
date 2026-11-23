@@ -11,7 +11,7 @@ const stereo = (L: number[], R: number[], sampleRate = 48000): StereoAudio => ({
 describe('WAV encode', () => {
   it('writes 16-bit PCM header and interleaved samples', () => {
     const audio = stereo([1, -1], [0, 0.5]);
-    const buf = encodeWav(audio, 16);
+    const buf = encodeWav(audio, 16, undefined, { dither: false });
     const h = parseWavHeader(buf);
     expect(h.audioFormat).toBe(1);
     expect(h.numChannels).toBe(2);
@@ -27,7 +27,7 @@ describe('WAV encode', () => {
 
   it('writes 24-bit PCM samples (little-endian 3 bytes)', () => {
     const audio = stereo([1], [-0.5]);
-    const buf = encodeWav(audio, 24);
+    const buf = encodeWav(audio, 24, undefined, { dither: false });
     const h = parseWavHeader(buf);
     expect(h.audioFormat).toBe(1);
     expect(h.bitsPerSample).toBe(24);
@@ -56,7 +56,9 @@ describe('WAV encode', () => {
 
   it('embeds INFO tags when provided', () => {
     const audio = stereo([0], [0]);
-    const buf = encodeWav(audio, 24, { title: 'Ploe jam', date: '2026-11-22', bpm: '128' });
+    const buf = encodeWav(audio, 24, { title: 'Ploe jam', date: '2026-11-22', bpm: '128' }, {
+      dither: false,
+    });
     const text = String.fromCharCode(...new Uint8Array(buf));
     expect(text).toContain('LIST');
     expect(text).toContain('INFO');
@@ -64,5 +66,23 @@ describe('WAV encode', () => {
     expect(text).toContain('Ploe jam');
     expect(text).toContain('ICRD');
     expect(text).toContain('IKEY');
+  });
+
+  it('float32 is transparent (no dither); int path can dither with seeded RNG', () => {
+    const audio = stereo([0.25], [-0.5]);
+    const f = encodeWav(audio, 32);
+    const hf = parseWavHeader(f);
+    expect(new DataView(f).getFloat32(hf.dataOffset, true)).toBeCloseTo(0.25, 5);
+
+    let i = 0;
+    const seq = [0.1, 0.9, 0.2, 0.8];
+    const buf = encodeWav(audio, 16, undefined, {
+      dither: true,
+      random: () => seq[i++ % seq.length]!,
+    });
+    const quiet = encodeWav(audio, 16, undefined, { dither: false });
+    expect(buf.byteLength).toBe(quiet.byteLength);
+    // Dithered path still produces valid 16-bit PCM
+    expect(parseWavHeader(buf).bitsPerSample).toBe(16);
   });
 });

@@ -15,6 +15,22 @@ export interface Mp3EncodeRequest {
   bpm?: string;
 }
 
+/**
+ * lamejs cannot do true VBR. Map modes to CBR kbps honestly.
+ * `v0` previously used 160 (too low) — now 320 CBR as the quality stand-in.
+ */
+export function mp3ModeToCbrKbps(_mode: Mp3Mode): number {
+  // Both cbr320 and v0 → 320 CBR (lamejs has no VBR).
+  return 320;
+}
+
+export function mp3ModeHonesty(mode: Mp3Mode): string {
+  if (mode === 'v0') {
+    return 'Requested V0 VBR — encoded as 320 kbps CBR (lamejs has no VBR).';
+  }
+  return '320 kbps CBR';
+}
+
 function floatToInt16PCM(input: Float32Array): Int16Array {
   const out = new Int16Array(input.length);
   for (let i = 0; i < input.length; i++) {
@@ -51,7 +67,8 @@ export function readMp3BitrateKbps(buf: ArrayBuffer): number | null {
 export async function encodeMp3Sync(req: Mp3EncodeRequest): Promise<ArrayBuffer> {
   const lamejs = await import('@breezystack/lamejs');
   const Mp3Encoder = lamejs.Mp3Encoder;
-  const kbps = req.mode === 'cbr320' ? 320 : 160; // V0 ≈ high VBR; lamejs uses CBR kbps approx
+  // lamejs is CBR-only — `v0` is NOT true VBR. Use 320 kbps CBR as the high-quality stand-in.
+  const kbps = mp3ModeToCbrKbps(req.mode);
   const encoder = new Mp3Encoder(2, req.sampleRate, kbps);
   const left = floatToInt16PCM(req.left);
   const right = floatToInt16PCM(req.right);
