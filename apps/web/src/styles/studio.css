@@ -9778,3 +9778,28 @@ textarea:focus-visible,
     width: auto !important;
   }
 }
+
+/* v4 tactile — win over earlier box-shadow:none !important on .ts-btn */
+.app-premium-v4 .ts-btn,
+.app-premium-v4 .ts-play,
+.app-premium-v4 .ts-stop,
+.app-premium-v4 .ts-panic,
+.app-premium-v4 .ts-jam,
+.app-premium-v4 .ts-connect,
+.app-premium-v4 .nav.nav--horizontal button,
+.app-premium-v4 .panel-subnav-btn,
+.app-premium-v4 .mpc-lib-toolbar button,
+.app-premium-v4 .mpc-lib-primary {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, #000 30%, transparent) !important;
+}
+
+.app-premium-v4 .ts-btn:active:not(:disabled),
+.app-premium-v4 .nav.nav--horizontal button:active:not(:disabled),
+.app-premium-v4 .panel-subnav-btn:active:not(:disabled),
+.app-premium-v4 .mpc-lib-toolbar button:active:not(:disabled),
+.app-premium-v4 .mpc-lib-primary:active:not(:disabled) {
+  box-shadow: inset 0 2px 4px color-mix(in srgb, #000 48%, transparent) !important;
+  transform: translateY(1px);
+}
