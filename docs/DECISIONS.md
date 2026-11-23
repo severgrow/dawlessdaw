@@ -17,5 +17,6 @@ Owner confirmed **"yeah all go"** on the handover confirmation questions. Phase 
 | 11 | Default Controller preset **Ploe Live v1** (T1–4 MPC, T5–6 Skiff 1–2, T7–8 SP A–B). Keep older My Studio presets. |
 | 12 | Circuit Intelligence is **passive** (Circuit-in only). Activity labels never auto-mute hardware. Auto-focus from macros is optional (default on). |
 | 13 | Timing Lab: Clock Health is passive; Latency Lab is user-triggered only. Splot does not become clock master and does not auto-apply delay correction. |
+| 14 | Cross-device Super Macros are **opt-in**; A/B scenes are Splot-owned (not Circuit Scenes); only docs-backed/verified CC presets in the default catalog; Controller MIDI Learn stays single-destination. |
 
 See also [HANDOVER.md](./HANDOVER.md) and [circuit-controller.md](./circuit-controller.md).

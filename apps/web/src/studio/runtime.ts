@@ -48,6 +48,7 @@ import {
   matchPortsToRoles,
   BUILTIN_PRESETS,
   CIRCUIT_MACRO_CCS,
+  SuperMacroEngine,
   buildControllerRoutes,
   clonePreset,
   controlMappingKey,
@@ -67,7 +68,11 @@ import {
   type CtrlDevice,
   type CtrlTrack,
   type KnobSlot,
+  type MacroSceneBank,
   type ResolvedControlMapping,
+  type SuperMacro,
+  type SuperMacroSnapshot,
+  type SuperMacroTrafficConfig,
   legacyTrackPlan,
   sanitizeTrackPlan,
   setTrackSend as withTrackSend,
@@ -133,7 +138,8 @@ export type WorkspaceId =
   | 'sessions'
   | 'test'
   | 'setup'
-  | 'timing';
+  | 'timing'
+  | 'macros';
 
 export interface StudioRuntimeSnapshot {
   /** True once Chrome granted Web MIDI access. */
@@ -258,6 +264,11 @@ export interface StudioRuntimeSnapshot {
    * Not a clock master. Experimental until hardware confirm.
    */
   clockHealth: ClockHealthSnapshot;
+  /**
+   * Cross-device Super Macros (Milestone 3) — opt-in fan-out + A/B morph.
+   * Experimental until hardware confirm. Does not replace Controller MIDI Learn.
+   */
+  superMacros: SuperMacroSnapshot;
 }
 
 type Listener = () => void;
@@ -314,6 +325,39 @@ function saveSetup(setup: PersistedStudioSetup): void {
 }
 
 const CIRCUIT_INTEL_AUTOFOCUS_KEY = 'dawlessdaw.circuitIntel.autoFocus';
+const SUPER_MACROS_KEY = 'dawlessdaw.superMacros.v1';
+
+function loadSuperMacrosState(): {
+  macros: SuperMacro[];
+  scenes: MacroSceneBank;
+  traffic: SuperMacroTrafficConfig;
+} | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(SUPER_MACROS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as {
+      macros: SuperMacro[];
+      scenes: MacroSceneBank;
+      traffic: SuperMacroTrafficConfig;
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveSuperMacrosState(state: {
+  macros: SuperMacro[];
+  scenes: MacroSceneBank;
+  traffic: SuperMacroTrafficConfig;
+}): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(SUPER_MACROS_KEY, JSON.stringify(state));
+  } catch {
+    /* ignore */
+  }
+}
 
 function loadCircuitIntelAutoFocus(): boolean {
   try {
@@ -442,6 +486,11 @@ export class StudioRuntime {
   /** Passive Clock Health — Timing Lab Stage A. */
   private clockHealth = new ClockHealthMonitor();
   private clockHealthUnsub: (() => void) | null = null;
+  /** Opt-in Super Macros — Milestone 3. */
+  private superMacros = new SuperMacroEngine();
+  private superMacroUnsub: (() => void) | null = null;
+  private superMacroFlushTimer: ReturnType<typeof setInterval> | null = null;
+  private superMacroMorphTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.transport = new WebMidiTransport();
@@ -453,6 +502,11 @@ export class StudioRuntime {
     this.seqUnsub = this.sequencer.subscribe(() => this.notify());
     this.intelUnsub = this.circuitIntel.subscribe(() => this.notify());
     this.clockHealthUnsub = this.clockHealth.subscribe(() => this.notify());
+    this.superMacroUnsub = this.superMacros.subscribe(() => this.notify());
+    const savedMacros = loadSuperMacrosState();
+    if (savedMacros?.macros) this.superMacros.setMacros(savedMacros.macros);
+    if (savedMacros?.scenes) this.superMacros.setScenes(savedMacros.scenes);
+    if (savedMacros?.traffic) this.superMacros.setTraffic(savedMacros.traffic);
     // Dev/smoke helper: drive Circuit Mirror from Playwright without outbound MIDI.
     if (typeof window !== 'undefined') {
       (window as unknown as { __splotCircuitMirror?: CircuitMirrorEngine }).__splotCircuitMirror =
@@ -461,6 +515,8 @@ export class StudioRuntime {
         this.circuitIntel;
       (window as unknown as { __splotClockHealth?: ClockHealthMonitor }).__splotClockHealth =
         this.clockHealth;
+      (window as unknown as { __splotSuperMacros?: SuperMacroEngine }).__splotSuperMacros =
+        this.superMacros;
     }
     const saved = loadSetup();
     if (saved?.assignments?.length) {
@@ -612,6 +668,7 @@ export class StudioRuntime {
       sequencerSelected: this.sequencer.getSelected(),
       circuitIntelligence: this.circuitIntel.getSnapshot(),
       clockHealth: this.clockHealth.getSnapshot(),
+      superMacros: this.superMacros.getSnapshot(),
     };
   }
 
@@ -1107,6 +1164,111 @@ export class StudioRuntime {
     });
   }
 
+  getSuperMacros(): SuperMacroEngine {
+    return this.superMacros;
+  }
+
+  setSuperMacros(macros: SuperMacro[]): void {
+    this.superMacros.setMacros(macros);
+    this.persistSuperMacros();
+    this.ensureSuperMacroTimers();
+    this.notify();
+  }
+
+  setSuperMacroScenes(scenes: MacroSceneBank): void {
+    this.superMacros.setScenes(scenes);
+    this.persistSuperMacros();
+    this.notify();
+  }
+
+  setSuperMacroTraffic(cfg: Partial<SuperMacroTrafficConfig>): void {
+    this.superMacros.setTraffic(cfg);
+    this.persistSuperMacros();
+    this.notify();
+  }
+
+  captureSuperMacroScene(which: 'a' | 'b'): void {
+    this.superMacros.captureScene(which);
+    this.persistSuperMacros();
+    this.notify();
+  }
+
+  startSuperMacroMorph(to: 'a' | 'b'): void {
+    const bar = this.circuitIntel.getSnapshot().position.bar;
+    this.superMacros.startMorph(to, {
+      barQuantize: this.superMacros.getSnapshot().scenes.barQuantize,
+      currentBar: bar,
+    });
+    this.ensureSuperMacroTimers();
+    this.setStatus(`Morph → scene ${to.toUpperCase()} (Splot-owned, not Circuit Scenes)`);
+    this.notify();
+  }
+
+  cancelSuperMacroMorph(): void {
+    this.superMacros.cancelMorph();
+    this.setStatus('Macro morph cancelled');
+    this.notify();
+  }
+
+  panicSuperMacros(): void {
+    this.superMacros.panic();
+    this.persistSuperMacros();
+    this.setStatus('Super Macros panic — output disabled');
+    this.notify();
+  }
+
+  enableSuperMacrosAfterPanic(): void {
+    this.superMacros.enableAfterPanic();
+    this.persistSuperMacros();
+    this.notify();
+  }
+
+  exportSuperMacrosDiagnostic(): string {
+    return JSON.stringify(this.superMacros.exportDiagnostic(), null, 2);
+  }
+
+  private persistSuperMacros(): void {
+    const snap = this.superMacros.getSnapshot();
+    saveSuperMacrosState({
+      macros: snap.macros,
+      scenes: snap.scenes,
+      traffic: snap.traffic,
+    });
+  }
+
+  private ensureSuperMacroTimers(): void {
+    if (!this.superMacroFlushTimer) {
+      this.superMacroFlushTimer = setInterval(() => {
+        const intents = this.superMacros.flushPending();
+        this.dispatchSuperMacroIntents(intents);
+        const morphIntents = this.superMacros.tickMorph();
+        this.dispatchSuperMacroIntents(morphIntents);
+      }, 33);
+    }
+  }
+
+  private dispatchSuperMacroIntents(
+    intents: { roleId: 'mpc' | 'sp404' | 'fm1'; channel: number; cc: number; value: number }[],
+  ): void {
+    if (!intents.length) return;
+    const p = portsForRoles(this.assignments);
+    for (const intent of intents) {
+      const portId =
+        intent.roleId === 'mpc' ? p.mpcOut : intent.roleId === 'sp404' ? p.spOut : p.fm1Out;
+      if (!portId) continue;
+      const data = new Uint8Array([
+        0xb0 | ((intent.channel - 1) & 0x0f),
+        intent.cc & 0x7f,
+        intent.value & 0x7f,
+      ]);
+      this.transport.send(portId, data);
+      this.bus.emit({
+        type: 'midi:out',
+        message: parseMidiMessage(data, performance.now(), portId),
+      });
+    }
+  }
+
   // —— Circuit Controller ——
 
   private controllerDirty(): boolean {
@@ -1461,6 +1623,15 @@ export class StudioRuntime {
     if (knob >= 0 && message.controller != null) {
       const touch = this.circuitIntel.onMacroCc(t, message.controller, message.value ?? 0);
       if (touch?.shouldAutoFocus) this.activeCircuitTrack = t;
+      // Super Macros (opt-in fan-out) — additive to single-destination Controller Learn.
+      this.superMacros.setActiveTrack(this.activeCircuitTrack ?? t);
+      const bar = this.circuitIntel.getSnapshot().position.bar;
+      this.superMacros.setMusicalBar(bar);
+      const intents = this.superMacros.onMacroCc(t, knob, message.value ?? 0);
+      if (intents.length) {
+        this.ensureSuperMacroTimers();
+        this.dispatchSuperMacroIntents(intents);
+      }
     }
 
     if (!isNote && !resolved && knob < 0) return;

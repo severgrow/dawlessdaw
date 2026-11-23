@@ -47,10 +47,11 @@ export const TOP_TABS: {
   {
     id: 'settings',
     label: 'Settings',
-    hint: 'Ports, tests, timing, experimental tools',
+    hint: 'Ports, timing, macros, tests',
     panels: [
       { id: 'setup', label: 'Ports & devices' },
       { id: 'timing', label: 'Timing' },
+      { id: 'macros', label: 'Macros' },
       { id: 'test', label: 'Tests' },
     ],
     defaultPanel: 'setup',
