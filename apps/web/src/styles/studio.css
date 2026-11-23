@@ -7578,3 +7578,175 @@ select.ap-select:focus-visible {
     min-width: 3.25rem !important;
   }
 }
+
+/* ─── Phase D — MPC Library browser (Sounds → MPC) ───────── */
+
+.mpc-workspace {
+  max-width: 52rem;
+}
+
+.mpc-lib-browser {
+  background: var(--glass-1);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-lg, 8px);
+  padding: var(--space-4) var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.mpc-lib-browser--compact {
+  padding: var(--space-3);
+  gap: var(--space-2);
+}
+
+.mpc-lib-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.mpc-lib-title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 1.15rem;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.02em;
+  color: var(--mint-5);
+}
+
+.mpc-lib-sub {
+  margin: 0.15rem 0 0;
+}
+
+.mpc-lib-pill {
+  font-family: var(--font-mono, var(--font-ui));
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius);
+  background: var(--glass-3);
+  color: var(--text-muted, var(--mint-6));
+}
+
+.mpc-lib-pill--on {
+  background: color-mix(in srgb, var(--mint-3) 45%, transparent);
+  color: var(--mint-6);
+}
+
+.mpc-lib-pill--off {
+  background: var(--burgundy-wash);
+  color: var(--burgundy-ink);
+}
+
+.mpc-lib-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.mpc-lib-fixture-banner {
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  background: var(--glass-2);
+  border-radius: var(--radius);
+}
+
+.mpc-lib-sections {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.mpc-lib-sections .mpc-lib-count {
+  margin-left: 0.4rem;
+  opacity: 0.55;
+  font-size: 10px;
+}
+
+.mpc-lib-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: min(22rem, 50vh);
+  overflow: auto;
+  background: var(--glass-2);
+  border-radius: var(--radius);
+  padding: 0.35rem;
+}
+
+.mpc-lib-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-weight: var(--fw-medium, 500);
+  min-height: 2.15rem;
+  background: transparent;
+  border-radius: var(--radius);
+}
+
+.mpc-lib-row:hover:not(:disabled) {
+  background: var(--glass-3);
+}
+
+.mpc-lib-row.selected,
+.mpc-lib-row.selected:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mint-2) 55%, transparent);
+  border-color: transparent;
+  color: var(--mint-6);
+  box-shadow: none;
+}
+
+.mpc-lib-kind {
+  flex: 0 0 2.4rem;
+  font-size: 10px;
+  opacity: 0.65;
+  color: var(--mint-4);
+}
+
+.mpc-lib-name {
+  flex: 1;
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+
+.mpc-lib-empty {
+  padding: 0.75rem;
+}
+
+.mpc-lib-detail {
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius);
+  background: var(--glass-3);
+  backdrop-filter: var(--glass-blur);
+}
+
+.mpc-lib-detail-name {
+  font-weight: var(--fw-semibold);
+  color: var(--mint-5);
+}
+
+.mpc-lib-detail-path {
+  margin-top: 0.2rem;
+}
+
+.mpc-lib-detail-actions {
+  margin-top: 0.65rem;
+  gap: 0.4rem;
+}
+
+.mpc-lib-meta,
+.mpc-lib-err {
+  margin: 0;
+}

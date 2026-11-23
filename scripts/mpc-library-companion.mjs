@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Phase C — MPC Library companion (fixtures, loopback-only).
+ * Phase C/D — MPC Library companion (fixtures, loopback-only).
  *
  *   node scripts/mpc-library-companion.mjs
  *   node scripts/mpc-library-companion.mjs --port 8787
@@ -11,7 +11,7 @@
 import http from 'node:http';
 
 const FIXTURES = [
-  { id: 'fix-projects', name: 'Projects', kind: 'folder', relativePath: 'Projects' },
+  { id: 'fx-projects', name: 'Projects', kind: 'folder', relativePath: 'Projects' },
   {
     id: 'fx-demo-beat',
     name: 'Demo Beat.xpj',
@@ -24,18 +24,43 @@ const FIXTURES = [
     kind: 'project',
     relativePath: 'Projects/Sketch A.xpj',
   },
-  { id: 'fx-samples', name: 'Samples', kind: 'folder', relativePath: 'Samples' },
+  {
+    id: 'fx-night-bus',
+    name: 'Night Bus.xpj',
+    kind: 'project',
+    relativePath: 'Projects/Night Bus.xpj',
+  },
+  { id: 'fx-audio', name: 'Audio', kind: 'folder', relativePath: 'Audio' },
   {
     id: 'fx-kick',
     name: 'kick_dry.wav',
     kind: 'sample',
-    relativePath: 'Samples/kick_dry.wav',
+    relativePath: 'Audio/kick_dry.wav',
   },
   {
     id: 'fx-hat',
     name: 'hat_open.wav',
     kind: 'sample',
-    relativePath: 'Samples/hat_open.wav',
+    relativePath: 'Audio/hat_open.wav',
+  },
+  {
+    id: 'fx-loop',
+    name: 'loop_tape_12.wav',
+    kind: 'sample',
+    relativePath: 'Audio/loop_tape_12.wav',
+  },
+  { id: 'fx-expansions', name: 'Expansions', kind: 'folder', relativePath: 'Expansions' },
+  {
+    id: 'fx-exp-drums',
+    name: 'Studio Drums Pack',
+    kind: 'folder',
+    relativePath: 'Expansions/Studio Drums Pack',
+  },
+  {
+    id: 'fx-exp-keys',
+    name: 'Keys Soft',
+    kind: 'folder',
+    relativePath: 'Expansions/Keys Soft',
   },
 ];
 
@@ -54,7 +79,7 @@ let port = Number(process.env.MPC_LIBRARY_PORT ?? 8787);
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--port' && args[i + 1]) port = Number(args[++i]);
   if (args[i] === '--ssh-opt-in') {
-    console.error('SSH opt-in noted but Phase C has no SSH implementation — fixtures only.');
+    console.error('SSH opt-in noted but Phase C/D has no SSH implementation — fixtures only.');
   }
 }
 
@@ -105,7 +130,7 @@ const server = http.createServer((req, res) => {
         ssh: {
           available: false,
           optInRequired: true,
-          reason: 'Phase C fixtures only — no SSH',
+          reason: 'Phase C/D fixtures only — no SSH',
         },
       }),
     );

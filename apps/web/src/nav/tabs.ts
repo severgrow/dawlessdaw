@@ -38,6 +38,7 @@ export const TOP_TABS: {
     panels: [
       { id: 'sp', label: 'SP-404' },
       { id: 'samples', label: 'Samples' },
+      { id: 'mpc', label: 'MPC' },
     ],
     defaultPanel: 'sp',
   },
