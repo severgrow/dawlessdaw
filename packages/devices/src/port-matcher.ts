@@ -377,6 +377,8 @@ export function assignPort(
 
 export function portsForRoles(assignments: PortAssignment[]): {
   circuitIn: string | null;
+  /** Circuit USB/DIN out — for opt-in Note Rx audition (P1). */
+  circuitOut: string | null;
   mpcOut: string | null;
   spOut: string | null;
   fm1Out: string | null;
@@ -387,6 +389,7 @@ export function portsForRoles(assignments: PortAssignment[]): {
   const get = (id: StudioRoleId) => assignments.find((a) => a.roleId === id);
   return {
     circuitIn: get('circuit')?.inputPortId ?? null,
+    circuitOut: get('circuit')?.outputPortId ?? null,
     mpcOut: get('mpc')?.outputPortId ?? null,
     spOut: get('sp404')?.outputPortId ?? null,
     fm1Out: get('fm1')?.outputPortId ?? null,

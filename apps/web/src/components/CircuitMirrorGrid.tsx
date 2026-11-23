@@ -3,7 +3,7 @@ import type {
   CircuitMirrorSnapshot,
   MirrorCell,
 } from '@dawlessdaw/sequencer';
-import { activityToCss, confidenceToCss } from '@dawlessdaw/sequencer';
+import { activityToCss, confidenceToCss, mirrorKindToObservation } from '@dawlessdaw/sequencer';
 import { destBadge } from '@dawlessdaw/devices';
 import { useStudioStore } from '../store/useStudioStore';
 
@@ -11,11 +11,13 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 const noteName = (n: number) => `${NOTE_NAMES[n % 12]}${Math.floor(n / 12) - 1}`;
 
 function padClass(cell: MirrorCell, playhead: boolean): string {
+  const obs = mirrorKindToObservation(cell.kind);
   return [
     'cm-pad',
     cell.kind === 'bright' ? 'cm-bright' : '',
     cell.kind === 'dim' ? 'cm-dim' : '',
     cell.kind === 'empty' ? 'cm-empty' : '',
+    `cm-obs-${obs}`,
     playhead ? 'cm-playhead' : '',
   ]
     .filter(Boolean)
@@ -93,7 +95,7 @@ export function CircuitMirrorGrid({
                     title={
                       cell.kind === 'empty'
                         ? `T${trackNo} step ${si + 1} empty`
-                        : `T${trackNo} step ${si + 1} ${cell.kind} · ${noteName(cell.note)} · v${cell.velocity}`
+                        : `T${trackNo} step ${si + 1} ${mirrorKindToObservation(cell.kind)} · ${noteName(cell.note)} · v${cell.velocity}`
                     }
                     style={
                       cell.kind !== 'empty'
@@ -108,9 +110,10 @@ export function CircuitMirrorGrid({
         })}
       </div>
       <div className="cm-legend muted small" aria-hidden="true">
-        <span className="cm-leg cm-bright" /> bright (confirmed)
-        <span className="cm-leg cm-dim" /> dim (this cycle / fading)
+        <span className="cm-leg cm-bright" /> observed
+        <span className="cm-leg cm-dim" /> inferred
         <span className="cm-leg cm-empty" /> empty
+        <span className="cm-leg-note">not pattern RAM</span>
         {intelligence ? (
           <>
             <span className="cm-leg cm-touched-leg" /> last-touched

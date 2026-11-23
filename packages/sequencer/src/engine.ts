@@ -284,6 +284,14 @@ export class SequencerEngine {
     this.notify();
   }
 
+  /**
+   * Replace the active pattern (e.g. generative working → sequencer).
+   * Optionally push undo. Does not change bank slot index.
+   */
+  replaceActivePattern(pattern: SeqPattern, pushUndo = true): void {
+    this.mutatePattern(() => clonePattern(pattern), pushUndo);
+  }
+
   // ─── internals ───────────────────────────────────────────────
 
   private mutatePattern(fn: (p: SeqPattern) => SeqPattern, pushUndo = true): void {
