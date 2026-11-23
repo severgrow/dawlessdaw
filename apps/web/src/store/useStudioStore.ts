@@ -5,6 +5,7 @@ import {
   type StudioRuntimeSnapshot,
   type WorkspaceId,
 } from '../studio/runtime';
+import { getStudioCommands } from '../studio/commandsBind';
 import type {
   BenchVerdict,
   SectionBridgeConfig,
@@ -70,11 +71,17 @@ export function useStudioActions() {
     exportSession: () => runtime.exportSession(),
     importSession: (raw: string) => runtime.importSession(raw),
     enableRoute: (id: string, enabled: boolean) => {
-      const routes = runtime.getSnapshot().routes.map((r) =>
-        r.id === id ? { ...r, enabled } : r,
-      );
-      runtime.setRoutes(routes);
+      getStudioCommands().enableRoute(id, enabled);
     },
+    setRoute: (route: import('@dawlessdaw/routing').MidiRoute) => {
+      getStudioCommands().setRoute(route);
+    },
+    setRoutes: (routes: import('@dawlessdaw/routing').MidiRoute[]) => {
+      getStudioCommands().setRoutes(routes);
+    },
+    captureRecentBars: (bars?: import('@dawlessdaw/midi').CaptureBarCount) =>
+      getStudioCommands().captureRecentBars(bars ?? 8),
+    getCommands: () => getStudioCommands(),
     setClockAuthority: (portId: string | null) => runtime.setClockAuthority(portId),
     setClockToMpc: (on: boolean) => runtime.setClockToMpc(on),
     setClockToSp: (on: boolean) => runtime.setClockToSp(on),
@@ -154,7 +161,9 @@ export function useStudioActions() {
     markSpEffectNamesVerified: (on: boolean) => runtime.markSpEffectNamesVerified(on),
     startSpEffectSweep: (cc?: number) => runtime.startSpEffectSweep(cc),
     stopSpEffectSweep: () => runtime.stopSpEffectSweep(),
-    panic: () => runtime.panic(),
+    panic: () => {
+      getStudioCommands().panic();
+    },
     setActiveBench: (id: string | null) => runtime.setActiveBench(id),
     markBench: (id: string, verdict: BenchVerdict, note?: string) =>
       runtime.markBench(id, verdict, note),

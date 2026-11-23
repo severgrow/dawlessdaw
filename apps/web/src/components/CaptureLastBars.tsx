@@ -1,11 +1,11 @@
 /**
  * Minimal “Capture last N bars” control — soft mint, little copy.
  * Observation-only MIDI rolling buffer (experimental).
+ * Goes through StudioCommands.captureRecentBars (plan step 11).
  */
 import { useEffect, useState } from 'react';
 import {
   CAPTURE_BAR_OPTIONS,
-  captureLastBars,
   ensureRollingMidiCaptureListening,
   formatCaptureResultLine,
   loadPersistedCaptureBars,
@@ -13,6 +13,7 @@ import {
   type CaptureBarCount,
   type CaptureLastNBarsResult,
 } from '../recorder/rollingMidiCaptureHost';
+import { getStudioCommands } from '../studio/commandsBind';
 
 export function CaptureLastBars() {
   const [bars, setBars] = useState<CaptureBarCount>(() => loadPersistedCaptureBars());
@@ -28,8 +29,8 @@ export function CaptureLastBars() {
   };
 
   const onCapture = () => {
-    const result = captureLastBars(bars);
-    setLast(result);
+    const result = getStudioCommands().captureRecentBars(bars);
+    if (result.ok && result.data) setLast(result.data);
   };
 
   return (
