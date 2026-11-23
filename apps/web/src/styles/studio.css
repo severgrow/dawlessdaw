@@ -9851,3 +9851,82 @@ textarea:focus-visible,
   border-bottom-color: color-mix(in srgb, #fff 6%, transparent) !important;
   transform: translateY(1px);
 }
+
+/* v4 tactile — full shorthand wins over earlier background/border !important */
+.app-premium-v4 button.ts-btn.ts-play:not(.on),
+.app-premium-v4 button.ts-btn.ts-stop,
+.app-premium-v4 button.ts-btn.ts-jam,
+.app-premium-v4 button.ts-btn.ts-panic,
+.app-premium-v4 button.ts-btn.ts-connect,
+.app-premium-v4 .nav.nav--horizontal button:not(.active),
+.app-premium-v4 button.panel-subnav-btn:not(.on),
+.app-premium-v4 .mpc-lib-toolbar button,
+.app-premium-v4 button.mpc-lib-primary:not(:disabled) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 8%, transparent), transparent 45%),
+    var(--glass-2) !important;
+  border-style: solid !important;
+  border-width: 1px !important;
+  border-color:
+    color-mix(in srgb, #fff 12%, transparent)
+    color-mix(in srgb, #000 25%, transparent)
+    color-mix(in srgb, #000 40%, transparent)
+    color-mix(in srgb, #000 25%, transparent) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.app-premium-v4 button.ts-btn.ts-play:not(.on) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 10%, transparent), transparent 45%),
+    color-mix(in srgb, var(--mint-3) 36%, var(--glass-2)) !important;
+}
+
+.app-premium-v4 button.ts-btn.ts-play.on {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 12%, transparent), transparent 40%),
+    var(--mint-4) !important;
+  border-color:
+    color-mix(in srgb, #fff 18%, transparent)
+    color-mix(in srgb, var(--mint-2) 50%, transparent)
+    color-mix(in srgb, #000 35%, transparent)
+    color-mix(in srgb, var(--mint-2) 50%, transparent) !important;
+  color: var(--accent-ink) !important;
+}
+
+.app-premium-v4 button.ts-btn.ts-panic {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 6%, transparent), transparent 45%),
+    var(--glass-1) !important;
+  border-color: color-mix(in srgb, var(--burgundy) 50%, transparent) !important;
+  color: color-mix(in srgb, var(--burgundy) 72%, var(--text-dim)) !important;
+}
+
+.app-premium-v4 button.ts-btn.ts-connect,
+.app-premium-v4 button.mpc-lib-primary:not(:disabled) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 14%, transparent), transparent 40%),
+    color-mix(in srgb, var(--mint-4) 92%, transparent) !important;
+  border-color:
+    color-mix(in srgb, #fff 16%, transparent)
+    color-mix(in srgb, var(--mint-3) 40%, transparent)
+    color-mix(in srgb, #000 30%, transparent)
+    color-mix(in srgb, var(--mint-3) 40%, transparent) !important;
+  color: var(--accent-ink) !important;
+}
+
+.app-premium-v4 button.ts-btn:active:not(:disabled),
+.app-premium-v4 .nav.nav--horizontal button:active:not(:disabled),
+.app-premium-v4 button.panel-subnav-btn:active:not(:disabled),
+.app-premium-v4 .mpc-lib-toolbar button:active:not(:disabled),
+.app-premium-v4 button.mpc-lib-primary:active:not(:disabled) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #000 25%, transparent), transparent 50%),
+    var(--glass-3) !important;
+  border-color:
+    color-mix(in srgb, #000 42%, transparent)
+    color-mix(in srgb, #000 20%, transparent)
+    color-mix(in srgb, #fff 8%, transparent)
+    color-mix(in srgb, #000 20%, transparent) !important;
+  transform: translateY(1px);
+}
