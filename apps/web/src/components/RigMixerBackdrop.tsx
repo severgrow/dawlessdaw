@@ -7,9 +7,10 @@ import {
 } from './mixerOutBus';
 
 /**
- * Decorative mixer-out motion behind the rig map — hardware silhouettes that
- * float and bounce with live levels (and a soft idle drift when silent).
- * pointer-events: none; MIDI/routing untouched.
+ * Decorative mixer-out motion behind the rig map — soft wash + meter bars,
+ * and optional hardware silhouettes (Drawings toggle). Levels float the layer
+ * when Motion is on; drawings stay off by default. pointer-events: none;
+ * MIDI/routing untouched. Animations yield to prefers-reduced-motion via CSS.
  */
 
 interface Ghost {
@@ -40,7 +41,14 @@ function useMixerLevels(): MixerOutLevels {
   return levels;
 }
 
-export function RigMixerBackdrop({ active }: { active: boolean }) {
+export function RigMixerBackdrop({
+  active,
+  showDrawings = false,
+}: {
+  active: boolean;
+  /** Large equipment silhouettes — off by default (cleaner). */
+  showDrawings?: boolean;
+}) {
   const levels = useMixerLevels();
   if (!active) return null;
 
@@ -50,7 +58,7 @@ export function RigMixerBackdrop({ active }: { active: boolean }) {
 
   return (
     <div
-      className={`rig-mixer-backdrop${punch ? ' hot' : ''}${levels.running ? ' live' : ''}`}
+      className={`rig-mixer-backdrop${punch ? ' hot' : ''}${levels.running ? ' live' : ''}${showDrawings ? ' with-drawings' : ' no-drawings'}`}
       style={
         {
           '--mix-l': String(levels.l),
@@ -73,21 +81,23 @@ export function RigMixerBackdrop({ active }: { active: boolean }) {
           />
         ))}
       </div>
-      {GHOSTS.map((g) => (
-        <div
-          key={g.kind}
-          className={`rig-ghost tone-${g.tone}`}
-          style={{
-            left: `${g.x}%`,
-            top: `${g.y}%`,
-            width: `${g.w}%`,
-            animationDelay: `${g.i * 0.28}s`,
-            ['--ghost-i' as string]: String(g.i),
-          }}
-        >
-          <DeviceArt kind={g.kind} lit className="rig-ghost-art" />
-        </div>
-      ))}
+      {showDrawings
+        ? GHOSTS.map((g) => (
+            <div
+              key={g.kind}
+              className={`rig-ghost tone-${g.tone}`}
+              style={{
+                left: `${g.x}%`,
+                top: `${g.y}%`,
+                width: `${g.w}%`,
+                animationDelay: `${g.i * 0.28}s`,
+                ['--ghost-i' as string]: String(g.i),
+              }}
+            >
+              <DeviceArt kind={g.kind} lit className="rig-ghost-art" />
+            </div>
+          ))
+        : null}
     </div>
   );
 }

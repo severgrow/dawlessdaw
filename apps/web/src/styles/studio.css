@@ -2414,14 +2414,28 @@ button.ap-clip.on {
 
 /* ─── Rig map ──────────────────────────────────────────── */
 
-.rig-map-head > span {
+.rig-map-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.rig-map-head > span:first-child {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
 }
 
-button.rig-backdrop-toggle {
+.rig-map-toggles {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+button.rig-backdrop-toggle {
   padding: 0.2rem 0.7rem;
   font-size: 10px;
   font-weight: 700;
@@ -2431,6 +2445,11 @@ button.rig-backdrop-toggle {
   background: var(--bg-0);
   border: 1px solid var(--line-hard);
   border-radius: 999px;
+}
+
+button.rig-backdrop-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 button.rig-backdrop-toggle.active,
@@ -2515,6 +2534,19 @@ button.rig-backdrop-toggle.active:hover:not(:disabled) {
 
 .rig-mixer-backdrop.hot .rig-ghost {
   animation-duration: 1.6s;
+}
+
+.rig-mixer-backdrop.no-drawings .rig-ghost {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rig-mixer-wash,
+  .rig-ghost,
+  .rig-mixer-bars i {
+    animation: none !important;
+    transform: none !important;
+  }
 }
 
 .rig-mixer-bars {

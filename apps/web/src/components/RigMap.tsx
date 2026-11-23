@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { DeviceArt, DEVICE_ART_SIZE, type DeviceKind } from './DeviceArt';
 import { RigMixerBackdrop } from './RigMixerBackdrop';
-import { loadRigBackdropEnabled, saveRigBackdropEnabled } from './mixerOutBus';
+import {
+  loadRigBackdropDrawings,
+  loadRigBackdropEnabled,
+  saveRigBackdropDrawings,
+  saveRigBackdropEnabled,
+} from './mixerOutBus';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
 /**
@@ -79,10 +84,19 @@ export function RigMap() {
   const snap = useStudioStore();
   const { setWorkspace } = useStudioActions();
   const [backdrop, setBackdrop] = useState(loadRigBackdropEnabled);
+  /** Equipment silhouettes behind the map — default off (cleaner). */
+  const [drawings, setDrawings] = useState(() => loadRigBackdropDrawings(false));
   const toggleBackdrop = () => {
     setBackdrop((on) => {
       const next = !on;
       saveRigBackdropEnabled(next);
+      return next;
+    });
+  };
+  const toggleDrawings = () => {
+    setDrawings((on) => {
+      const next = !on;
+      saveRigBackdropDrawings(next);
       return next;
     });
   };
@@ -118,18 +132,34 @@ export function RigMap() {
     <div className="panel rig-map-panel">
       <h2 className="rig-map-head">
         <span>Your rig</span>
-        <button
-          type="button"
-          className={`rig-backdrop-toggle${backdrop ? ' active' : ''}`}
-          aria-pressed={backdrop}
-          title="Mixer-out motion behind the map (saved in this browser)"
-          onClick={toggleBackdrop}
-        >
-          Motion {backdrop ? 'on' : 'off'}
-        </button>
+        <span className="rig-map-toggles">
+          <button
+            type="button"
+            className={`rig-backdrop-toggle${backdrop ? ' active' : ''}`}
+            aria-pressed={backdrop}
+            title="Soft wash and meter bars behind the map (saved in this browser)"
+            onClick={toggleBackdrop}
+          >
+            Motion {backdrop ? 'on' : 'off'}
+          </button>
+          <button
+            type="button"
+            className={`rig-backdrop-toggle${drawings ? ' active' : ''}`}
+            aria-pressed={drawings}
+            disabled={!backdrop}
+            title={
+              backdrop
+                ? 'Big equipment drawings behind the map (saved in this browser). Off = cleaner.'
+                : 'Turn Motion on first to show or hide background drawings'
+            }
+            onClick={toggleDrawings}
+          >
+            Drawings {drawings ? 'on' : 'off'}
+          </button>
+        </span>
       </h2>
       <div className={`rig-map${backdrop ? ' with-backdrop' : ''}`} role="group" aria-label="Studio map">
-        <RigMixerBackdrop active={backdrop} />
+        <RigMixerBackdrop active={backdrop} showDrawings={drawings} />
         <svg className="rig-cables" viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
           {/* audio first, under the MIDI */}
           <Cable kind="audio" on d="M840 122 C 760 200, 640 250, 556 286" />

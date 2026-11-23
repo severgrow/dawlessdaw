@@ -42,6 +42,8 @@ export function clearMixerOutLevels(): void {
 }
 
 export const RIG_BACKDROP_KEY = 'dawlessdaw.rigMixerBackdrop';
+/** Large DeviceArt silhouettes behind the Rig map (separate from Motion wash/bars). */
+export const RIG_BACKDROP_DRAWINGS_KEY = 'dawlessdaw.rigMixerBackdropDrawings';
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -53,9 +55,13 @@ function browserStorage(): StorageLike | null {
   }
 }
 
-export function loadRigBackdropEnabled(fallback = true, storage: StorageLike | null = browserStorage()): boolean {
+function loadFlag(
+  key: string,
+  fallback: boolean,
+  storage: StorageLike | null,
+): boolean {
   try {
-    const raw = storage?.getItem(RIG_BACKDROP_KEY) ?? null;
+    const raw = storage?.getItem(key) ?? null;
     if (raw === null) return fallback;
     return raw === '1' || raw === 'true';
   } catch {
@@ -63,10 +69,33 @@ export function loadRigBackdropEnabled(fallback = true, storage: StorageLike | n
   }
 }
 
-export function saveRigBackdropEnabled(on: boolean, storage: StorageLike | null = browserStorage()): void {
+function saveFlag(key: string, on: boolean, storage: StorageLike | null): void {
   try {
-    storage?.setItem(RIG_BACKDROP_KEY, on ? '1' : '0');
+    storage?.setItem(key, on ? '1' : '0');
   } catch {
     // storage unavailable
   }
+}
+
+export function loadRigBackdropEnabled(fallback = true, storage: StorageLike | null = browserStorage()): boolean {
+  return loadFlag(RIG_BACKDROP_KEY, fallback, storage);
+}
+
+export function saveRigBackdropEnabled(on: boolean, storage: StorageLike | null = browserStorage()): void {
+  saveFlag(RIG_BACKDROP_KEY, on, storage);
+}
+
+/**
+ * Equipment silhouette drawings behind the map.
+ * Default **off** (cleaner). Independent of Motion wash/bars.
+ */
+export function loadRigBackdropDrawings(
+  fallback = false,
+  storage: StorageLike | null = browserStorage(),
+): boolean {
+  return loadFlag(RIG_BACKDROP_DRAWINGS_KEY, fallback, storage);
+}
+
+export function saveRigBackdropDrawings(on: boolean, storage: StorageLike | null = browserStorage()): void {
+  saveFlag(RIG_BACKDROP_DRAWINGS_KEY, on, storage);
 }
