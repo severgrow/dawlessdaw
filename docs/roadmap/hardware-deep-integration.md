@@ -39,14 +39,15 @@ Honesty labels from `DEVICE_PROFILES` / `limitations.md`: **verified** | **untes
 | Area | On tip today | Deeper (software-first) | Bench | Risk |
 |------|--------------|-------------------------|-------|------|
 | **Profile** | `circuit-rhythm` — ch 1–8 tracks, Project PGM ch16, macros **CC21–28**, Mixer Level/Pan **CC29/30** (PRG v5). Scene MIDI = **unavailable** | Keep PRG-backed map only; never invent Scene sync | Confirm CC Tx ON; macros + Mixer TX | Low if docs-only |
-| **Observe** | Circuit Mirror + Intelligence = **observe-only** T1–8 notes/clock (experimental). No live pattern dump over stock MIDI | Project PGM → Studio Scene mapping table (top-15 #2); mute remain inferred | Mirror grid matches pads | Medium if over-claiming mute |
-| **Routing** | My Studio remaps T1–4 → MPC ch9–12, T5–8 → FM1; `forwardClock: false` on note routes | Instrument-schema → route compile **behind flag**; chains never imply clock | Busy 4-track notes | Medium if compile breaks presets |
+| **Observe** | Circuit Mirror + Intelligence + Phase 2 = **passive observe** of T1–8 notes/clock/PGM (experimental). Live pattern dump over stock MIDI = **unsupported** | Project PGM → Studio Scene mapping table; mute stay inferred | Mirror grid matches pads | Medium if over-claiming mute |
+| **Controller (active)** | Default preset **Ploe Live v1** (`controller.ts`) **actively remaps** Circuit T1–8 notes/macros out to MPC/SP/FM1 — this is **not** observe-only | Keep remap as the performance path; do not confuse with Mirror | 22 Nov narrative Pass: T1–4→MPC DIN, T7–8→SP USB (see bench-results) | Medium if copy says “observe-only tracks” |
+| **Routing** | `buildMyStudioRoutes` — T1–4 → MPC ch9–12, T5–8 → FM1 (or Ploe T7–8→SP); `forwardClock: false` on note routes; clockToMpc/Sp **off by default** | Instrument-schema → route compile **behind flag**; chains never imply clock | Busy 4-track notes | Medium if compile breaks presets |
 | **Macros / Learn** | Controller + Super Macros (CC21–28 fan-out); soft takeover off by default | Traffic/Hz polish; Learn destinations already exist | h2–h6 / Super Macro checklist | Medium (wrong dest CC) |
 | **Tempo** | Tempo-follow **display** from F8 (`circuitTempo`) — not a master; does **not** enable clock forward | Keep display-only; ClockHealth/Timing Lab honesty | BPM ≈ Circuit; SP still via thru | Low |
 | **Deep Sync** | `.ncs` / Components-style file only; stock MIDI dump **unsupported** | UI caution already; no USB file-protocol while playing | Optional SD `.ncs` open | High if USB protocol mid-play |
 | **FLIP / Sessions** | Circuit audio unused; MIDI-guided FLIP experimental | Markers + Memory link only | Markers survive save | Low |
 
-**Gap vs prefs:** Tracks stay observe-only for pattern content — correct. Do not treat Mirror as “Circuit state sync.”
+**Gap vs “tracks 1–8 observe-only”:** That constraint means **no pattern/state reconstruction** and Mirror stays passive — **not** that Controller stops remapping performance MIDI. Arranger observe-only exists in code but is **not** the default live path (Ploe / My Studio Controller is). Do not treat Mirror as “Circuit state sync.”
 
 ### 2. Akai MPC One gen1 (via Scarlett DIN)
 
@@ -174,5 +175,6 @@ Ordered for implementation **without waiting for Bench**. Each should stay Vites
 | `docs/hardware-integration/top-15-capabilities.md` | Older capability rank (still useful) |
 | `packages/devices/src/bench.ts` | g2/g3/h*/m rows |
 | `packages/devices/src/profiles.ts` | Capability statuses |
+| `docs/bench-results/2026-11-22-first-full-rig.md` | Owner narrative Pass (not formal JSON) |
 
 **PRs on tip context:** #73 schema · #74 AudioBackend · #75 mixer model · #76 fidelity · buffering PRs if open — do not merge from this research task.
