@@ -89,7 +89,7 @@ export function App() {
   const showDeviceStrip = assignedMidi > 0;
 
   return (
-    <div className={`app app-phase1 app-premium-v2 app-premium-v3${jam ? ' jam-open' : ''}`}>
+    <div className={`app app-phase1 app-premium-v2 app-premium-v3 app-premium-v4${jam ? ' jam-open' : ''}`}>
       {/*
         v3: one horizontal chrome baseline —
         brand · tabs · transport · midi CTA. No stacked toolbars.

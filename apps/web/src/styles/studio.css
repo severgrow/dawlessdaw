@@ -27,11 +27,15 @@
   --surface-0: var(--bg-0);
   --surface-1: var(--bg-1);
   --surface-2: var(--bg-2);
-  /* Dark glass fills — hierarchy via opacity/blur, not outlines (RC-20 tactile) */
-  --glass-1: color-mix(in srgb, #1a1c1a 78%, transparent);
-  --glass-2: color-mix(in srgb, #222522 72%, transparent);
-  --glass-3: color-mix(in srgb, #2a2e2a 68%, transparent);
-  --glass-blur: blur(16px) saturate(1.06);
+  /* Dark glass fills — hierarchy via opacity/blur, not opaque blocks (v4) */
+  --glass-1: color-mix(in srgb, #1a1c1a 62%, transparent);
+  --glass-2: color-mix(in srgb, #222522 55%, transparent);
+  --glass-3: color-mix(in srgb, #2a2e2a 48%, transparent);
+  --glass-blur: blur(18px) saturate(1.08);
+  /* Tactile press — inset only, never neon / plastic bevel */
+  --press-rest: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, #000 28%, transparent);
+  --press-down: inset 0 2px 4px color-mix(in srgb, #000 45%, transparent);
   --line: #2a2c2a; /* reserved for state / hairline separators */
   --line-soft: #1c1e1c;
   --line-hard: #3a3c3a;
@@ -9521,5 +9525,256 @@ textarea:focus-visible,
   .app-premium-v3 .main > .workspace,
   .app-premium-v3 .mpc-workspace {
     padding: var(--space-2);
+  }
+}
+
+/* =============================================================================
+ * Premium Design Pass v4 — alignment · dark glass · tactile (no cheap)
+ * Ableton precision / TE restraint / soft mint + quiet burgundy
+ * ============================================================================= */
+
+.app-premium-v3.app-premium-v4,
+.app-premium-v4 {
+  --shell-gutter: 16px; /* snap chrome ↔ workspace columns */
+  --align-ctrl: 28px;
+  --align-gap: 6px;
+  --align-col: 10rem;
+  --chrome-h: 44px;
+}
+
+/* Shared horizontal grid: brand | tabs | transport share exact baseline */
+.app-premium-v3 .chrome.chrome--single {
+  display: grid !important;
+  grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr) minmax(18rem, auto);
+  align-items: center;
+  column-gap: var(--shell-gutter);
+  padding-inline: var(--shell-gutter) !important;
+  height: var(--chrome-h);
+  background: var(--glass-1) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: none !important;
+}
+
+.app-premium-v3 .chrome .status-bar--compact {
+  justify-self: start;
+  width: 100%;
+  min-width: 0;
+}
+
+.app-premium-v3 .nav.nav--horizontal {
+  justify-self: stretch;
+  justify-content: center;
+  gap: var(--align-gap) !important;
+}
+
+.app-premium-v3 .nav.nav--horizontal button {
+  min-width: 4.5rem !important;
+  width: 4.5rem !important; /* equal tab widths */
+  flex: 0 0 4.5rem;
+}
+
+.app-premium-v3 .chrome .transport-strip--compact {
+  justify-self: end;
+  gap: var(--align-gap) !important;
+}
+
+/* Equal transport cluster widths where shape allows */
+.app-premium-v3 .ts-cluster {
+  gap: var(--align-gap) !important;
+}
+
+.app-premium-v3 .ts-play {
+  width: 4.5rem !important;
+  min-width: 4.5rem !important;
+}
+
+.app-premium-v3 .ts-panic,
+.app-premium-v3 .ts-jam {
+  width: 3.5rem !important;
+  min-width: 3.5rem !important;
+}
+
+.app-premium-v3 .ts-connect {
+  min-width: 5.5rem !important;
+  width: 5.5rem !important;
+}
+
+/* —— Dark glass modules (kill opaque surface-1 blocks) —— */
+.app-premium-v3 .panel-subnav-row {
+  padding-inline: var(--shell-gutter) !important;
+  background: transparent !important;
+}
+
+.app-premium-v3 .panel-subnav-btn {
+  background: var(--glass-1) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--press-rest);
+  border: 1px solid transparent !important;
+}
+
+.app-premium-v3 .panel-subnav-btn.on {
+  background: var(--selection-fill) !important;
+  box-shadow: var(--press-rest);
+  border-color: transparent !important;
+}
+
+.app-premium-v3 .main > .section-enter,
+.app-premium-v3 .main > .workspace,
+.app-premium-v3 .mpc-workspace {
+  padding-inline: var(--shell-gutter) !important; /* snap to chrome gutter */
+}
+
+.app-premium-v3 .mpc-lib-browser {
+  padding-inline: var(--shell-gutter) !important;
+}
+
+.app-premium-v3 .mpc-lib-sections,
+.app-premium-v3 .mpc-lib-list,
+.app-premium-v3 .mpc-lib-detail {
+  background: var(--glass-1) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.app-premium-v3 .panel,
+.app-premium-v3 .workspace .panel,
+.app-premium-v3 .rig-map {
+  background: var(--glass-1) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.app-premium-v3 .rig-map {
+  background:
+    linear-gradient(color-mix(in srgb, var(--line) 22%, transparent) 1px, transparent 1px) 0 0 / 100% 20px,
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 22%, transparent) 1px, transparent 1px) 0 0 / 20px 100%,
+    var(--glass-1) !important;
+}
+
+.app-premium-v3 .mpc-lib-section:hover:not(:disabled):not(.active),
+.app-premium-v3 .mpc-lib-row:hover:not(:disabled) {
+  background: var(--glass-2) !important;
+}
+
+.app-premium-v3 .mpc-lib-section.active,
+.app-premium-v3 .mpc-lib-row.selected {
+  background: var(--selection-fill) !important;
+  border: 1px solid transparent !important; /* selection state only */
+}
+
+/* —— Physical button feel (machined, not plastic) —— */
+.app-premium-v3 .ts-btn,
+.app-premium-v3 .mpc-lib-toolbar button,
+.app-premium-v3 .mpc-lib-detail-actions button,
+.app-premium-v3 .mpc-lib-primary,
+.app-premium-v3 .nav.nav--horizontal button {
+  border-radius: var(--radius-compact) !important; /* ~4px machined */
+  box-shadow: var(--press-rest) !important;
+  transition: background 100ms ease, box-shadow 90ms ease, transform 80ms ease,
+    color 100ms ease;
+}
+
+.app-premium-v3 .ts-stop {
+  border-radius: 3px !important; /* tech square */
+}
+
+.app-premium-v3 .ts-btn:active:not(:disabled),
+.app-premium-v3 .mpc-lib-toolbar button:active:not(:disabled),
+.app-premium-v3 .mpc-lib-detail-actions button:active:not(:disabled),
+.app-premium-v3 .mpc-lib-primary:active:not(:disabled),
+.app-premium-v3 .panel-subnav-btn:active:not(:disabled),
+.app-premium-v3 .nav.nav--horizontal button:active:not(:disabled),
+.app-premium-v3 .mpc-lib-row:active:not(:disabled),
+.app-premium-v3 .mpc-lib-section:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: var(--press-down) !important;
+}
+
+.app-premium-v3 .ts-play {
+  background: color-mix(in srgb, var(--mint-3) 32%, var(--glass-2)) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.app-premium-v3 .ts-play.on {
+  background: var(--mint-4) !important;
+  box-shadow: var(--press-rest);
+}
+
+.app-premium-v3 .ts-stop,
+.app-premium-v3 .ts-jam {
+  background: var(--glass-2) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.app-premium-v3 .ts-panic {
+  background: var(--glass-1) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid color-mix(in srgb, var(--burgundy) 45%, transparent) !important;
+  box-shadow: var(--press-rest);
+}
+
+.app-premium-v3 .ts-connect,
+.app-premium-v3 .mpc-lib-primary:not(:disabled) {
+  background: color-mix(in srgb, var(--mint-4) 88%, transparent) !important;
+  color: var(--accent-ink) !important;
+  border-radius: var(--radius-compact) !important;
+  box-shadow: var(--press-rest);
+  border: none !important;
+}
+
+/* Kill glow / multi-border noise */
+.app-premium-v3 button:focus-visible,
+.app-premium-v3 .mpc-lib-row:focus-visible,
+.app-premium-v3 .mpc-lib-section:focus-visible {
+  outline: 1px solid var(--focus) !important;
+  outline-offset: 1px;
+  box-shadow: var(--press-rest) !important;
+}
+
+.app-premium-v3 .nav.nav--horizontal button.active {
+  box-shadow: var(--press-rest), inset 0 -2px 0 var(--mint-4);
+}
+
+/* Library column snap — rail + stage share track-row baseline */
+.app-premium-v3 .mpc-lib-body {
+  gap: var(--align-gap) !important;
+  grid-template-columns: var(--align-col) minmax(0, 1fr) !important;
+}
+
+.app-premium-v3 .mpc-lib-toolbar {
+  grid-auto-columns: 6.5rem !important;
+  gap: var(--align-gap) !important;
+}
+
+.app-premium-v3 .mpc-lib-detail-actions {
+  grid-auto-columns: 6.5rem !important;
+  gap: var(--align-gap) !important;
+}
+
+.app-premium-v3 .footer-bar {
+  padding-inline: var(--shell-gutter) !important;
+  background: transparent !important;
+}
+
+@media (max-width: 720px) {
+  .app-premium-v3 .chrome.chrome--single {
+    grid-template-columns: 1fr !important;
+  }
+  .app-premium-v3 .nav.nav--horizontal button {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+  }
+  .app-premium-v3 .ts-connect {
+    width: auto !important;
   }
 }
