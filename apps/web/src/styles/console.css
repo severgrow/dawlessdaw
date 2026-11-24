@@ -1105,3 +1105,27 @@
   background: color-mix(in srgb, var(--mint-4) 12%, var(--surface-2));
 }
 .controller .ct-track.dev-off .ct-pad { color: var(--text-dim); }
+
+.ctl-rig-check {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--section-gap);
+}
+.ctl-rig-check > .row { flex-wrap: wrap; }
+.ctl-rig-check > .row:first-child h3 { margin: 0 auto 0 0; }
+.ctl-rig-lanes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  gap: var(--control-gap);
+}
+.ctl-rig-lanes button {
+  display: grid;
+  justify-items: start;
+}
+.ctl-rig-lanes button[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 1px var(--mint-5);
+}
+.ctl-rig-target {
+  border-block: 1px solid var(--line-hard);
+  padding-block: var(--space-1);
+}

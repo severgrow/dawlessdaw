@@ -21,6 +21,7 @@ import {
   type KnobSlot,
 } from '@dawlessdaw/devices';
 import { LiveTake } from './LiveTake';
+import { CircuitRigCheck } from './CircuitRigCheck';
 import { songTrackOutputs } from '../arranger/songRoutes';
 import { DeviceArt } from '../components/DeviceArt';
 import { MoreInfo } from '../components/MoreInfo';
@@ -538,6 +539,7 @@ export function ControllerWorkspace() {
   const uiSel = useUiSelection();
   const [selected, setSelectedLocal] = useState<number>(() => uiSel.controllerTrack);
   const [soundLabels, setSoundLabels] = useState(readSoundLabels);
+  const [checkingRig, setCheckingRig] = useState(false);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [advanced, setAdvanced] = useState(() => {
     try {
@@ -549,7 +551,7 @@ export function ControllerWorkspace() {
 
   const setSelected = (t: number) => {
     if (t !== selected) {
-      if (snap.routeCheck?.state === 'waiting') a.checkCircuitRoute(null);
+      if (!checkingRig && snap.routeCheck?.state === 'waiting') a.checkCircuitRoute(null);
       if (snap.controllerLearn?.kind === 'target') a.cancelControllerLearn();
     }
     setSelectedLocal(t);
@@ -626,8 +628,17 @@ export function ControllerWorkspace() {
             · Editing <b>T{selected}</b>
           </>
         </span>
+        <button type="button" aria-expanded={checkingRig} aria-controls={checkingRig ? 'circuit-rig-check' : undefined}
+          onClick={() => {
+            if (checkingRig) setCheckingRig(false);
+            else {
+              a.checkCircuitRoute(null);
+              setCheckingRig(true);
+            }
+          }}>Check Rig</button>
       </div>
       <LiveTake />
+      {checkingRig && <CircuitRigCheck labels={soundLabels} onClose={() => setCheckingRig(false)} />}
 
       <div className="ctl-layout">
         <div className="panel circuit-face">
@@ -691,7 +702,7 @@ export function ControllerWorkspace() {
               }}
               onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
           </label>
-          <CircuitRouteCheck trackNo={selected} />
+          {!checkingRig && <CircuitRouteCheck trackNo={selected} />}
           <div className="ct-knobs">
             {knobPage.knobs.map((slot, k) => {
               const live = snap.lastKnob && snap.lastKnob.track === knobTrack && snap.lastKnob.knob === k ? snap.lastKnob.at : 0;
