@@ -1,3 +1,5 @@
+import { reachedMidiPickup } from '@dawlessdaw/core';
+
 /**
  * Shared soft-takeover (pickup) for Circuit macro → destination CCs.
  *
@@ -60,13 +62,10 @@ export function applySoftTakeover(
       return { value: mapped, state: st };
     }
     if (st.pickupLatched) {
-      const prev = st.prevMapped;
-      const atTarget = Math.abs(mapped - st.lastSent) <= 1;
-      const crossed =
-        prev != null && prev !== mapped && (prev - st.lastSent) * (mapped - st.lastSent) < 0;
+      const reached = reachedMidiPickup(st.prevMapped, mapped, st.lastSent);
       st.prevMapped = mapped;
       st.lastSource = source;
-      if (!atTarget && !crossed) return { value: null, state: st };
+      if (!reached) return { value: null, state: st };
       st.pickupLatched = false;
     } else {
       st.prevMapped = mapped;
