@@ -35,8 +35,10 @@ export class MidiRoutingEngine {
     private bus?: StudioEventBus,
   ) {}
 
-  start(): void {
-    this.unsub = this.transport.onMessage((msg) => this.handleIncoming(msg));
+  start(accept: (message: MidiMessage) => boolean = () => true): void {
+    this.unsub = this.transport.onMessage((msg) => {
+      if (accept(msg)) this.handleIncoming(msg);
+    });
   }
 
   stop(): void {

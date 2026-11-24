@@ -42,6 +42,9 @@ import {
   WebMidiTransport,
   type HardwareTransport,
 } from '@dawlessdaw/midi';
+import { captureSongClips, type ClipLength, type Song } from '../arranger/song';
+import { SongPlayer } from '../arranger/songPlayer';
+import { songTrackOutputs } from '../arranger/songRoutes';
 import { circuitPatternBars } from '../recorder/circuitPatternCapture';
 import { MidiRoutingEngine, type MidiRoute } from '@dawlessdaw/routing';
 import { FocusEngine } from '@dawlessdaw/focus';
@@ -208,6 +211,7 @@ export interface StudioRuntimeSnapshot {
   session: DawlessdawSession;
   workspace: WorkspaceId;
   statusLine: string;
+  songPlayingBar: number | null;
   recentUiEvents: { type: string; summary: string; at: number }[];
   lastCircuitGesture: CircuitInterpretation | null;
   assignments: PortAssignment[];
@@ -667,7 +671,23 @@ export class StudioRuntime {
 
   private readonly circuitCapture = new MidiEventRecorder({
     getPosition: () => this.clockService.getMusicalTime(),
+    recordClockTicks: true,
+    capacity: 16_384,
   });
+
+  private readonly songPlayer = new SongPlayer(
+    ({ track, pitch, velocity }) => {
+      const port = portsForRoles(this.assignments).circuitIn;
+      if (!port) return;
+      const data = velocity > 0 ? buildNoteOn(track, pitch, velocity) : buildNoteOff(track, pitch, 0);
+      this.routing.inject(parseMidiMessage(data, performance.now(), port));
+    },
+    () => this.routing.allNotesOff(),
+    (message) => {
+      if (message) this.setStatus(message);
+      this.notify();
+    },
+  );
 
   constructor() {
     this.circuitCapture.start();
@@ -789,6 +809,7 @@ export class StudioRuntime {
       session: this.session,
       workspace: this.workspace,
       statusLine: this.statusLine,
+      songPlayingBar: this.songPlayer.playingBar,
       recentUiEvents: [...this.recentUiEvents],
       lastCircuitGesture: this.lastCircuitGesture,
       assignments: this.assignments.map((a) => ({ ...a })),
@@ -917,7 +938,11 @@ export class StudioRuntime {
       this.notify();
       return;
     }
-    this.routing.start();
+    this.routing.start((message) =>
+      this.songPlayer.playingBar == null ||
+      (message.kind !== 'note-on' && message.kind !== 'note-off') ||
+      message.portId !== portsForRoles(this.assignments).circuitIn,
+    );
     this.syncLivePorts(this.transport.listPorts());
     this.applyMyStudioRoutes();
 
@@ -973,6 +998,9 @@ export class StudioRuntime {
         const circuitIn = portsForRoles(this.assignments).circuitIn;
         // Follow Circuit in only — never the forwarded OUT clock (no second competing clock).
         if (circuitIn && event.message.portId === circuitIn) {
+          if (event.message.kind === 'start' || event.message.kind === 'continue') {
+            this.songPlayer.stop('Song stopped. Circuit transport is live.');
+          }
           this.clockHealth.onMidiTransport(
             event.message.kind,
             event.message.portId,
@@ -1006,6 +1034,7 @@ export class StudioRuntime {
   }
 
   async stop(): Promise<void> {
+    this.songPlayer.stop();
     for (const u of this.unsubs) u();
     this.unsubs = [];
     if (this.captureTimer) clearTimeout(this.captureTimer);
@@ -1042,6 +1071,7 @@ export class StudioRuntime {
   }
 
   setRoutes(routes: MidiRoute[]): void {
+    this.songPlayer.stop('Song stopped. MIDI routes changed.');
     this.routing.setRoutes(routes);
     this.persistSetup();
     this.notify();
@@ -1264,6 +1294,7 @@ export class StudioRuntime {
   }
 
   seqPlay(): void {
+    this.songPlayer.stop();
     this.sequencer.play();
     const src = this.sequencer.getSnapshot().bank.clockSource;
     this.setStatus(
@@ -1275,6 +1306,7 @@ export class StudioRuntime {
   }
 
   seqStop(): void {
+    this.songPlayer.stop();
     this.sequencer.stop();
     this.setStatus('Sequencer Stop');
     this.notify();
@@ -1389,6 +1421,38 @@ export class StudioRuntime {
   genSetSettings(patch: Partial<GenerativeSettings>): void {
     this.generative.setSettings(patch);
     this.notify();
+  }
+
+  captureCircuitSong(length: ClipLength) {
+    const port = portsForRoles(this.assignments).circuitIn;
+    if (!port) return { error: 'Assign Circuit MIDI In in Setup to capture a take.' } as const;
+    return captureSongClips(this.circuitCapture.getEvents(), port, length);
+  }
+
+  playSong(song: Song, fromBar: number): string | null {
+    if (!Number.isFinite(song.bpm) || song.bpm < 20 || song.bpm > 400) {
+      return 'Set Song BPM between 20 and 400.';
+    }
+    const port = portsForRoles(this.assignments).circuitIn;
+    if (!this.midiReady || !port) return 'Connect and assign Circuit MIDI In in Setup.';
+    if (this.clockService.getMusicalTime()?.transport === 'playing' &&
+        this.transport.listPorts().some((input) => input.id === port && input.state === 'connected')) {
+      return 'Stop the Circuit transport before playing the Song.';
+    }
+    const tracks = new Set(song.clips.filter((clip) => clip.bar + clip.length > fromBar).map((clip) => clip.track));
+    if (!tracks.size) return 'Place a clip at or after the selected bar.';
+    const routes = this.routing.getRoutes();
+    const ports = this.transport.listPorts();
+    const hasOutput = [...tracks].some((track) =>
+      songTrackOutputs(routes, ports, port, track).some((out) => out.connected),
+    );
+    if (!hasOutput) return 'Assign a connected MIDI output to a lane with clips.';
+    this.sequencer.stop();
+    this.routing.allNotesOff();
+    if (!this.songPlayer.play(song, fromBar)) return 'Place a clip at or after the selected bar.';
+    this.setStatus('Playing Song through Circuit track routes');
+    this.notify();
+    return null;
   }
 
   captureCircuitPattern(bars: number) {
@@ -2180,6 +2244,7 @@ export class StudioRuntime {
   }
 
   applyMyStudioRoutes(): void {
+    this.songPlayer.stop('Song stopped. MIDI routes changed.');
     const p = portsForRoles(this.assignments);
     if (!p.circuitIn) {
       // Keep previous routes; greyed devices still listed
@@ -2262,6 +2327,7 @@ export class StudioRuntime {
       return;
     }
     // Rebind scene routes onto current assignments when possible
+    this.songPlayer.stop('Song stopped. MIDI routes changed.');
     this.routing.setRoutes(scene.routes);
     this.applyMyStudioRoutes();
     this.roles.setBindings(scene.roles);
@@ -2306,6 +2372,7 @@ export class StudioRuntime {
     this.session = result.session;
     for (const scene of result.session.scenes) this.scenes.save(scene);
     if (result.session.routingPresets[0]) {
+      this.songPlayer.stop('Song stopped. MIDI routes changed.');
       this.routing.applyPreset(result.session.routingPresets[0]);
     }
     this.roles.setBindings(result.session.roles);
@@ -2583,6 +2650,7 @@ export class StudioRuntime {
   }
 
   panic(): void {
+    this.songPlayer.stop();
     this.sequencer.stop();
     const outs = [
       portsForRoles(this.assignments).mpcOut,

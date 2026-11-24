@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SP_MODE_A_BANKS, type SpModeABank } from '@dawlessdaw/devices';
+import { SongArranger } from './SongArranger';
 import { MoreInfo } from '../components/MoreInfo';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 
@@ -68,8 +69,9 @@ export function SectionsWorkspace() {
 
   return (
     <div className="section-enter">
+      <SongArranger />
       <div className="page-head">
-        <h1>song sections</h1>
+        <h2>Section Bridge</h2>
         <button
           type="button"
           className={bridge.enabled ? 'active' : ''}
