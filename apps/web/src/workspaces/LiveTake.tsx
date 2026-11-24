@@ -9,7 +9,9 @@ export function LiveTake() {
   const take = useStudioStore((s) => s.liveTake);
   const playback = useStudioStore((s) => s.songPlayback);
   const status = useStudioStore((s) => s.statusLine);
-  const circuitPlaying = useStudioStore((s) => s.clockHealth.position?.transport === 'playing');
+  const circuitPlaying = useStudioStore((s) => s.circuitTransportActive);
+  const barsReady = useStudioStore((s) => s.captureBarsReady);
+  const firstBar = useStudioStore((s) => s.captureFirstBar ?? s.clockHealth.position?.bar ?? 1);
   const previousStatus = useRef(status);
   const [length, setLength] = useState<ClipLength>(4);
   const [error, setError] = useState<string | null>(null);
@@ -43,50 +45,47 @@ export function LiveTake() {
     }
   }
 
+  const readiness = barsReady >= length
+    ? `${Math.min(4, barsReady)} complete bars available`
+    : circuitPlaying ? `${barsReady} of ${length} complete bars · Ready on bar ${firstBar + length}`
+      : 'Press Play on Circuit to capture a phrase.';
+
   return (
-    <section className="live-take" aria-labelledby="live-take-title">
-      <div>
-        <h2 id="live-take-title">Circuit take</h2>
-        <p role="status">{error ?? (looping
-          ? 'SPLOT is replaying your take through the current MIDI routes.'
-          : take
-            ? `${take.length} ${take.length === 1 ? 'bar' : 'bars'} · ${take.song.clips.length} of 8 lanes · ${Math.round(take.song.bpm)} BPM.${circuitPlaying ? ' Stop Circuit before looping.' : ''}`
-            : 'Play a phrase on Circuit, then capture the last complete bars.')}</p>
-      </div>
+    <form className="live-take" aria-labelledby="live-take-title"
+      onSubmit={(event) => { event.preventDefault(); keepPart(); }}>
+      <h2 id="live-take-title">Circuit take</h2>
       <div className="live-take-actions">
-        <label>
-          Take length
-          <select value={length} disabled={!!playback} onChange={(event) => setLength(Number(event.target.value) as ClipLength)}>
-            {CLIP_LENGTHS.map((bars) => <option key={bars} value={bars}>{bars} {bars === 1 ? 'bar' : 'bars'}</option>)}
-          </select>
-        </label>
+        <div className="live-length" role="group" aria-label="Capture length">
+          {CLIP_LENGTHS.map((bars) => (
+            <button type="button" key={bars} aria-label={`Capture ${bars} ${bars === 1 ? 'bar' : 'bars'}`}
+              aria-pressed={length === bars} disabled={!!playback} onClick={() => setLength(bars)}>{bars}</button>
+          ))}
+          <span aria-hidden="true">bars</span>
+        </div>
         <button type="button" className={take ? '' : 'console-primary'} disabled={!!playback}
           onClick={() => {
             const problem = getRuntime().captureLiveTake(length);
             setError(problem);
             if (!problem) setName('');
-          }}>Capture take</button>
+          }}>Capture last</button>
         {looping ? (
           <button type="button" className="console-primary" onClick={() => { setError(null); seqStop(); }}>Stop loop</button>
         ) : (
-          <button type="button" className={kept ? 'console-primary' : ''} disabled={!take || !!playback}
+          <button type="button" className={take && !circuitPlaying && !kept ? 'console-primary' : ''}
+            disabled={!take || !!playback || circuitPlaying}
+            title={circuitPlaying ? 'Stop Circuit before looping the take' : undefined}
             onClick={() => setError(getRuntime().loopLiveTake())}>Loop take</button>
         )}
+        {take && (kept ? <button type="button" onClick={() => setWorkspace('sections')}>Open Part in Song</button> : (
+          <>
+            <input aria-label="Part name" value={name} maxLength={40} placeholder="Part name (optional)"
+              onChange={(event) => setName(event.target.value)} />
+            <button type="submit">Keep as Part</button>
+          </>
+        ))}
       </div>
-      {take && (
-        <form className="live-keep-part" onSubmit={(event) => { event.preventDefault(); keepPart(); }}>
-          {kept ? <span role="status">Saved to Parts · {saved?.name}</span> : (
-            <label>
-              Part name
-              <input value={name} maxLength={40} placeholder="e.g. Break A"
-                onChange={(event) => setName(event.target.value)} />
-            </label>
-          )}
-          {kept
-            ? <button type="button" onClick={() => setWorkspace('sections')}>Open Parts in Song</button>
-            : <button type="submit" className="console-primary">Keep as Part</button>}
-        </form>
-      )}
-    </section>
+      <p role="status">{error ?? (looping ? 'SPLOT is looping the take.' : kept ? `Saved to Parts · ${saved?.name}` :
+        take ? `${take.length} ${take.length === 1 ? 'bar' : 'bars'} · ${take.song.clips.length} of 8 lanes · ${Math.round(take.song.bpm)} BPM. ${circuitPlaying ? 'Take ready · Stop Circuit to loop.' : 'Take ready to loop.'} ${circuitPlaying ? readiness : ''}` : readiness)}</p>
+    </form>
   );
 }

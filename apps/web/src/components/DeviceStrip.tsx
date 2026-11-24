@@ -4,6 +4,8 @@ import { carrySetupRole, useUiSelection } from '../nav/uiSelection';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import { DeviceArt, type DeviceKind } from './DeviceArt';
 
+const SHORT_NAMES: Record<string, string> = { circuit: 'Circuit', mpc: 'MPC One', sp404: 'SP‑404', fm1: 'FM1', zed: 'ZED‑10FX' };
+
 const ART: Record<string, DeviceKind> = {
   circuit: 'circuit',
   mpc: 'mpc',
@@ -67,8 +69,12 @@ export function DeviceStrip() {
     return null;
   }
 
+  const compact = ['controller', 'sections', 'test'].includes(snap.workspace);
+  const clock = snap.clockHealth.clockDetected ? 'Clock detected' :
+    snap.clockHealth.lastClockAt != null ? 'Clock lost' : 'Waiting for clock';
+
   return (
-    <div className="device-strip" role="group" aria-label="Hardware ports">
+    <div className={`device-strip${compact ? ' device-strip--compact' : ''}`} role="group" aria-label="Hardware ports">
       {MY_STUDIO_ROLES.map((role) => {
         const assignment = snap.assignments.find((a) => a.roleId === role.id);
         const connected = Boolean(assignment?.connected);
@@ -104,7 +110,7 @@ export function DeviceStrip() {
                 : status.title
             }
           >
-            <DeviceArt
+            {compact ? <span className="chip-dot" data-connected={connected} aria-hidden="true" /> : <DeviceArt
               kind={ART[role.id] ?? 'mac'}
               lit={!role.midi || connected}
               pulse={
@@ -119,9 +125,9 @@ export function DeviceStrip() {
                         : 0
               }
               className="chip-art"
-            />
-            <span className="name">{role.label}</span>
-            <span className="meta">{via ?? status.label}</span>
+            />}
+            <span className="name">{compact ? SHORT_NAMES[role.id] ?? role.label : role.label}</span>
+            <span className="meta">{role.id === 'circuit' && connected ? clock : compact ? status.label : via ?? status.label}</span>
           </button>
         );
       })}

@@ -2,6 +2,7 @@ import { loadSong, saveSong, SONG_STORAGE_KEY, type Song } from './song';
 
 interface Snapshot {
   song: Song;
+  cue: number;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -12,7 +13,7 @@ const listeners = new Set<() => void>();
 let snapshot: Snapshot | undefined;
 
 export function getSongSnapshot(): Snapshot {
-  return snapshot ??= { song: loadSong(localStorage), canUndo: false, canRedo: false };
+  return snapshot ??= { song: loadSong(localStorage), cue: 0, canUndo: false, canRedo: false };
 }
 
 export function subscribeSong(listener: () => void): () => void {
@@ -21,7 +22,14 @@ export function subscribeSong(listener: () => void): () => void {
 }
 
 function publish(song: Song) {
-  snapshot = { song, canUndo: past.length > 0, canRedo: future.length > 0 };
+  snapshot = { song, cue: snapshot?.cue ?? 0, canUndo: past.length > 0, canRedo: future.length > 0 };
+  for (const listener of listeners) listener();
+}
+
+export function setSongCue(cue: number): void {
+  const current = getSongSnapshot();
+  if (current.cue === cue) return;
+  snapshot = { ...current, cue };
   for (const listener of listeners) listener();
 }
 

@@ -8,6 +8,7 @@ export type MidiRouteTiming = { source: MidiMessage; sentAtMs: number } & (
 export type StudioEvent =
   | { type: 'midi:in'; message: MidiMessage; deviceId?: DeviceId }
   | { type: 'midi:out'; message: MidiMessage; deviceId?: DeviceId; routeId?: string; timing?: MidiRouteTiming }
+  | { type: 'midi:send-failed'; message: MidiMessage; timing: MidiRouteTiming }
   | { type: 'midi:clock'; message: MidiMessage; deviceId?: DeviceId; direction?: 'in' | 'out' }
   | { type: 'device:connected'; deviceId: DeviceId }
   | { type: 'device:disconnected'; deviceId: DeviceId }

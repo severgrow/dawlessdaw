@@ -1,19 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CAPTURE_CLOCKS_PER_BAR } from '@dawlessdaw/midi';
+import { accentPart } from '../arranger/songParts';
+import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import type { SongPart } from '../arranger/song';
 
 export function SongParts({
-  parts, cue, busy, previewing, hasTake, onPlace, onPreview, onRename, onAccent, onReplace, onRemove, onGoLive,
+  parts, cue, busy, previewing, hasTake, onPlace, onPreview, onStop, onQueue, onSelection, onPlacementFocus, linkedBars, onRename, onSaveVariation, onReplace, onRemove, onGoLive,
 }: {
   parts: SongPart[];
   cue: number;
   busy: boolean;
   previewing: boolean;
   hasTake: boolean;
+  onSelection: (part: SongPart | undefined) => void;
+  onPlacementFocus: (focused: boolean) => void;
+  linkedBars: number[];
   onPlace: (part: SongPart, linked: boolean) => void;
-  onPreview: (part: SongPart) => void;
+  onPreview: (part: SongPart) => boolean;
+  onStop: () => void;
+  onQueue: (part: SongPart) => void;
   onRename: (part: SongPart, name: string) => void;
-  onAccent: (part: SongPart, track: number) => string | void;
+  onSaveVariation: (part: SongPart, track: number) => boolean;
   onReplace: (part: SongPart) => void;
   onRemove: (part: SongPart) => void;
   onGoLive: () => void;
@@ -21,8 +28,14 @@ export function SongParts({
   const [partId, setPartId] = useState<string>();
   const [accentTrack, setAccentTrack] = useState<number>();
   const [editing, setEditing] = useState(false);
+  const [confirmReplace, setConfirmReplace] = useState(false);
+  const [audition, setAudition] = useState<'original' | 'variation'>();
+  const [variation, setVariation] = useState<{ part: SongPart; track: number }>();
   const [name, setName] = useState('');
+  const auditionLocked = busy && !previewing;
   const part = parts.find((item) => item.id === partId) ?? parts[0];
+
+  useEffect(() => { onSelection(part); }, [part, onSelection]);
 
   return (
     <section className="song-parts" aria-labelledby="song-parts-title">
@@ -39,8 +52,8 @@ export function SongParts({
         <div className="song-parts-body">
           <div className="song-part-list" aria-label="Saved Parts" role="group">
             {parts.map((item) => (
-              <button type="button" key={item.id} aria-pressed={part.id === item.id} disabled={previewing}
-                onClick={() => { setPartId(item.id); setAccentTrack(undefined); setEditing(false); }}>
+              <button type="button" key={item.id} aria-pressed={part.id === item.id} disabled={auditionLocked}
+                onClick={() => { setPartId(item.id); setAccentTrack(undefined); setEditing(false); setConfirmReplace(false); setVariation(undefined); }}>
                 <strong>{item.name}</strong>
                 <PartRhythm part={item} />
                 <small>{item.length} {item.length === 1 ? 'bar' : 'bars'} · {item.lanes.length} {item.lanes.length === 1 ? 'lane' : 'lanes'} · {item.bpm} BPM</small>
@@ -49,11 +62,17 @@ export function SongParts({
           </div>
           <div className="song-part-editor">
             <div className="song-controls">
-              <button type="button" className="console-primary" disabled={busy} onClick={() => onPlace(part, true)}>Add to bar {cue + 1}</button>
-              <button type="button" disabled={busy} onClick={() => onPlace(part, false)}>Place independent copy</button>
-              <button type="button" disabled={busy && !previewing} onClick={() => onPreview(part)}>{previewing ? 'Stop preview' : 'Preview Part'}</button>
+              <button type="button" className="console-primary" disabled={busy} onPointerEnter={() => onPlacementFocus(true)} onPointerLeave={() => onPlacementFocus(false)}
+                onFocus={() => onPlacementFocus(true)} onBlur={() => onPlacementFocus(false)} onClick={() => onPlace(part, true)}>Add to bar {cue + 1}</button>
+              <button type="button" disabled={busy} onPointerEnter={() => onPlacementFocus(true)} onPointerLeave={() => onPlacementFocus(false)}
+                onFocus={() => onPlacementFocus(true)} onBlur={() => onPlacementFocus(false)} onClick={() => onPlace(part, false)}>Place independent copy</button>
+              <button type="button" disabled={busy && !previewing} onClick={() => previewing ? onStop() : onPreview(part)}>{previewing ? 'Stop preview' : 'Preview Part'}</button>
+              {previewing && !variation && <button type="button" onClick={() => onQueue(part)}>Queue next bar</button>}
             </div>
-            <p>Linked placements follow this Part. Independent copies can be changed separately.</p>
+            <QueuedPart />
+            <p>{linkedBars.length
+              ? `${linkedBars.length} linked ${linkedBars.length === 1 ? 'placement' : 'placements'} · ${linkedBars.map((bar) => bar + 1).join(', ')}`
+              : 'Add creates a linked placement.'}</p>
             <details className="song-part-tools" key={part.id}>
               <summary>Manage Part</summary>
               <div className="song-controls">
@@ -66,17 +85,42 @@ export function SongParts({
                 </label>
                 <button type="button" disabled={busy} onClick={() => {
                   const lane = part.lanes.find((item) => item.track === accentTrack) ?? part.lanes[0]!;
-                  const id = onAccent(part, lane.track);
-                  if (id) { setPartId(id); setEditing(false); }
+                  setAudition(undefined);
+                  setVariation({ part: accentPart(part, lane.track), track: lane.track });
                 }}>Make accent variation</button>
                 <button type="button" disabled={busy || !hasTake}
-                  onClick={() => onReplace(part)} title="Use the latest take from Live for this Part and every linked placement">
+                  onClick={() => setConfirmReplace(true)} title="Use the latest take from Live for this Part and every linked placement">
                   Replace with Live take
                 </button>
                 <button type="button" disabled={busy} onClick={() => { setName(part.name); setEditing(!editing); }}>Rename</button>
                 <button type="button" className="danger" disabled={busy}
                   onClick={() => { onRemove(part); setEditing(false); }}>Remove Part</button>
               </div>
+              {variation && (
+                <div className="song-variation">
+                  <p>T{variation.track} · Accent variation</p>
+                  <div className="song-controls" role="group" aria-label="Variation audition">
+                    <button type="button" disabled={auditionLocked} aria-pressed={previewing && audition === 'original'}
+                      onClick={() => { if (onPreview(part)) setAudition('original'); }}>Original</button>
+                    <button type="button" disabled={auditionLocked} aria-pressed={previewing && audition === 'variation'}
+                      onClick={() => { if (onPreview(variation.part)) setAudition('variation'); }}>Variation</button>
+                    <button type="button" disabled={busy} onClick={() => {
+                      if (onSaveVariation(variation.part, variation.track)) {
+                        setPartId(variation.part.id);
+                        setVariation(undefined);
+                      }
+                    }}>Save variation</button>
+                    <button type="button" onClick={() => setVariation(undefined)}>Discard draft</button>
+                  </div>
+                </div>
+              )}
+              {confirmReplace && (
+                <div className="song-controls">
+                  <p>{linkedBars.length ? `Update linked placements at bars ${linkedBars.map((bar) => bar + 1).join(', ')}?` : 'Replace this Part with the latest Live take?'}</p>
+                  <button type="button" disabled={busy} onClick={() => { onReplace(part); setConfirmReplace(false); }}>Confirm replace</button>
+                  <button type="button" onClick={() => setConfirmReplace(false)}>Cancel</button>
+                </div>
+              )}
               {editing && (
                 <form className="song-controls" onSubmit={(event) => {
                   event.preventDefault();
@@ -110,4 +154,25 @@ function PartRhythm({ part }: { part: SongPart }) {
       {steps.map((velocity, i) => <i key={i} style={{ opacity: velocity ? .35 + velocity / 200 : .1 }} />)}
     </span>
   );
+}
+
+
+function QueuedPart() {
+  const name = useStudioStore((s) => s.queuedPartName);
+  const { getRuntime } = useStudioActions();
+  const runtime = getRuntime();
+  const [seconds, setSeconds] = useState<number | null>(null);
+  useEffect(() => {
+    if (!name) return;
+    const update = () => setSeconds(runtime.secondsUntilPartSwitch());
+    update();
+    const timer = setInterval(update, 125);
+    return () => clearInterval(timer);
+  }, [runtime, name]);
+  return name ? (
+    <div className="song-controls">
+      <span>Next bar · {name} · Current preview tempo{seconds != null ? ` · ${seconds.toFixed(1)}s` : ''}</span>
+      <button type="button" onClick={() => runtime.cancelQueuedPart()}>Cancel queued Part</button>
+    </div>
+  ) : null;
 }

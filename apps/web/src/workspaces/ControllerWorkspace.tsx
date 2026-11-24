@@ -369,7 +369,6 @@ function TrackPanel({ trackNo, advanced }: { trackNo: number; advanced: boolean 
       )}
 
       <div className="ctl-quick-controls">
-        <CircuitRouteCheck trackNo={trackNo} />
         {dest ? <QuickKnobLearn key={`${trackNo}-${dest.device}`} trackNo={trackNo} device={dest.device} /> : null}
       </div>
 
@@ -522,12 +521,23 @@ function PresetBar({ advanced, setAdvanced }: { advanced: boolean; setAdvanced: 
   );
 }
 
+const SOUND_LABELS_KEY = 'dawlessdaw.circuit.sound-labels';
+
+function readSoundLabels(): Record<number, string> {
+  try {
+    return JSON.parse(localStorage.getItem(SOUND_LABELS_KEY) ?? '{}') ?? {};
+  } catch {
+    return {};
+  }
+}
+
 export function ControllerWorkspace() {
   const snap = useStudioStore();
   const a = useStudioActions();
   const preset = snap.controller;
   const uiSel = useUiSelection();
   const [selected, setSelectedLocal] = useState<number>(() => uiSel.controllerTrack);
+  const [soundLabels, setSoundLabels] = useState(readSoundLabels);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [advanced, setAdvanced] = useState(() => {
     try {
@@ -619,11 +629,9 @@ export function ControllerWorkspace() {
       </div>
       <LiveTake />
 
-      <PresetBar advanced={advanced} setAdvanced={setAdvanced} />
-
       <div className="ctl-layout">
         <div className="panel circuit-face">
-          <h2>1 · Track</h2>
+          <h2>Circuit lanes</h2>
           <div className="ct-tracks" role="listbox" aria-label="Tracks">
             {preset.tracks.map((tr, i) => {
               const t = i + 1;
@@ -633,7 +641,9 @@ export function ControllerWorkspace() {
               const destinations = out.map((entry) => {
                 const name = entry.portId === outputPorts.mpcOut ? 'MPC' : entry.portId === outputPorts.spOut
                   ? 'SP‑404' : entry.portId === outputPorts.fm1Out ? 'FM1' : entry.name;
-                return `${name} · ch ${entry.channel}${entry.connected ? '' : ' · offline'}`;
+                const slot = tr.dest && entry.portId === outputPorts[tr.dest.device === 'sp' ? 'spOut' :
+                  tr.dest.device === 'fm1' ? 'fm1Out' : 'mpcOut'] ? slotLabel(tr.dest) : '';
+                return `${name}${slot ? ` ${slot}` : ''} · ch ${entry.channel}${entry.connected ? '' : ' · offline'}`;
               });
               const routeLabel = destinations.join(' / ') || (tr.dest ? 'No MIDI output' : 'Off');
               return (
@@ -657,10 +667,9 @@ export function ControllerWorkspace() {
                   }}
                 >
                   <span key={hit} className={`ct-pad${hit ? ' hit' : ''}`}>
-                    T{t}
+                    T{t}{soundLabels[t] ? ` · ${soundLabels[t]}` : ''}
                   </span>
                   <span className="ct-badge">
-                    {destBadge(tr.dest)}
                     <span className="ct-channel mono" title={routeLabel}>{routeLabel}</span>
                     <span className="ct-midi-activity" aria-hidden="true">
                       <span key={`in-${hit}`} data-pulse={!!hit} title="MIDI received">IN</span>
@@ -671,6 +680,18 @@ export function ControllerWorkspace() {
               );
             })}
           </div>
+          <label className="ctl-sound-label">
+            T{selected} sound
+            <input key={selected} defaultValue={soundLabels[selected] ?? ''} maxLength={24} placeholder="e.g. Kick"
+              onBlur={(event) => {
+                const label = event.target.value.trim();
+                const next = { ...soundLabels, [selected]: label };
+                setSoundLabels(next);
+                try { localStorage.setItem(SOUND_LABELS_KEY, JSON.stringify(next)); } catch { /* Session label remains available. */ }
+              }}
+              onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
+          </label>
+          <CircuitRouteCheck trackNo={selected} />
           <div className="ct-knobs">
             {knobPage.knobs.map((slot, k) => {
               const live = snap.lastKnob && snap.lastKnob.track === knobTrack && snap.lastKnob.knob === k ? snap.lastKnob.at : 0;
@@ -738,6 +759,11 @@ export function ControllerWorkspace() {
           <p className="muted small">Drag onto a track, or pick in the panel.</p>
         </div>
       </div>
+
+      <details className="ctl-preset-drawer" open={advanced || undefined}>
+        <summary>Routing preset · {preset.name}</summary>
+        <PresetBar advanced={advanced} setAdvanced={setAdvanced} />
+      </details>
 
       {warnings.length ? (
         <ul className="warn-list">

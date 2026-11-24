@@ -89,7 +89,7 @@ try {
   await page.getByRole('option', { name: /T1.*MPC.*ch 9/ }).waitFor();
 
   await fixture(350);
-  await button('Capture take');
+  await button('Capture last');
   await page.getByText('Clock was interrupted. Capture again after a continuous take.', { exact: true }).waitFor();
   await midi([0xfc]);
   await clear();
@@ -101,10 +101,10 @@ try {
     assert(Math.abs(live[i][2] - live[0][2] - noteEvents[i][0] * PERIOD) < 2);
   }
   await page.getByRole('status', { name: /110 BPM · Circuit/ }).waitFor();
-  await button('Capture take');
+  await button('Capture last');
   await page.getByText(/4 bars · 3 of 8 lanes · 110 BPM/).waitFor();
-  await button('Loop take');
-  await page.getByText('Stop Circuit before looping the take.', { exact: true }).waitFor();
+  assert(await page.getByRole('button', { name: 'Loop take', exact: true }).isDisabled());
+  await page.getByText(/Take ready · Stop Circuit to loop/).waitFor();
   await midi([0xfc]);
 
   await clear();
@@ -164,16 +164,28 @@ try {
   await midi([0x93, 57, 90]);
   await midi([0x99, 60, 100]);
   await midi([0x99, 65, 80]);
-  await page.getByText('MIDI 2 · Ch 4 · Note 57 · Velocity 90', { exact: true }).waitFor();
-  await page.getByText('Drums 1–4 · Shared · Ch 10 · Note 60 · Velocity 100', { exact: true }).waitFor();
-  await page.getByText('Drums 1–4 · Shared · Ch 10 · Note 65 · Velocity 80', { exact: true }).waitFor();
+  const monitor = page.locator('.tracks-monitor');
+  await monitor.getByRole('row', { name: /MIDI 2 4 57 90/ }).waitFor();
+  await monitor.getByRole('row', { name: /Drums 1–4 · Shared 10 60 100/ }).waitFor();
+  await monitor.getByRole('row', { name: /Drums 1–4 · Shared 10 65 80/ }).waitFor();
+  await monitor.getByRole('combobox', { name: 'Channel' }).selectOption('10');
+  assert.equal(await monitor.locator('tbody tr').count(), 2);
+  await monitor.getByRole('button', { name: 'Freeze', exact: true }).click();
+  await midi([0x99, 66, 91]);
+  assert.equal(await monitor.locator('tbody tr').count(), 2);
+  await monitor.getByRole('button', { name: 'Resume', exact: true }).click();
+  await monitor.getByRole('row', { name: /Drums 1–4 · Shared 10 66 91/ }).waitFor();
+  await monitor.getByRole('button', { name: 'Clear', exact: true }).click();
+  assert.equal(await monitor.locator('tbody tr').count(), 0);
+  assert.equal(typeof report.midiSendTiming.session.p95Ms.song, 'number');
+  assert.equal(report.midiSendTiming.session.heldNotesAtExport, 0);
 
   await tab('Play');
   await tab('Live');
   await page.getByRole('textbox', { name: 'Part name' }).fill('Break A');
   await button('Keep as Part');
   await page.getByText('Saved to Parts · Break A', { exact: true }).waitFor();
-  await button('Open Parts in Song');
+  await button('Open Part in Song');
   await button('Preview Part');
   const transport = page.getByRole('region', { name: 'Transport', exact: true });
   await transport.getByRole('status', { name: '110 BPM · SPLOT · Part preview' }).waitFor();
@@ -194,7 +206,7 @@ try {
   await clip('Main Break', 5).waitFor();
   await clip('Break A', 9).waitFor();
   await button('Add to bar 9');
-  await page.getByText(/Track 1 is occupied/).waitFor();
+  await page.locator('.song-feedback').getByText(/Track 1 is occupied/).waitFor();
   await button('Undo');
   await clip('Break A', 5).waitFor();
   await button('Redo');
@@ -202,6 +214,11 @@ try {
 
   await page.getByRole('combobox', { name: 'Accent lane' }).selectOption('7');
   await button('Make accent variation');
+  await button('Variation');
+  await transport.getByRole('status', { name: '110 BPM · SPLOT · Part preview' }).waitFor();
+  await button('Original');
+  await button('Stop preview');
+  await button('Save variation');
   await page.getByText('Saved accent variation on T7.', { exact: true }).waitFor();
   const verifyStored = () => page.evaluate(() => JSON.parse(localStorage.getItem('dawlessdaw.song.v1')));
   let stored = await verifyStored();
@@ -209,6 +226,57 @@ try {
   assert.equal(stored.parts[0].lanes.find(({ track }) => track === 7).notes[0].velocity, 82);
   assert.equal(stored.parts[1].lanes.find(({ track }) => track === 7).notes[0].velocity, 72);
   assert(Math.abs(stored.parts[1].lanes.find(({ track }) => track === 7).notes[0].at - 13.4) < 0.001);
+
+  await button('Preview Part');
+  await page.getByRole('button', { name: /^Main Break 4 bars/ }).click();
+  await button('Queue next bar');
+  await page.getByText(/Next bar · Main Break/).waitFor();
+  await button('Cancel queued Part');
+  assert.equal(await page.getByText(/Next bar · Main Break/).count(), 0);
+  await button('Queue next bar');
+  await page.clock.runFor(Math.ceil(PERIOD * 96) + 10);
+  assert.equal(await page.getByText(/Next bar · Main Break/).count(), 0);
+  await button('Stop preview');
+
+  await button('Fit Song');
+  await button('Follow playhead');
+  await button('Cue bar 1');
+  await transport.getByRole('status', { name: '110 BPM · Song · Ready' }).waitFor();
+  await transport.getByRole('button', { name: 'Play Song', exact: true }).click();
+  await transport.getByRole('status', { name: '110 BPM · SPLOT · Song playing' }).waitFor();
+  await page.clock.runFor(Math.ceil(PERIOD * 96) + 20);
+  await tab('Play');
+  await tab('Rig');
+  await tab('Build');
+  await tab('Song');
+  await transport.getByRole('status', { name: '110 BPM · SPLOT · Song playing' }).waitFor();
+  await transport.getByRole('button', { name: 'Stop', exact: true }).click();
+
+  await button('Loop section');
+  for (let i = 0; i < 8; i++) {
+    await page.evaluate((index) => {
+      document.querySelector('.song-scroll').scrollLeft = index % 2 ? 520 : 0;
+    }, i);
+    const twoBarsMs = Math.ceil(PERIOD * 192);
+    if (process.env.SPLOT_BENCH_REALTIME === '1') await page.waitForTimeout(twoBarsMs);
+    else await page.clock.runFor(twoBarsMs);
+  }
+  await button('■ Stop song');
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await clip('Break A', 9).dragTo(timeline.getByRole('button', { name: 'Cue bar 13', exact: true }));
+  await clip('Break A', 13).waitFor();
+  await button('Undo');
+  await clip('Break A', 9).waitFor();
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await page.setViewportSize({ width: 950, height: 900 });
+  const drawer = page.getByRole('button', { name: 'Parts · 2', exact: true });
+  await drawer.waitFor();
+  assert.equal(await drawer.getAttribute('aria-expanded'), 'false');
+  await drawer.click();
+  assert.equal(await page.getByRole('button', { name: 'Hide Parts · 2', exact: true }).getAttribute('aria-expanded'), 'true');
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   const midiDownload = page.waitForEvent('download');
   await button('Export MIDI');
@@ -231,6 +299,16 @@ try {
   await button('Undo');
   assert.equal((await verifyStored()).parts.length, 1);
   await button('Redo');
+  await tab('Setup');
+  await tab('Tests');
+  const afterSoak = page.waitForEvent('download');
+  await button('Export results');
+  const session = JSON.parse(await readFile(await (await afterSoak).path(), 'utf8')).midiSendTiming.session;
+  assert(session.song.sends >= 25, 'the loop soak should send notes through the app routes');
+  assert(session.p95Ms.song <= 8, `simulated browser p95: ${session.p95Ms.song} ms`);
+  assert(session.song.maxMs <= 20, `simulated browser worst send: ${session.song.maxMs} ms`);
+  assert.equal(session.heldNotesAtExport, 0);
+  console.log(`Loop soak · song MIDI handoff p95 ${session.p95Ms.song} ms · worst ${session.song.maxMs} ms · failed routed notes ${session.failedNoteSends.song} · held notes ${session.heldNotesAtExport}`);
   await page.reload();
   await tab('Build');
   await tab('Song');
@@ -243,7 +321,7 @@ try {
   assert.equal(stored.clips.filter(({ partId }) => partId).length, 6);
 
   assert.deepEqual(errors, []);
-  console.log('Circuit live bench passed: 110 BPM, three routes, preserved groove, clean wrap, stop, hot-plug, timing export, Tracks observation, and Parts save, preview, placement, undo, export, backup restore and reload.');
+  console.log('Circuit live bench passed: 110 BPM, three routes, preserved groove, clean wrap, stop, hot-plug, timing export, Tracks observation, and Parts save, preview, placement, undo, export, backup restore, reload and a 16-bar UI-scroll loop soak.');
 } finally {
   await browser.close();
 }

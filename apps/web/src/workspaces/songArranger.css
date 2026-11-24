@@ -383,3 +383,59 @@
 .song-section-actions {
   margin: 0 0 var(--space-2);
 }
+
+.song-workbench { display: grid; grid-template-columns: minmax(210px, 255px) minmax(0, 1fr); gap: 10px; }
+.song-workbench[data-parts='closed'] { grid-template-columns: minmax(88px, auto) minmax(0, 1fr); }
+.song-workbench[data-parts='closed'] .song-parts-content { display: none; }
+.song-parts-column, .song-timeline-column { min-width: 0; }
+.song-parts-toggle { min-height: 36px; margin-bottom: 5px; }
+.song-workbench .song-parts-body { grid-template-columns: minmax(0, 1fr); }
+.song-workbench .song-part-list {
+  display: grid;
+  border-inline-end: 0;
+  border-block-end: 1px solid var(--line);
+}
+.song-workbench .song-parts header h2 { color: var(--text); }
+@media (max-width: 1040px) {
+  .song-workbench, .song-workbench[data-parts='closed'] { grid-template-columns: minmax(0, 1fr); }
+  .song-workbench .song-parts-body { grid-template-columns: minmax(140px, 1fr) minmax(0, 2fr); }
+}
+@media (max-width: 600px) {
+  .song-workbench .song-parts-body { grid-template-columns: minmax(0, 1fr); }
+}
+
+.song-view-controls { display: flex; gap: 6px; margin-bottom: 6px; }
+.song-view-controls button { min-height: 30px; font-size: .75rem; }
+.song-view-controls button[aria-pressed='true'] { box-shadow: inset 0 0 0 1px var(--mint-5); }
+.song-grid[data-fit='true'] {
+  width: 100%;
+  grid-template-columns: var(--song-gutter) repeat(var(--song-bars), minmax(26px, 1fr));
+}
+.song-grid[data-fit='true'] .song-row {
+  background: none;
+}
+.song-grid .song-ruler[data-loop='true'] { box-shadow: inset 0 3px var(--mint-6); }
+.song-playhead {
+  z-index: 2;
+  border-inline-start: 2px solid var(--mint-6);
+  transform: translateX(calc(var(--song-playhead-subbar, 0) * 100%));
+  pointer-events: none;
+}
+.song-placement-preview {
+  z-index: 3;
+  border: 2px dashed var(--mint-5);
+  border-radius: var(--radius);
+  margin: 3px 2px;
+  pointer-events: none;
+}
+.song-placement-preview[data-blocked='true'] { border-color: #edb3bf; }
+.song-placement-warning { color: #edb3bf; margin: 6px 0; }
+.song-variation { display: grid; gap: 6px; margin-top: 8px; }
+.song-grid[data-fit='true'] .song-row::before {
+  content: '';
+  grid-column: 2 / -1;
+  grid-row: 1;
+  pointer-events: none;
+  background: repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px calc(100% / var(--song-bars)));
+}
+.song-variation button[aria-pressed='true'] { box-shadow: inset 0 0 0 1px var(--mint-5); }
