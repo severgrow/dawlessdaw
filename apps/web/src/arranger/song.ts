@@ -64,8 +64,19 @@ export function captureSongClips(
   if (startTime == null || endTime == null || endTime <= startTime) {
     return { error: 'Press Play on Circuit and let the next bar begin after your take. Check Clock Tx if this stays empty.' };
   }
-  for (let tick = startTick; tick <= endTick; tick++) {
-    if (!clock.has(tick)) return { error: 'Clock was interrupted. Capture again after a continuous take.' };
+  const intervals: number[] = [];
+  for (let tick = startTick; tick < endTick; tick++) {
+    const left = clock.get(tick);
+    const right = clock.get(tick + 1);
+    if (left == null || right == null || right < left) {
+      return { error: 'Clock was interrupted. Capture again after a continuous take.' };
+    }
+    intervals.push(right - left);
+  }
+  // Clock counts can remain consecutive even when an input drops out.
+  const typical = [...intervals].sort((a, b) => a - b)[Math.floor(intervals.length / 2)]!;
+  if (intervals.some((duration) => duration > Math.max(100, typical * 6))) {
+    return { error: 'Clock was interrupted. Capture again after a continuous take.' };
   }
   const bpm = 240_000 * length / (endTime - startTime);
   if (bpm < 20 || bpm > 400) {

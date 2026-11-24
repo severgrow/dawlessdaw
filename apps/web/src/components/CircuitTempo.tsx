@@ -18,6 +18,7 @@ export function CircuitTempo({
   // Store subscription for re-render; display reads shared ClockService seam.
   const health = useStudioStore((s) => s.clockHealth);
   const { getRuntime } = useStudioActions();
+  const playback = useStudioStore((s) => s.songPlayback);
   const estimatedBpm = useStudioStore((s) => s.estimatedBpm);
   const midiReady = useStudioStore((s) => s.midiReady);
   const appClockOn = useStudioStore((s) => s.anyClockForwarding);
@@ -31,23 +32,27 @@ export function CircuitTempo({
     [getRuntime, midiReady, estimatedBpm, health],
   );
 
-  const bpmText = formatCircuitBpm(view.bpm);
+  const bpm = playback ? playback.bpm : view.bpm;
+  const bpmText = formatCircuitBpm(bpm == null ? null : Math.round(bpm));
+  const label = playback ? (playback.source === 'song' ? 'SPLOT · Song playing' : 'SPLOT · Looping')
+    : view.phase === 'live' ? (health.position?.transport === 'playing' ? 'Circuit · Live' : 'Circuit · Locked')
+      : view.label;
 
   return (
     <div
-      className={`circuit-tempo ct-size-${size} phase-${view.phase}`}
+      className={`circuit-tempo ct-size-${size} phase-${playback ? 'live' : view.phase}`}
       role="status"
       aria-live="polite"
-      aria-label={`Circuit tempo ${bpmText} ${view.label}`}
-      title={view.detail}
+      aria-label={`${bpmText} BPM · ${label}`}
+      title={playback ? 'SPLOT is playing MIDI through Circuit track routes.' : view.detail}
     >
       <div className="circuit-tempo-main">
         <span className="circuit-tempo-bpm">{bpmText}</span>
         <span className="circuit-tempo-unit">BPM</span>
       </div>
       <div className="circuit-tempo-meta">
-        <span className="circuit-tempo-label">{view.label}</span>
-        {showBarBeat && view.barBeat ? (
+        <span className="circuit-tempo-label">{label}</span>
+        {!playback && showBarBeat && view.barBeat ? (
           <span className="circuit-tempo-bar mono">{view.barBeat}</span>
         ) : null}
         {size !== 'strip' ? (

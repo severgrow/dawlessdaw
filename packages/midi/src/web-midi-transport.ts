@@ -113,9 +113,9 @@ export class WebMidiTransport implements HardwareTransport {
     return ports;
   }
 
-  send(portId: PortId, data: Uint8Array, timestamp?: number): void {
+  send(portId: PortId, data: Uint8Array, timestamp?: number): boolean {
     const output = this.access?.outputs.get(portId);
-    if (!output) return;
+    if (!output || output.state === 'disconnected') return false;
     // Kick open if still closed — first messages can otherwise be dropped.
     if (output.connection !== 'open') {
       void this.openPort(output);
@@ -124,11 +124,15 @@ export class WebMidiTransport implements HardwareTransport {
     const status = data[0] ?? 0;
     // System realtime must go immediately. Passing a DOMHighResTimeStamp can
     // queue/delay F8/FA under main-thread load and drop the critical Start.
-    if (timestamp === undefined || isSystemRealtime(status)) {
-      output.send(payload);
-      return;
+    try {
+      if (timestamp === undefined || isSystemRealtime(status)) output.send(payload);
+      else output.send(payload, timestamp);
+      return true;
+    } catch (error) {
+      // The port can disappear between the state check and send().
+      if (error instanceof DOMException && error.name === 'InvalidStateError') return false;
+      throw error;
     }
-    output.send(payload, timestamp);
   }
 
   onMessage(handler: MidiInputHandler): () => void {

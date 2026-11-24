@@ -197,6 +197,9 @@ type RouteCheck =
   | { track: number; state: 'waiting' }
   | { track: number; state: 'done'; note: number; outputs: { port: string; portId: string; channel: number; note: number }[] };
 
+type LiveTake = { length: ClipLength; song: Song };
+type SongPlayback = { bpm: number; source: 'take' | 'song-loop' | 'song' };
+
 export interface StudioRuntimeSnapshot {
   /** True once Chrome granted Web MIDI access. */
   midiReady: boolean;
@@ -216,6 +219,10 @@ export interface StudioRuntimeSnapshot {
   workspace: WorkspaceId;
   statusLine: string;
   songPlayingBar: number | null;
+  songPlayback: SongPlayback | null;
+  liveTake: LiveTake | null;
+  trackSendActivity: readonly number[];
+  midiTimingSummary: ReturnType<MidiSendTiming['summary']>;
   recentUiEvents: { type: string; summary: string; at: number }[];
   lastCircuitGesture: CircuitInterpretation | null;
   assignments: PortAssignment[];
@@ -678,6 +685,10 @@ export class StudioRuntime {
     capacity: 16_384,
   });
 
+  private songPlayback: SongPlayback | null = null;
+  private liveTake: LiveTake | null = null;
+  private trackSendActivity: number[] = Array(9).fill(0);
+
   private readonly songPlayer = new SongPlayer(
     ({ track, pitch, velocity }, dueAtMs) => {
       const port = portsForRoles(this.assignments).circuitIn;
@@ -687,6 +698,7 @@ export class StudioRuntime {
     },
     () => this.routing.allNotesOff(),
     (message) => {
+      if (this.songPlayer.playingBar == null) this.songPlayback = null;
       if (message) this.setStatus(message);
       this.notify();
     },
@@ -814,6 +826,10 @@ export class StudioRuntime {
       workspace: this.workspace,
       statusLine: this.statusLine,
       songPlayingBar: this.songPlayer.playingBar,
+      songPlayback: this.songPlayback,
+      liveTake: this.liveTake,
+      trackSendActivity: [...this.trackSendActivity],
+      midiTimingSummary: this.midiSendTiming.summary(),
       recentUiEvents: [...this.recentUiEvents],
       lastCircuitGesture: this.lastCircuitGesture,
       assignments: this.assignments.map((a) => ({ ...a })),
@@ -966,6 +982,9 @@ export class StudioRuntime {
         const fromCircuit = circuitIn != null && message.portId === circuitIn;
         const echo = fromCircuit && message.kind === 'note-on' && message.channel != null &&
           message.note != null && this.circuitEchoGuard.shouldSuppressIncoming(message.channel, message.note);
+        if (fromCircuit && !echo && (message.kind === 'note-on' || message.kind === 'note-off')) {
+          this.midiSendTiming.recordInput(message);
+        }
         if (fromCircuit && !echo && (isClockLike(message.kind) ||
           message.kind === 'note-on' || message.kind === 'note-off')) {
           this.circuitCapture.recordIncoming(message);
@@ -1455,7 +1474,24 @@ export class StudioRuntime {
     return captureSongClips(this.circuitCapture.getEvents(), port, length, quantize);
   }
 
-  playSong(song: Song, fromBar: number, loopLength?: ClipLength): string | null {
+  captureLiveTake(length: ClipLength): string | null {
+    if (this.songPlayer.playingBar != null) return 'Stop SPLOT playback before capturing another take.';
+    const take = this.captureCircuitSong(length);
+    if ('error' in take) return take.error;
+    this.liveTake = {
+      length,
+      song: { bpm: take.bpm, clips: take.clips.map((clip) => ({ ...clip, id: String(clip.track), bar: 0 })) },
+    };
+    this.notify();
+    return null;
+  }
+
+  loopLiveTake(): string | null {
+    if (!this.liveTake) return 'Capture a take first.';
+    return this.playSong(this.liveTake.song, 0, this.liveTake.length, 'take');
+  }
+
+  playSong(song: Song, fromBar: number, loopLength?: ClipLength, source: SongPlayback['source'] = loopLength ? 'song-loop' : 'song'): string | null {
     if (!Number.isFinite(song.bpm) || song.bpm < 20 || song.bpm > 400) {
       return 'Set Song BPM between 20 and 400.';
     }
@@ -1463,7 +1499,7 @@ export class StudioRuntime {
     if (!this.midiReady || !port) return 'Connect and assign Circuit MIDI In in Setup.';
     if (this.clockService.getMusicalTime()?.transport === 'playing' &&
         this.transport.listPorts().some((input) => input.id === port && input.state === 'connected')) {
-      return 'Stop the Circuit transport before playing the Song.';
+      return source === 'take' ? 'Stop Circuit before looping the take.' : 'Stop the Circuit transport before playing the Song.';
     }
     const tracks = new Set(song.clips.filter((clip) => clip.bar + clip.length > fromBar).map((clip) => clip.track));
     if (!tracks.size) return 'Place a clip at or after the selected bar.';
@@ -1473,10 +1509,15 @@ export class StudioRuntime {
       songTrackOutputs(routes, ports, port, track).some((out) => out.connected),
     );
     if (!hasOutput) return 'Assign a connected MIDI output to a lane with clips.';
+    this.songPlayer.stop();
     this.sequencer.stop();
     this.routing.allNotesOff();
-    if (!this.songPlayer.play(song, fromBar, loopLength)) return 'Place a clip at or after the selected bar.';
-    this.setStatus('Playing Song through Circuit track routes');
+    this.songPlayback = { bpm: song.bpm, source };
+    if (!this.songPlayer.play(song, fromBar, loopLength)) {
+      this.songPlayback = null;
+      return 'Place a clip at or after the selected bar.';
+    }
+    this.setStatus(source === 'take' ? 'Looping captured take through Circuit routes' : 'Playing Song through Circuit track routes');
     this.notify();
     return null;
   }
@@ -2885,6 +2926,7 @@ export class StudioRuntime {
         liveCircuitToMpc: this.midiSendTiming.stats('live'),
         songDispatch: this.midiSendTiming.stats('song'),
         events: this.midiSendTiming.exportTrace(),
+        session: this.midiSendTiming.exportSession(),
       },
     }, null, 2);
   }
@@ -3455,6 +3497,10 @@ export class StudioRuntime {
         outputs.push({ port: port.name, portId: port.id, channel: message.channel, note: message.note });
         this.routeCheckOutputs.set(timing.source, outputs);
       }
+    }
+    const track = timing.source.channel;
+    if (message.kind === 'note-on' && track != null && track >= 1 && track <= 8) {
+      this.trackSendActivity[track] = this.trackSendActivity[track]! + 1;
     }
     this.midiSendTiming.record(timing, message, routeId,
       timing.mode === 'song' || message.portId === ports.mpcOut);

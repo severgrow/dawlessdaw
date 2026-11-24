@@ -20,7 +20,7 @@ export function TransportStrip({
 }) {
   const snap = useStudioStore();
   const { panic, seqPlay, seqStop } = useStudioActions();
-  const playing = snap.sequencer.playing;
+  const playing = snap.sequencer.playing || snap.songPlayback != null;
   const connected = snap.ports.filter((p) => p.state === 'connected').length;
   const next = resolveNextAction({
     midiReady: snap.midiReady,

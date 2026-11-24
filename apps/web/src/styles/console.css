@@ -950,3 +950,53 @@
   color: var(--text-dim);
   white-space: normal;
 }
+
+.live-take {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-block: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line-hard);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+.live-take h2 {
+  margin: 0;
+}
+.live-take p {
+  margin: var(--space-1) 0 0;
+  color: var(--text-dim);
+}
+.live-take-actions {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.live-take-actions label {
+  display: grid;
+  gap: 4px;
+  font-size: .75rem;
+  color: var(--text-dim);
+}
+.ct-midi-activity {
+  display: flex;
+  gap: var(--space-2);
+  font: .65rem var(--font-mono);
+  color: var(--text-dim);
+}
+.ct-midi-activity [data-pulse='true'] {
+  animation: ct-midi-pulse 560ms ease-out;
+}
+@keyframes ct-midi-pulse {
+  from, 25% { color: var(--mint-6); }
+  to { color: var(--text-dim); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ct-midi-activity [data-pulse='true'] {
+    animation-duration: 1ms;
+  }
+}

@@ -19,6 +19,7 @@ const VERDICT_LABEL: Record<BenchVerdict, string> = {
 export function TestWorkspace() {
   const snap = useStudioStore();
   const actions = useStudioActions();
+  const timing = snap.midiTimingSummary;
   const experimental = loadExperimentalUi();
   const verdict = (id: string): BenchVerdict =>
     snap.benchResults.find((r) => r.id === id)?.verdict ?? 'pending';
@@ -47,7 +48,10 @@ export function TestWorkspace() {
         </div>
         <p className="muted small">Measures when SPLOT sends MIDI. Use the rig to check when you hear sound.</p>
         <dl>
-          <dt>Live Circuit → MPC</dt>
+          <dt>Live Circuit · all outputs</dt>
+          <dd>{timing.received} note-ons received · {timing.live.sends} sent
+            {timing.live.maxMs != null && ` · ${timing.live.maxMs} ms worst since reset`}</dd>
+          <dt>Live Circuit → MPC · recent sends</dt>
           <dd>{snap.latencyStats
             ? `${snap.latencyStats.samples} sends · ${snap.latencyStats.meanMs} ms average · ${snap.latencyStats.maxMs} ms worst · ${snap.latencyStats.jitterMs} ms jitter`
             : 'Play Circuit notes routed to MPC.'}</dd>
@@ -56,7 +60,7 @@ export function TestWorkspace() {
             ? `${snap.songTimingStats.samples} sends · ${snap.songTimingStats.meanMs} ms average late · ${snap.songTimingStats.maxMs} ms worst · ${snap.songTimingStats.jitterMs} ms jitter`
             : 'Play a Song clip to measure how closely notes hit their scheduled times.'}</dd>
         </dl>
-        <p className="muted small">Export results includes recent MIDI sends and their source and destination channels.</p>
+        <p className="muted small">Reset before a take. Export results includes recent inputs, sends, and the slowest send in each mode since reset.</p>
       </div>
 
       {experimental ? (

@@ -14,7 +14,8 @@ export interface HardwareTransport {
    * Web MIDI may re-request MIDIAccess; cannot invent devices CoreMIDI lacks.
    */
   rescanPorts(): Promise<MidiPortInfo[]>;
-  send(portId: PortId, data: Uint8Array, timestamp?: number): void;
+  /** False when the output is unavailable, otherwise the send was handed off. */
+  send(portId: PortId, data: Uint8Array, timestamp?: number): boolean | void;
   onMessage(handler: MidiInputHandler): () => void;
   onPortsChanged(handler: PortChangeHandler): () => void;
   isAvailable(): boolean;
