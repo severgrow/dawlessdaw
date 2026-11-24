@@ -1,7 +1,8 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { CAPTURE_CLOCKS_PER_BAR } from '@dawlessdaw/midi';
 import { portsForRoles } from '@dawlessdaw/devices';
-import { canPlace, CLIP_LENGTHS, loadSong, SONG_BARS, SONG_STORAGE_KEY, SONG_TRACKS, type ClipLength, type SongClip } from '../arranger/song';
+import { canPlace, CLIP_LENGTHS, loadSong, sectionClips, SONG_BARS, SONG_STORAGE_KEY, SONG_TRACKS, type ClipLength, type SongClip } from '../arranger/song';
+import { songMidi } from '../arranger/songMidi';
 import { songTrackOutputs } from '../arranger/songRoutes';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import './songArranger.css';
@@ -11,6 +12,8 @@ export function SongArranger() {
   const snap = useStudioStore();
   const [song, setSong] = useState(() => loadSong(localStorage));
   const [length, setLength] = useState<ClipLength>(2);
+  const [quantize, setQuantize] = useState(false);
+  const [looping, setLooping] = useState(false);
   const [cue, setCue] = useState(0);
   const [selectedId, setSelectedId] = useState<string>();
   const mutedTracks = song.mutedTracks ?? [];
@@ -20,18 +23,25 @@ export function SongArranger() {
   const pitches = [...new Set(selected?.notes.map((note) => note.pitch))].sort((a, b) => b - a);
   const activeBar = snap.songPlayingBar;
   const playing = activeBar != null;
+  const visibleLength = Math.min(length, SONG_BARS - cue);
+  const section = useMemo(
+    () => cue + length <= SONG_BARS ? sectionClips(song.clips, cue, length) : [],
+    [song.clips, cue, length],
+  );
+  const playableSection = section.filter((clip) => !mutedTracks.includes(clip.track));
   const assigned = portsForRoles(snap.assignments);
 
   useEffect(() => {
     try {
       localStorage.setItem(SONG_STORAGE_KEY, JSON.stringify(song));
+      setSaveFailed(false);
     } catch {
       setSaveFailed(true);
     }
   }, [song]);
 
   function capture() {
-    const take = getRuntime().captureCircuitSong(length);
+    const take = getRuntime().captureCircuitSong(length, quantize);
     if ('error' in take) {
       setFeedback(take.error);
       return;
@@ -58,12 +68,34 @@ export function SongArranger() {
     setFeedback(`${copy ? 'Copied' : 'Moved'} T${clip.track} clip to bar ${cue + 1}.`);
   }
 
-  function play() {
-    const error = getRuntime().playSong({
-      ...song,
-      clips: song.clips.filter((clip) => !mutedTracks.includes(clip.track)),
-    }, cue);
+  function play(loop = false) {
+    const clips = loop ? playableSection : song.clips.filter((clip) => !mutedTracks.includes(clip.track));
+    const error = getRuntime().playSong({ ...song, clips }, cue, loop ? length : undefined);
+    setLooping(loop && !error);
     setFeedback(error ?? '');
+  }
+
+  function duplicateSection() {
+    const target = cue + length;
+    const clips = section.map((clip) => ({ ...clip, id: crypto.randomUUID(), bar: target }));
+    if (clips.some((clip) => !canPlace(song.clips, clip))) {
+      setFeedback('The next section overlaps a clip or extends past bar 32.');
+      return;
+    }
+    setSong({ ...song, clips: [...song.clips, ...clips] });
+    setSelectedId(clips[0]?.id);
+    setCue(target);
+    setFeedback(`Duplicated ${length} ${length === 1 ? 'bar' : 'bars'} across ${clips.length} of 8 lanes to bar ${target + 1}.`);
+  }
+
+  function exportMidi() {
+    const url = URL.createObjectURL(new Blob([songMidi(song)], { type: 'audio/midi' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'splot-song.mid';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setFeedback('Exported unmuted Song lanes as MIDI channels 1–8.');
   }
 
   return (
@@ -75,19 +107,25 @@ export function SongArranger() {
         </div>
         <div className="song-controls">
           <label>
-            Capture length
+            Section length
             <select value={length} onChange={(e) => setLength(Number(e.target.value) as ClipLength)} disabled={playing}>
               {CLIP_LENGTHS.map((bars) => <option value={bars} key={bars}>{bars} {bars === 1 ? 'bar' : 'bars'}</option>)}
             </select>
           </label>
-          <button type="button" className="console-primary" onClick={capture} disabled={playing}>Capture to bar {cue + 1}</button>
+          <label className="song-quantize">
+            <input type="checkbox" checked={quantize} onChange={(event) => setQuantize(event.target.checked)} disabled={playing} />
+            Quantize new takes to 1/16
+          </label>
+          <button type="button" className="console-primary" onClick={capture} disabled={playing || cue + length > SONG_BARS}>Capture to bar {cue + 1}</button>
         </div>
       </header>
       <div className="song-transport">
         <div className="song-controls">
-          <button type="button" className="song-play" disabled={playing || song.clips.length === 0} onClick={play}>
+          <button type="button" className="song-play" disabled={playing || song.clips.length === 0} onClick={() => play()}>
             <span className="song-play-glyph" aria-hidden /> Play from bar {cue + 1}
           </button>
+          <button type="button" disabled={playing || !playableSection.length}
+            onClick={() => play(true)}>Loop section</button>
           <button type="button" disabled={!playing} onClick={() => seqStop()}>■ Stop song</button>
           <label className="song-bpm">
             Song BPM
@@ -101,14 +139,16 @@ export function SongArranger() {
             />
           </label>
         </div>
-        <span className="song-state">{playing ? `Playing bar ${activeBar + 1}` : `Cue · Bar ${cue + 1}`}</span>
+        <span className="song-state">{playing
+          ? `${looping ? 'Looping' : 'Playing'} bar ${activeBar + 1}`
+          : visibleLength === 1 ? `Section · Bar ${cue + 1}` : `Section · Bars ${cue + 1}–${cue + visibleLength}`}</span>
       </div>
       <div className="song-scroll" tabIndex={0} role="region" aria-label="Eight-track song timeline">
         <div className="song-grid" style={{ '--song-bars': SONG_BARS } as CSSProperties}>
           <span className="song-lane song-grid-label">Circuit lanes</span>
           {Array.from({ length: SONG_BARS }, (_, bar) => (
             <button type="button" key={bar} className={`song-ruler${bar % 4 === 0 ? ' grid-divider' : ''}`} aria-label={`Cue bar ${bar + 1}`}
-              aria-pressed={cue === bar} data-playhead={bar === activeBar} disabled={playing}
+              aria-pressed={cue === bar} data-section={bar >= cue && bar < cue + length} data-playhead={bar === activeBar} disabled={playing}
               onClick={() => setCue(bar)}>{bar + 1}</button>
           ))}
           {SONG_TRACKS.map((track) => {
@@ -143,6 +183,12 @@ export function SongArranger() {
             );
           })}
         </div>
+      </div>
+      <div className="song-controls song-section-actions">
+        <button type="button" disabled={playing || !section.length || cue + length * 2 > SONG_BARS}
+          onClick={duplicateSection}>Duplicate section</button>
+        <button type="button" disabled={!song.clips.some((clip) => !mutedTracks.includes(clip.track))}
+          onClick={exportMidi}>Export MIDI</button>
       </div>
       <div className="song-inspector">
         {selected ? (

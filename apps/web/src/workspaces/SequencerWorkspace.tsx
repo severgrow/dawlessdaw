@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { destBadge, parseNcsSession, summarizeSession } from '@dawlessdaw/devices';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { destBadge } from '@dawlessdaw/devices';
 import {
   SCALES,
   cellsFromNcsPattern,
@@ -18,6 +18,7 @@ import { CircuitPatternCapture } from '../components/CircuitPatternCapture';
 import { CircuitMirrorGrid } from '../components/CircuitMirrorGrid';
 import { EuclideanControls } from '../components/EuclideanControls';
 import { HardwareControlPanel } from '../components/HardwareControlPanel';
+import { SavedCircuitProject } from './SavedCircuitProject';
 import { MoreInfo } from '../components/MoreInfo';
 import { FlipLane } from '../flip/FlipLane';
 import { carrySetupRole } from '../nav/uiSelection';
@@ -162,70 +163,6 @@ export function SequencerWorkspace() {
     saveModePref(m);
   };
 
-  // —— Circuit Saved (.ncs) ——
-  const [savedError, setSavedError] = useState<string | null>(null);
-  const [savedSummary, setSavedSummary] = useState<string | null>(null);
-  const [savedPatternIndex, setSavedPatternIndex] = useState(0);
-  const [savedTracks, setSavedTracks] = useState<MirrorCell[][] | null>(null);
-  const [ncsPatterns, setNcsPatterns] = useState<
-    { track: number; pattern: number; steps: { on: boolean; note: number; velocity: number }[] }[] | null
-  >(null);
-
-  const loadNcs = useCallback(async (file: File | null) => {
-    setSavedError(null);
-    setSavedSummary(null);
-    setSavedTracks(null);
-    setNcsPatterns(null);
-    if (!file) return;
-    try {
-      const buf = new Uint8Array(await file.arrayBuffer());
-      const session = parseNcsSession(buf, 'local-ncs');
-      const sum = summarizeSession(session);
-      setSavedSummary(
-        `${session.header} · ${sum.nonEmpty} non-empty patterns · ${session.disclaimer}`,
-      );
-      setNcsPatterns(
-        session.patterns.map((p) => ({
-          track: p.track,
-          pattern: p.pattern,
-          steps: p.steps.map((s) => ({ on: s.on, note: s.note, velocity: s.velocity })),
-        })),
-      );
-      const rows: MirrorCell[][] = [];
-      for (let t = 0; t < 8; t++) {
-        const p = session.patterns[t * 8 + 0];
-        rows.push(cellsFromNcsPattern(p?.steps ?? []));
-      }
-      setSavedTracks(rows);
-      setSavedPatternIndex(0);
-    } catch (err) {
-      setSavedError(err instanceof Error ? err.message : String(err));
-    }
-  }, []);
-
-  const switchSavedPattern = (pat: number) => {
-    if (!ncsPatterns) return;
-    const rows: MirrorCell[][] = [];
-    for (let t = 0; t < 8; t++) {
-      const p = ncsPatterns.find((x) => x.track === t && x.pattern === pat);
-      rows.push(cellsFromNcsPattern(p?.steps ?? []));
-    }
-    setSavedTracks(rows);
-    setSavedPatternIndex(pat);
-  };
-
-  const savedSnap = useMemo((): CircuitMirrorSnapshot => {
-    const base = emptyMirrorSnap();
-    if (!savedTracks) return base;
-    return {
-      ...base,
-      tracks: savedTracks,
-      playing: false,
-      playhead: -1,
-      cycle: 0,
-    };
-  }, [savedTracks]);
-
   const downloadMirrorDiag = () => {
     const json = a.getRuntime().exportCircuitMirrorDiagnostic();
     const blob = new Blob([json], { type: 'application/json' });
@@ -334,63 +271,15 @@ export function SequencerWorkspace() {
       ) : null}
 
       {mode === 'circuit-saved' ? (
-        <>
-          <p className="callout seq-honesty" role="status">
-            <strong>Saved · experimental</strong> — local <code>.ncs</code> only (never auto USB).
-          </p>
-          <div className="row cm-actions">
-            <label className="seq-btn">
-              Open .ncs
-              <input
-                type="file"
-                accept=".ncs,application/octet-stream"
-                hidden
-                onChange={(e) => void loadNcs(e.target.files?.[0] ?? null)}
-              />
-            </label>
-            {ncsPatterns ? (
-              <label className="seq-field">
-                Slot
-                <select
-                  value={savedPatternIndex}
-                  onChange={(e) => switchSavedPattern(Number(e.target.value))}
-                >
-                  {Array.from({ length: 8 }, (_, i) => (
-                    <option key={i} value={i}>
-                      Pattern {i + 1}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-          </div>
-          {savedError ? <p className="warn">{savedError}</p> : null}
-          {savedSummary ? <p className="muted small">{savedSummary}</p> : null}
-          {savedTracks ? (
-            <div className="row cm-actions">
-              <button
-                type="button"
-                className="seq-btn"
-                onClick={() => {
-                  const grid = observationFromMirror(savedSnap);
-                  const pat = patternFromObservation(grid, {
-                    name: `Saved .ncs P${savedPatternIndex + 1}`,
-                    bpm: pattern.bpm,
-                  });
-                  a.getRuntime().genCapturePattern(pat, 'ncs');
-                  pickMode('splot-pattern');
-                }}
-              >
-                Use as source
-              </button>
-            </div>
-          ) : null}
-          <CircuitMirrorGrid
-            snap={savedSnap}
-            label="Saved"
-            readOnlyHint="First 16 steps of each track’s selected pattern from the file — not live RAM."
-          />
-        </>
+        <SavedCircuitProject onUseAsSource={(patterns) => {
+          const mirror = { ...emptyMirrorSnap(), tracks: patterns.map((entry) => cellsFromNcsPattern(entry.steps)) };
+          const source = patternFromObservation(observationFromMirror(mirror), {
+            name: 'Saved Circuit project',
+            bpm: pattern.bpm,
+          });
+          a.getRuntime().genCapturePattern(source, 'ncs');
+          pickMode('splot-pattern');
+        }} />
       ) : null}
 
       {mode === 'splot-pattern' ? (

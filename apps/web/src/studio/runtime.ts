@@ -195,7 +195,7 @@ export type WorkspaceId =
 
 type RouteCheck =
   | { track: number; state: 'waiting' }
-  | { track: number; state: 'done'; note: number; outputs: { port: string; channel: number; note: number }[] };
+  | { track: number; state: 'done'; note: number; outputs: { port: string; portId: string; channel: number; note: number }[] };
 
 export interface StudioRuntimeSnapshot {
   /** True once Chrome granted Web MIDI access. */
@@ -1449,13 +1449,13 @@ export class StudioRuntime {
     this.notify();
   }
 
-  captureCircuitSong(length: ClipLength) {
+  captureCircuitSong(length: ClipLength, quantize = false) {
     const port = portsForRoles(this.assignments).circuitIn;
     if (!port) return { error: 'Assign Circuit MIDI In in Setup to capture a take.' } as const;
-    return captureSongClips(this.circuitCapture.getEvents(), port, length);
+    return captureSongClips(this.circuitCapture.getEvents(), port, length, quantize);
   }
 
-  playSong(song: Song, fromBar: number): string | null {
+  playSong(song: Song, fromBar: number, loopLength?: ClipLength): string | null {
     if (!Number.isFinite(song.bpm) || song.bpm < 20 || song.bpm > 400) {
       return 'Set Song BPM between 20 and 400.';
     }
@@ -1475,7 +1475,7 @@ export class StudioRuntime {
     if (!hasOutput) return 'Assign a connected MIDI output to a lane with clips.';
     this.sequencer.stop();
     this.routing.allNotesOff();
-    if (!this.songPlayer.play(song, fromBar)) return 'Place a clip at or after the selected bar.';
+    if (!this.songPlayer.play(song, fromBar, loopLength)) return 'Place a clip at or after the selected bar.';
     this.setStatus('Playing Song through Circuit track routes');
     this.notify();
     return null;
@@ -3452,7 +3452,7 @@ export class StudioRuntime {
       const port = this.transport.listPorts().find((item) => item.id === message.portId && item.state === 'connected');
       if (port) {
         const outputs = this.routeCheckOutputs.get(timing.source) ?? [];
-        outputs.push({ port: port.name, channel: message.channel, note: message.note });
+        outputs.push({ port: port.name, portId: port.id, channel: message.channel, note: message.note });
         this.routeCheckOutputs.set(timing.source, outputs);
       }
     }
