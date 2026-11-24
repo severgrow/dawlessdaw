@@ -52,7 +52,7 @@ export function TransportStrip({
           type="button"
           className="ts-btn ts-stop"
           onClick={() => seqStop()}
-          title="Stop Splot pattern"
+          title="Stop Splot playback"
           aria-label="Stop"
         >
           <span className="ts-glyph" aria-hidden />

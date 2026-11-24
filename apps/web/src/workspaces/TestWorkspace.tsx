@@ -40,6 +40,25 @@ export function TestWorkspace() {
       </div>
       <p className="lead">Open a card · follow steps · mark pass / fail. App only shows MIDI it heard.</p>
 
+      <div className="panel" aria-label="MIDI send timing" role="region">
+        <div className="row">
+          <h2>MIDI send timing</h2>
+          <button type="button" onClick={actions.resetMidiSendTiming}>Reset timing</button>
+        </div>
+        <p className="muted small">Measures when SPLOT sends MIDI. Use the rig to check when you hear sound.</p>
+        <dl>
+          <dt>Live Circuit → MPC</dt>
+          <dd>{snap.latencyStats
+            ? `${snap.latencyStats.samples} sends · ${snap.latencyStats.meanMs} ms average · ${snap.latencyStats.maxMs} ms worst · ${snap.latencyStats.jitterMs} ms jitter`
+            : 'Play Circuit notes routed to MPC.'}</dd>
+          <dt>Song playback</dt>
+          <dd>{snap.songTimingStats
+            ? `${snap.songTimingStats.samples} sends · ${snap.songTimingStats.meanMs} ms average late · ${snap.songTimingStats.maxMs} ms worst · ${snap.songTimingStats.jitterMs} ms jitter`
+            : 'Play a Song clip to measure how closely notes hit their scheduled times.'}</dd>
+        </dl>
+        <p className="muted small">Export results includes recent MIDI sends and their source and destination channels.</p>
+      </div>
+
       {experimental ? (
         <CircuitDeepSyncBench />
       ) : (

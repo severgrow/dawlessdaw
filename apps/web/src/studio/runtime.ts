@@ -35,13 +35,17 @@ import {
   type SeqScheduledNote,
   type SeqStep,
 } from '@dawlessdaw/sequencer';
-import { StudioEventBus } from '@dawlessdaw/events';
+import { StudioEventBus, type StudioEvent } from '@dawlessdaw/events';
+import { MidiSendTiming, type MidiTimingStats } from '../timing/midiSendTiming';
 import {
   MidiEventRecorder,
   NativeBridgeTransport,
   WebMidiTransport,
   type HardwareTransport,
 } from '@dawlessdaw/midi';
+import { captureSongClips, type ClipLength, type Song } from '../arranger/song';
+import { SongPlayer } from '../arranger/songPlayer';
+import { songTrackOutputs } from '../arranger/songRoutes';
 import { circuitPatternBars } from '../recorder/circuitPatternCapture';
 import { MidiRoutingEngine, type MidiRoute } from '@dawlessdaw/routing';
 import { FocusEngine } from '@dawlessdaw/focus';
@@ -120,7 +124,6 @@ import {
   trackPreset,
   migrateClockForwarding,
   mpcClockPortAdvice,
-  MY_STUDIO_CHANNEL_REMAP,
   normalizePortId,
   portsForRoles,
   resolveSectionBridge,
@@ -208,6 +211,7 @@ export interface StudioRuntimeSnapshot {
   session: DawlessdawSession;
   workspace: WorkspaceId;
   statusLine: string;
+  songPlayingBar: number | null;
   recentUiEvents: { type: string; summary: string; at: number }[];
   lastCircuitGesture: CircuitInterpretation | null;
   assignments: PortAssignment[];
@@ -265,7 +269,8 @@ export interface StudioRuntimeSnapshot {
   lastProject: { index: number; kind: string; matched: boolean; at: number } | null;
   benchResults: BenchTestResult[];
   benchDetections: string[];
-  latencyStats: { samples: number; meanMs: number; jitterMs: number; message: string } | null;
+  latencyStats: (MidiTimingStats & { message: string }) | null;
+  songTimingStats: MidiTimingStats | null;
   capturingSceneMidi: boolean;
   /** Throttled USB clock monitor (Circuit in → MPC/SP out when app forwarding is on). */
   clockActivity: {
@@ -432,13 +437,6 @@ function saveSpEffectNames(profile: SpEffectNameProfile): void {
   }
 }
 
-/** MPC channel (9–12) → Circuit track channel (1–4), from the My Studio remap. */
-const MPC_CHANNEL_TO_CIRCUIT: Readonly<Record<number, number>> = Object.fromEntries(
-  Object.entries(MY_STUDIO_CHANNEL_REMAP)
-    .filter(([from]) => Number(from) >= 1 && Number(from) <= 4)
-    .map(([from, to]) => [to, Number(from)]),
-);
-
 function loadSetup(): PersistedStudioSetup | null {
   try {
     if (typeof localStorage === 'undefined') return null;
@@ -583,9 +581,7 @@ export class StudioRuntime {
   private benchResults: BenchTestResult[] = emptyBenchResults();
   private benchDetections: string[] = [];
   private rawMidiLog: BenchExport['rawMidiLog'] = [];
-  private latencySamples: number[] = [];
-  private latencyStats: StudioRuntimeSnapshot['latencyStats'] = null;
-  private pendingNoteIns = new Map<string, number>();
+  private readonly midiSendTiming = new MidiSendTiming();
   private capturingSceneMidi = false;
   private captureTimer: ReturnType<typeof setTimeout> | null = null;
   private clockInTicks = 0;
@@ -667,7 +663,23 @@ export class StudioRuntime {
 
   private readonly circuitCapture = new MidiEventRecorder({
     getPosition: () => this.clockService.getMusicalTime(),
+    recordClockTicks: true,
+    capacity: 16_384,
   });
+
+  private readonly songPlayer = new SongPlayer(
+    ({ track, pitch, velocity }, dueAtMs) => {
+      const port = portsForRoles(this.assignments).circuitIn;
+      if (!port) return;
+      const data = velocity > 0 ? buildNoteOn(track, pitch, velocity) : buildNoteOff(track, pitch, 0);
+      this.routing.inject(parseMidiMessage(data, performance.now(), port), dueAtMs);
+    },
+    () => this.routing.allNotesOff(),
+    (message) => {
+      if (message) this.setStatus(message);
+      this.notify();
+    },
+  );
 
   constructor() {
     this.circuitCapture.start();
@@ -773,6 +785,7 @@ export class StudioRuntime {
   }
 
   getSnapshot(): StudioRuntimeSnapshot {
+    const latency = this.midiSendTiming.stats('live');
     return {
       midiReady: this.midiReady,
       midiError: this.midiError,
@@ -789,6 +802,7 @@ export class StudioRuntime {
       session: this.session,
       workspace: this.workspace,
       statusLine: this.statusLine,
+      songPlayingBar: this.songPlayer.playingBar,
       recentUiEvents: [...this.recentUiEvents],
       lastCircuitGesture: this.lastCircuitGesture,
       assignments: this.assignments.map((a) => ({ ...a })),
@@ -835,7 +849,8 @@ export class StudioRuntime {
         detections: [...r.detections],
       })),
       benchDetections: [...this.benchDetections],
-      latencyStats: this.latencyStats ? { ...this.latencyStats } : null,
+      latencyStats: latency ? { ...latency, message: latencyVerdict(latency.meanMs, latency.jitterMs).message } : null,
+      songTimingStats: this.midiSendTiming.stats('song'),
       capturingSceneMidi: this.capturingSceneMidi,
       clockActivity: {
         lastInKind: this.lastClockInKind,
@@ -917,7 +932,11 @@ export class StudioRuntime {
       this.notify();
       return;
     }
-    this.routing.start();
+    this.routing.start((message) =>
+      this.songPlayer.playingBar == null ||
+      (message.kind !== 'note-on' && message.kind !== 'note-off') ||
+      message.portId !== portsForRoles(this.assignments).circuitIn,
+    );
     this.syncLivePorts(this.transport.listPorts());
     this.applyMyStudioRoutes();
 
@@ -973,6 +992,9 @@ export class StudioRuntime {
         const circuitIn = portsForRoles(this.assignments).circuitIn;
         // Follow Circuit in only — never the forwarded OUT clock (no second competing clock).
         if (circuitIn && event.message.portId === circuitIn) {
+          if (event.message.kind === 'start' || event.message.kind === 'continue') {
+            this.songPlayer.stop('Song stopped. Circuit transport is live.');
+          }
           this.clockHealth.onMidiTransport(
             event.message.kind,
             event.message.portId,
@@ -1006,6 +1028,7 @@ export class StudioRuntime {
   }
 
   async stop(): Promise<void> {
+    this.songPlayer.stop();
     for (const u of this.unsubs) u();
     this.unsubs = [];
     if (this.captureTimer) clearTimeout(this.captureTimer);
@@ -1042,6 +1065,7 @@ export class StudioRuntime {
   }
 
   setRoutes(routes: MidiRoute[]): void {
+    this.songPlayer.stop('Song stopped. MIDI routes changed.');
     this.routing.setRoutes(routes);
     this.persistSetup();
     this.notify();
@@ -1264,6 +1288,7 @@ export class StudioRuntime {
   }
 
   seqPlay(): void {
+    this.songPlayer.stop();
     this.sequencer.play();
     const src = this.sequencer.getSnapshot().bank.clockSource;
     this.setStatus(
@@ -1275,6 +1300,7 @@ export class StudioRuntime {
   }
 
   seqStop(): void {
+    this.songPlayer.stop();
     this.sequencer.stop();
     this.setStatus('Sequencer Stop');
     this.notify();
@@ -1389,6 +1415,38 @@ export class StudioRuntime {
   genSetSettings(patch: Partial<GenerativeSettings>): void {
     this.generative.setSettings(patch);
     this.notify();
+  }
+
+  captureCircuitSong(length: ClipLength) {
+    const port = portsForRoles(this.assignments).circuitIn;
+    if (!port) return { error: 'Assign Circuit MIDI In in Setup to capture a take.' } as const;
+    return captureSongClips(this.circuitCapture.getEvents(), port, length);
+  }
+
+  playSong(song: Song, fromBar: number): string | null {
+    if (!Number.isFinite(song.bpm) || song.bpm < 20 || song.bpm > 400) {
+      return 'Set Song BPM between 20 and 400.';
+    }
+    const port = portsForRoles(this.assignments).circuitIn;
+    if (!this.midiReady || !port) return 'Connect and assign Circuit MIDI In in Setup.';
+    if (this.clockService.getMusicalTime()?.transport === 'playing' &&
+        this.transport.listPorts().some((input) => input.id === port && input.state === 'connected')) {
+      return 'Stop the Circuit transport before playing the Song.';
+    }
+    const tracks = new Set(song.clips.filter((clip) => clip.bar + clip.length > fromBar).map((clip) => clip.track));
+    if (!tracks.size) return 'Place a clip at or after the selected bar.';
+    const routes = this.routing.getRoutes();
+    const ports = this.transport.listPorts();
+    const hasOutput = [...tracks].some((track) =>
+      songTrackOutputs(routes, ports, port, track).some((out) => out.connected),
+    );
+    if (!hasOutput) return 'Assign a connected MIDI output to a lane with clips.';
+    this.sequencer.stop();
+    this.routing.allNotesOff();
+    if (!this.songPlayer.play(song, fromBar)) return 'Place a clip at or after the selected bar.';
+    this.setStatus('Playing Song through Circuit track routes');
+    this.notify();
+    return null;
   }
 
   captureCircuitPattern(bars: number) {
@@ -2180,6 +2238,7 @@ export class StudioRuntime {
   }
 
   applyMyStudioRoutes(): void {
+    this.songPlayer.stop('Song stopped. MIDI routes changed.');
     const p = portsForRoles(this.assignments);
     if (!p.circuitIn) {
       // Keep previous routes; greyed devices still listed
@@ -2262,6 +2321,7 @@ export class StudioRuntime {
       return;
     }
     // Rebind scene routes onto current assignments when possible
+    this.songPlayer.stop('Song stopped. MIDI routes changed.');
     this.routing.setRoutes(scene.routes);
     this.applyMyStudioRoutes();
     this.roles.setBindings(scene.roles);
@@ -2306,6 +2366,7 @@ export class StudioRuntime {
     this.session = result.session;
     for (const scene of result.session.scenes) this.scenes.save(scene);
     if (result.session.routingPresets[0]) {
+      this.songPlayer.stop('Song stopped. MIDI routes changed.');
       this.routing.applyPreset(result.session.routingPresets[0]);
     }
     this.roles.setBindings(result.session.roles);
@@ -2583,6 +2644,7 @@ export class StudioRuntime {
   }
 
   panic(): void {
+    this.songPlayer.stop();
     this.sequencer.stop();
     const outs = [
       portsForRoles(this.assignments).mpcOut,
@@ -2733,10 +2795,20 @@ export class StudioRuntime {
   }
 
   exportBenchJson(): string {
-    const stamp = new Date().toISOString().slice(0, 10);
     const payload = buildBenchExport(this.benchResults, this.rawMidiLog.slice(-2000));
-    void stamp;
-    return JSON.stringify(payload, null, 2);
+    return JSON.stringify({
+      ...payload,
+      midiSendTiming: {
+        liveCircuitToMpc: this.midiSendTiming.stats('live'),
+        songDispatch: this.midiSendTiming.stats('song'),
+        events: this.midiSendTiming.exportTrace(),
+      },
+    }, null, 2);
+  }
+
+  resetMidiSendTiming(): void {
+    this.midiSendTiming.reset();
+    this.notify();
   }
 
   downloadBenchJson(): void {
@@ -2908,11 +2980,6 @@ export class StudioRuntime {
         this.pushBenchDetection(
           'circuit-notes-1-8',
           `note ch${message.channel} n${message.note}`,
-        );
-        if (this.pendingNoteIns.size > 256) this.pendingNoteIns.clear();
-        this.pendingNoteIns.set(
-          `${message.channel}:${message.note}`,
-          typeof performance !== 'undefined' ? performance.now() : Date.now(),
         );
       }
 
@@ -3291,42 +3358,13 @@ export class StudioRuntime {
     }
   }
 
-  /**
-   * Timing Circuit → app → MPC output. Called for every note-on the app sends.
-   * Only notes sent to the MPC's output port count, and the MPC's channel (9–12)
-   * is mapped back to the Circuit track channel (1–4) to find the matching note-in.
-   * This measures the Mac side only (USB in → Web MIDI send); the Scarlett's
-   * USB → DIN hop and the MPC itself are not included.
-   */
-  recordOutboundLatency(note: number, channel: number, portId: string): void {
-    const mpcOut = portsForRoles(this.assignments).mpcOut;
-    if (!mpcOut || portId !== mpcOut) return;
-    const sourceChannel = MPC_CHANNEL_TO_CIRCUIT[channel];
-    if (sourceChannel === undefined) return;
-    const key = `${sourceChannel}:${note}`;
-    const t0 = this.pendingNoteIns.get(key);
-    if (t0 === undefined) return;
-    this.pendingNoteIns.delete(key);
-    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const dt = now - t0;
-    this.latencySamples = [...this.latencySamples.slice(-63), dt];
-    const mean =
-      this.latencySamples.reduce((a, b) => a + b, 0) / this.latencySamples.length;
-    const variance =
-      this.latencySamples.reduce((a, b) => a + (b - mean) ** 2, 0) /
-      this.latencySamples.length;
-    const jitter = Math.sqrt(variance);
-    const v = latencyVerdict(mean, jitter);
-    this.latencyStats = {
-      samples: this.latencySamples.length,
-      meanMs: Math.round(mean * 10) / 10,
-      jitterMs: Math.round(jitter * 10) / 10,
-      message: v.message,
-    };
-    this.pushBenchDetection(
-      'timing-circuit-to-mpc',
-      `${this.latencyStats.meanMs}ms mean, ${this.latencyStats.jitterMs}ms jitter — ${v.band}`,
-    );
+  recordOutboundTiming(event: Extract<StudioEvent, { type: 'midi:out' }>): void {
+    const { timing, message, routeId } = event;
+    if (!timing || !routeId) return;
+    const ports = portsForRoles(this.assignments);
+    if (timing.source.portId !== ports.circuitIn) return;
+    this.midiSendTiming.record(timing, message, routeId,
+      timing.mode === 'song' || message.portId === ports.mpcOut);
   }
 
   private pushBenchDetection(id: string, line: string): void {
@@ -3380,14 +3418,12 @@ export function getStudioRuntime(): StudioRuntime {
     singleton = new StudioRuntime();
     singleton.bus.on('midi:out', (ev) => {
       if (ev.type !== 'midi:out') return;
+      singleton?.recordOutboundTiming(ev);
       const data = ev.message.data;
       if (!data.length) return;
       const status = data[0]!;
       if ((status & 0xf0) === 0x90 && (data[2] ?? 0) > 0) {
         singleton?.recordOutActivity(ev.message.portId);
-        const channel = (status & 0x0f) + 1;
-        const note = data[1] ?? 0;
-        singleton?.recordOutboundLatency(note, channel, ev.message.portId);
       }
       // Phase 3 — SP live ticks + pad lights from any SP-bound outbound MIDI.
       singleton?.observeSpOutbound(ev.message.portId, data);

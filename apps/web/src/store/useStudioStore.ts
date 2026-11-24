@@ -190,6 +190,7 @@ export function useStudioActions() {
     sendBenchMpcProgramChange: (n?: number) => runtime.sendBenchMpcProgramChange(n),
     sendBenchMpcMuteCc: () => runtime.sendBenchMpcMuteCc(),
     sendBenchMpcClockBurst: () => runtime.sendBenchMpcClockBurst(),
+    resetMidiSendTiming: () => runtime.resetMidiSendTiming(),
     downloadBenchJson: () => runtime.downloadBenchJson(),
     createCustomDevice: (input: {
       displayName: string;
