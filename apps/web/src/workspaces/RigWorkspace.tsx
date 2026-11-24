@@ -31,7 +31,7 @@ export function RigWorkspace() {
   return (
     <div className="section-enter">
       <div className="page-head">
-        <h1>rig</h1>
+        <h1>Rig</h1>
         <span className={`readout rig-midi-readout${circuitIn ? ' live' : ''}`}>
           {circuitIn ? 'Circuit input connected' : 'Circuit input disconnected'}
           {noteHits > 0 ? (

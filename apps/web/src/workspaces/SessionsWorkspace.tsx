@@ -118,9 +118,11 @@ export function SessionsWorkspace() {
     () => getCaptureEngine().getMonitorInput(),
   );
   const [status, setStatus] = useState<CaptureStatus>(() => getCaptureEngine().status());
+  const [savedTakeId, setSavedTakeId] = useState<string | null>(null);
   const [takes, setTakes] = useState<TakeMeta[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [audio, setAudio] = useState<StereoAudio | null>(null);
+  const [loadedAudio, setLoadedAudio] = useState<{ takeId: string; data: StereoAudio } | null>(null);
+  const audio = loadedAudio?.takeId === selectedId ? loadedAudio?.data ?? null : null;
   const [spaceHint, setSpaceHint] = useState<string>('…');
   const [recoverNote, setRecoverNote] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -211,13 +213,13 @@ export function SessionsWorkspace() {
   // Load audio when selection changes
   useEffect(() => {
     if (!selectedId) {
-      setAudio(null);
+      setLoadedAudio(null);
       return;
     }
     let cancelled = false;
     void loadTakeAudio(selectedId).then((a) => {
       if (cancelled) return;
-      setAudio(a);
+      setLoadedAudio(a ? { takeId: selectedId, data: a } : null);
       if (a) {
         setTrimStart(0);
         setTrimEnd(a.left.length);
@@ -417,6 +419,7 @@ export function SessionsWorkspace() {
     await refreshTakes();
     if (meta) {
       setSelectedId(meta.id);
+      setSavedTakeId(meta.id);
       const n = meta.performanceEvents?.length ?? 0;
       setMsg(
         `Saved take · ${formatTime(meta.durationSec)}${
@@ -626,7 +629,15 @@ export function SessionsWorkspace() {
   const stopping = status.state === 'stopping';
   const elapsedSec = status.elapsedMs / 1000;
   const clipHot = status.meters.clipLeft || status.meters.clipRight;
-  const recordPhase = recording ? 'recording' : stopping ? 'stopping' : selected ? 'after' : 'idle';
+  const savedTake = savedTakeId && selected?.id === savedTakeId ? selected : null;
+  const recordPhase = recording ? 'recording' : stopping ? 'stopping' : savedTake ? 'after' : selectedInput ? 'ready' : 'idle';
+  const recordLabel = {
+    recording: 'Recording',
+    stopping: 'Saving take',
+    after: 'Take ready',
+    ready: 'Ready',
+    idle: 'Choose input',
+  }[recordPhase];
 
   const tagLine = useMemo(() => {
     if (!selected) return '';
@@ -645,13 +656,9 @@ export function SessionsWorkspace() {
   return (
     <div className="section-enter sessions-page">
       <div className="page-head">
-        <h1>sessions</h1>
+        <h1>Sessions</h1>
         <span className="readout mono">{spaceHint}</span>
       </div>
-      <p className="lead">
-        Choose input → Record → Stop → Listen. Stereo from Scarlett / ZED / USB.
-      </p>
-
       {recoverNote ? <p className="warn">{recoverNote}</p> : null}
       {msg ? <p className="mono small">{msg}</p> : null}
 
@@ -659,59 +666,57 @@ export function SessionsWorkspace() {
         <div className="rec-phase-row">
           <h2>Record</h2>
           <span className={`rec-phase-chip rec-phase-chip-${recordPhase}`} role="status">
-            {recordPhase === 'recording'
-              ? 'Recording…'
-              : recordPhase === 'stopping'
-                ? 'Saving…'
-                : recordPhase === 'after'
-                  ? 'Take ready — listen below'
-                  : 'Ready'}
+            {recordLabel}
           </span>
         </div>
 
-        <ol className="rec-flow" aria-label="Record workflow">
-          <li className={!selectedInput ? 'current' : 'done'}>1 Input</li>
-          <li className={recording || stopping ? 'current' : selectedInput ? 'done' : ''}>2 Record</li>
-          <li className={recordPhase === 'after' ? 'current' : ''}>3 Listen</li>
-        </ol>
-
-        <label className="field">
-          <span>1 · Audio input</span>
-          <select
-            className="text-input"
-            value={selectedInput?.deviceId ?? ''}
-            onChange={(e) => onPickDevice(e.target.value)}
-            disabled={recording || stopping}
-          >
-            {inputs.length === 0 ? (
-              <option value="">Plug in an interface</option>
-            ) : (
-              <>
-                {!selectedInput ? <option value="">Pick Scarlett / ZED / USB…</option> : null}
-                {inputs.map((d) => (
-                  <option key={d.deviceId} value={d.deviceId}>
-                    {formatInputLabel(d)}
-                  </option>
-                ))}
-              </>
-            )}
-          </select>
-        </label>
-
         <div className="rec-transport">
-          <button
-            type="button"
-            className={`rec-big ${recording || stopping ? 'stop' : 'record'}`}
-            disabled={stopping || (!recording && !selectedInput && inputs.length > 0)}
-            onClick={() => void (recording ? stopRecord() : startRecord())}
-          >
-            {recording || stopping ? 'Stop' : 'Record'}
-          </button>
-          <div className="rec-elapsed mono">{formatTime(elapsedSec)}</div>
+          <label className="field rec-source">
+            <span>Audio input</span>
+            <select
+              className="text-input"
+              value={selectedInput?.deviceId ?? ''}
+              onChange={(e) => onPickDevice(e.target.value)}
+              disabled={recording || stopping}
+            >
+              {inputs.length === 0 ? (
+                <option value="">Plug in an interface</option>
+              ) : (
+                <>
+                  {!selectedInput ? <option value="">Pick Scarlett / ZED / USB…</option> : null}
+                  {inputs.map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {formatInputLabel(d)}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+          </label>
+
           <div className="rec-meters">
             <Meter label="L" level={status.meters.left} clip={status.meters.clipLeft} />
             <Meter label="R" level={status.meters.right} clip={status.meters.clipRight} />
           </div>
+          <div className="rec-elapsed mono">{formatTime(elapsedSec)}</div>
+          <button
+            type="button"
+            className={`rec-big ${recording || stopping ? 'stop' : 'record console-primary'}`}
+            disabled={stopping || (!recording && !selectedInput)}
+            onClick={() => void (recording ? stopRecord() : startRecord())}
+          >
+            {recording || stopping ? 'Stop' : 'Record'}
+          </button>
+        </div>
+        {recordPhase === 'after' && savedTake ? (
+          <div className="rec-saved-take">
+            <span><strong>{savedTake.name}</strong> <span className="mono">{formatTime(savedTake.durationSec)}</span></span>
+            <button type="button" disabled={!audio} onClick={() => audio && playRegion(0, audio.left.length)}>
+              Play saved take
+            </button>
+          </div>
+        ) : null}
+        <div className="rec-options">
           <button
             type="button"
             className={midiArm ? 'active' : ''}

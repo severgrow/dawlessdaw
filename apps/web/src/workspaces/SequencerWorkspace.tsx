@@ -238,7 +238,7 @@ export function SequencerWorkspace() {
   };
 
   const pageTitle =
-    mode === 'splot-pattern' ? 'pattern' : mode === 'circuit-live' ? 'live view' : 'saved .ncs';
+    mode === 'splot-pattern' ? 'Pattern' : mode === 'circuit-live' ? 'Live view' : 'Saved .ncs';
 
   return (
     <div className="section-enter seq-page">
@@ -445,18 +445,20 @@ export function SequencerWorkspace() {
                     ))}
                   </select>
                 </label>
-                <button type="button" className="seq-btn pattern-primary" onClick={mutate}>
+                <button type="button" className="seq-btn" onClick={mutate}>
                   Mutate
                 </button>
                 <button type="button" className="seq-btn" onClick={a.genGenerate}>
                   Generate
                 </button>
-                <button type="button" className="seq-btn ghost" disabled={!seq.undoCount} onClick={a.seqUndo}>
-                  Undo
-                </button>
-                <button type="button" className="seq-btn ghost" disabled={!seq.redoCount} onClick={a.seqRedo}>
-                  Redo
-                </button>
+                <div className="pattern-history" role="group" aria-label="Pattern edit history">
+                  <button type="button" className="seq-btn ghost" disabled={!seq.undoCount} onClick={a.seqUndo}>
+                    Undo
+                  </button>
+                  <button type="button" className="seq-btn ghost" disabled={!seq.redoCount} onClick={a.seqRedo}>
+                    Redo
+                  </button>
+                </div>
               </div>
               <p className="pattern-feedback small muted" aria-live="polite">
                 {seq.playing ? 'Playing' : 'Ready to play'} {auditionSide} · Editing B
@@ -479,7 +481,7 @@ export function SequencerWorkspace() {
                 {Array.from({ length: 16 }, (_, i) => (
                   <span
                     key={i}
-                    className={`seq-step-num${i % 4 === 0 ? ' beat' : ''}${i >= pattern.length ? ' dim' : ''}${!hearingOriginal && seq.playhead === i ? ' play' : ''}`}
+                    className={`seq-step-num${i % 4 === 0 ? ' beat grid-divider' : ''}${i >= pattern.length ? ' dim' : ''}${!hearingOriginal && seq.playhead === i ? ' play' : ''}`}
                   >
                     {i + 1}
                   </span>
@@ -492,7 +494,7 @@ export function SequencerWorkspace() {
                   return (
                     <div key={trackNo} className="seq-row" role="row">
                       <div className="seq-track-meta">
-                        <b>T{trackNo}</b>
+                        <b className="mono">T{trackNo}</b>
                         <span className={`seq-dest ${dest ? `dev-${dest.device}` : 'dev-off'}`}>
                           {destBadge(dest)}
                         </span>
@@ -534,6 +536,7 @@ export function SequencerWorkspace() {
                               aria-label={`Track ${trackNo} step ${si + 1}${st.on ? ' on' : ' off'}${isLocked ? ' locked' : ''}`}
                               className={[
                                 'seq-pad',
+                                si % 4 === 0 ? 'grid-divider' : '',
                                 st.on ? 'lit' : '',
                                 outside ? 'outside' : '',
                                 mutation?.patternId === pattern.id && mutation.cells.has(ti * 16 + si) ? 'mutated' : '',

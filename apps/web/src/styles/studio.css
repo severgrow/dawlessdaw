@@ -21,31 +21,31 @@
  */
 :root {
   /* Surfaces — use ≤3 levels: page / chrome / module */
-  --bg-0: #0b0c0b; /* page = surface-0 — slightly deeper for Ableton density */
-  --bg-1: #121312; /* chrome = surface-1 */
-  --bg-2: #181a18; /* module = surface-2 */
-  --bg-3: #1e201e; /* hover only — not a 4th nesting level */
-  --bg-4: #282a28; /* pressed / unlit pads */
+  --bg-0: #101114; /* page = surface-0 — slightly deeper for Ableton density */
+  --bg-1: #17181b; /* chrome = surface-1 */
+  --bg-2: #1d1e22; /* module = surface-2 */
+  --bg-3: #242529; /* hover only — not a 4th nesting level */
+  --bg-4: #2c2d32; /* pressed / unlit pads */
   --surface-0: var(--bg-0);
   --surface-1: var(--bg-1);
   --surface-2: var(--bg-2);
   /* Dark glass — matte hierarchy; chrome buttons stay near-opaque so page
      atmosphere does not read as a cheap top-light bevel through the fill */
-  --glass-1: color-mix(in srgb, #1a1c1a 78%, transparent);
-  --glass-2: color-mix(in srgb, #222522 84%, transparent);
-  --glass-3: color-mix(in srgb, #2a2e2a 88%, transparent);
-  --glass-btn: color-mix(in srgb, #1e211e 92%, transparent); /* chrome controls */
+  --glass-1: color-mix(in srgb, #1d1e22 78%, transparent);
+  --glass-2: color-mix(in srgb, #25262a 84%, transparent);
+  --glass-3: color-mix(in srgb, #2e2f34 88%, transparent);
+  --glass-btn: color-mix(in srgb, #242529 92%, transparent); /* chrome controls */
   --glass-blur: blur(14px) saturate(1.02);
   /* Press — matte, no top-light bevel / plastic shine */
   --press-rest: none;
   --press-down: none;
   --press-fill: color-mix(in srgb, #000 18%, var(--glass-3));
-  --line: #2a2c2a; /* reserved for state / hairline separators */
-  --line-soft: #1c1e1c;
-  --line-hard: #3a3c3a;
-  --text: #efece4; /* bone */
-  --text-dim: #9c9a92;
-  --text-mute: #66645e;
+  --line: #2e2f34; /* reserved for state / hairline separators */
+  --line-soft: #25262a;
+  --line-hard: #44454b;
+  --text: #f3efe5; /* bone */
+  --text-dim: #b8b4ac;
+  --text-mute: #9b978f;
 
   /* Mint — activity / primary (softer, lower saturation) */
   --mint-0: #151c19;
@@ -82,7 +82,7 @@
   --alert-glow: rgba(165, 194, 180, 0.12);
   --alert-wash: rgba(165, 194, 180, 0.07);
 
-  --bone: #e4ddd0;
+  --bone: #f3efe5;
   --bone-dim: #37342d;
   --bone-wash: rgba(228, 221, 208, 0.12);
   --sp-accent: var(--burgundy);
@@ -143,7 +143,7 @@
   --shell-rail: 220px; /* left nav width — keep workspaces aligned */
 
   /* Selection / inset wells (browser lists, pads) */
-  --selection-fill: color-mix(in srgb, var(--mint-2) 62%, transparent);
+  --selection-fill: color-mix(in srgb, var(--mint-3) 12%, var(--surface-2));
   --selection-ink: var(--mint-6);
   --inset-well: color-mix(in srgb, var(--bg-0) 55%, transparent);
   --elev-press: none; /* matte — no bounce / bevel press */
@@ -171,11 +171,7 @@ body {
   font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.5;
-  /* Matte charcoal atmosphere — soft mint wash only, no burgundy haze */
-  background:
-    radial-gradient(110% 70% at 8% -8%, color-mix(in srgb, var(--mint-2) 14%, transparent), transparent 52%),
-    linear-gradient(180deg, #0f100f 0%, var(--bg-0) 48%, #0a0b0a 100%);
-  background-attachment: fixed;
+  background: var(--surface-0);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   font-feature-settings: 'zero' 1, 'ss01' 1;
@@ -184,18 +180,6 @@ body {
 ::selection {
   background: var(--accent);
   color: var(--accent-ink);
-}
-
-/* Film grain over everything — the same SVG noise as severgrow-01's "Soil" texture
-   (fractal noise, neutral grey, 3.2%). Static: no cost per frame, never blocks clicks. */
-body::after {
-  content: '';
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .75  0 0 0 0 .75  0 0 0 0 .75  0 0 0 1.1 -.42'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
-  opacity: 0.032;
 }
 
 ::-webkit-scrollbar {
@@ -755,12 +739,6 @@ h1 {
   letter-spacing: -0.01em;
   text-transform: lowercase;
   color: var(--text);
-}
-
-h1::before {
-  content: '~/';
-  color: var(--text-dim);
-  font-weight: 500;
 }
 
 h2 {
@@ -4774,20 +4752,6 @@ button.send-add {
   min-height: 0 !important;
   text-transform: none !important;
   letter-spacing: 0 !important;
-}
-
-.seq-pad.lit.dev-sp {
-  background: var(--burgundy) !important;
-  border-color: var(--burgundy-2) !important;
-}
-.seq-pad.lit.dev-fm1 {
-  background: color-mix(in srgb, var(--mint-4) 80%, var(--mint-2)) !important;
-  border-color: var(--mint-2) !important;
-}
-.seq-pad.lit.dev-mpc {
-  background: color-mix(in srgb, var(--bone) 55%, var(--mint-4)) !important;
-  border-color: var(--bone-dim) !important;
-  color: var(--bg-0) !important;
 }
 
 .seq-pad:not(.lit) {
@@ -9408,11 +9372,6 @@ textarea:focus-visible,
   font-size: 1rem !important;
   font-weight: var(--fw-medium) !important;
   color: var(--text-dim) !important;
-}
-
-.app-premium-v3 .page-head h1::before {
-  color: var(--text-mute);
-  font-weight: 400;
 }
 
 .app-premium-v3 h2,

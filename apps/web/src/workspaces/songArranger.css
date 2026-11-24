@@ -17,7 +17,8 @@
 }
 .song-head h1 {
   margin: 0 0 6px;
-  font-size: 1.55rem;
+  font-size: 1.25rem;
+  text-transform: none;
 }
 .song-head p,
 .song-hint {
@@ -39,7 +40,7 @@
 .song-controls button,
 .song-controls select,
 .song-controls input {
-  min-height: 38px;
+  min-height: var(--control-height);
   border: 1px solid var(--line-hard);
   border-radius: var(--radius);
   background: var(--surface-2);
@@ -50,6 +51,7 @@
   color: var(--text);
 }
 .song-bpm input {
+  font-family: var(--font-mono);
   width: 86px;
   font-variant-numeric: tabular-nums;
 }
@@ -84,8 +86,9 @@
 }
 .song-grid {
   --song-bar-width: 76px;
+  --song-gutter: 158px;
   display: grid;
-  grid-template-columns: 158px repeat(var(--song-bars), var(--song-bar-width));
+  grid-template-columns: var(--song-gutter) repeat(var(--song-bars), var(--song-bar-width));
   width: max-content;
 }
 .app-premium-v4 .song-grid .song-ruler {
@@ -97,14 +100,14 @@
   background: var(--surface-1);
   color: var(--text-dim);
 }
-.song-grid .song-ruler:nth-child(4n + 2) {
+.app-premium-v4 .song-grid .song-ruler.grid-divider {
   color: var(--text);
-  border-left-color: var(--line-hard);
+  border-inline-start-color: var(--grid-divider);
 }
 .song-grid .song-ruler[aria-pressed="true"],
 .song-grid .song-ruler[data-playhead="true"] {
   color: var(--text);
-  box-shadow: inset 0 -2px var(--mint-4);
+  box-shadow: inset 0 -2px var(--grid-playhead);
 }
 .song-grid .song-ruler:focus-visible,
 .song-grid .song-clip:focus-visible {
@@ -116,7 +119,9 @@
   grid-template-columns: subgrid;
   grid-template-rows: minmax(48px, auto);
   border-top: 1px solid var(--line);
-  background: repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px var(--song-bar-width)) 158px 0;
+  background:
+    repeating-linear-gradient(to right, var(--grid-divider) 0 1px, transparent 1px calc(4 * var(--song-bar-width))) var(--song-gutter) 0,
+    repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px var(--song-bar-width)) var(--song-gutter) 0;
 }
 .song-row > * {
   grid-row: 1;
@@ -155,8 +160,12 @@
   border: 1px solid var(--line-hard);
 }
 .song-cue {
+  z-index: 1;
   border-left: 1px solid var(--mint-3);
   pointer-events: none;
+}
+.song-cue[data-playhead="true"] {
+  border-left-color: var(--grid-playhead);
 }
 .song-grid .song-clip {
   display: flex;
@@ -172,7 +181,10 @@
   color: var(--text);
   white-space: nowrap;
 }
-.song-grid .song-clip[aria-pressed="true"],
+.song-grid .song-clip[aria-pressed="true"] {
+  outline: 2px solid var(--mint-5);
+  outline-offset: -2px;
+}
 .song-lane button[aria-pressed="true"] {
   border-color: var(--mint-5);
   box-shadow: inset 0 0 0 1px var(--mint-5);

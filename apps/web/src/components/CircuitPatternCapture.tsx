@@ -21,6 +21,7 @@ export function CircuitPatternCapture({
   const [usedBar, setUsedBar] = useState<number | null>(null);
   const current = take?.inputPort === inputPort ? take?.capture : null;
   const bar = current?.bars[barIndex];
+  const canUse = Boolean(bar?.notes) && usedBar !== barIndex;
 
   return (
     <div className="pattern-capture">
@@ -28,7 +29,7 @@ export function CircuitPatternCapture({
       <div className="pattern-controls" role="group" aria-label="Capture Circuit MIDI">
         <button
           type="button"
-          className="seq-btn pattern-primary"
+          className={canUse ? 'seq-btn' : 'seq-btn pattern-primary'}
           disabled={!inputPort}
           onClick={() => {
             if (!inputPort) return;
@@ -50,29 +51,34 @@ export function CircuitPatternCapture({
             ))}
           </select>
         </label>
-        {current && current.bars.length > 1 ? (
-          <label className="seq-field">
-            <span className="sr-only">Captured bar</span>
-            <select value={barIndex} onChange={(event) => setBarIndex(Number(event.target.value))}>
-              {current.bars.map((entry, index) => (
-                <option key={entry.label} value={index}>{entry.label}{entry.notes ? '' : ' · empty'}</option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-        <button
-          type="button"
-          className="seq-btn"
-          disabled={!bar?.notes || usedBar === barIndex}
-          onClick={() => {
-            if (!bar?.notes) return;
-            usePattern(bar.pattern);
-            setUsedBar(barIndex);
-          }}
-        >
-          Use as Pattern
-        </button>
       </div>
+      {current ? (
+        <div className="pattern-controls pattern-capture-review" role="group" aria-label="Review captured bars">
+          <span className="pattern-review-label">Review capture</span>
+          {current.bars.length > 1 ? (
+            <label className="seq-field">
+              <span className="sr-only">Captured bar</span>
+              <select value={barIndex} onChange={(event) => setBarIndex(Number(event.target.value))}>
+                {current.bars.map((entry, index) => (
+                  <option key={entry.label} value={index}>{entry.label}{entry.notes ? '' : ' · empty'}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <button
+            type="button"
+            className="seq-btn pattern-primary"
+            disabled={!canUse}
+            onClick={() => {
+              if (!bar?.notes) return;
+              usePattern(bar.pattern);
+              setUsedBar(barIndex);
+            }}
+          >
+            Use as Pattern
+          </button>
+        </div>
+      ) : null}
       <div className="pattern-capture-status">
         <p className="pattern-feedback" role="status">
           {!inputPort
@@ -90,7 +96,7 @@ export function CircuitPatternCapture({
                   ].filter(Boolean).join(' · ')}
         </p>
         {!inputPort ? (
-          <button type="button" className="seq-btn" onClick={openSetup}>Set up MIDI</button>
+          <button type="button" className="seq-btn pattern-primary" onClick={openSetup}>Set up MIDI</button>
         ) : null}
       </div>
     </div>

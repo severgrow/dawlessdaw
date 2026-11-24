@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { DeviceArt, DEVICE_ART_SIZE, type DeviceKind } from './DeviceArt';
 import { RigMixerBackdrop } from './RigMixerBackdrop';
 import {
@@ -72,6 +72,7 @@ function Cable({
   label,
   lx,
   ly,
+  jack,
 }: {
   d: string;
   kind: 'midi' | 'audio' | 'clock';
@@ -80,10 +81,11 @@ function Cable({
   label?: string;
   lx?: number;
   ly?: number;
+  jack: string;
 }) {
   return (
     <g className={`cable cable-${kind}${on ? ' on' : ' off'}`}>
-      <path d={d} className="cable-base" />
+      <path d={d} className="cable-base" markerStart={jack} markerEnd={jack} />
       {on && pulse ? <path key={pulse} d={d} className="cable-hit" /> : null}
       {label && lx != null && ly != null ? (
         <text x={lx} y={ly} className="cable-label" textAnchor="middle">
@@ -95,9 +97,11 @@ function Cable({
 }
 
 export function RigMap() {
+  const jackId = useId();
+  const jack = `url(#${jackId})`;
   const snap = useStudioStore();
   const { setWorkspace } = useStudioActions();
-  const [backdrop, setBackdrop] = useState(loadRigBackdropEnabled);
+  const [backdrop, setBackdrop] = useState(() => loadRigBackdropEnabled(false));
   /** Equipment silhouettes behind the map — default off (cleaner). */
   const [drawings, setDrawings] = useState(() => loadRigBackdropDrawings(false));
   const toggleBackdrop = () => {
@@ -180,41 +184,41 @@ export function RigMap() {
         <div className={`rig-map${backdrop ? ' with-backdrop' : ''}`} role="group" aria-label="Studio map">
           <RigMixerBackdrop active={backdrop} showDrawings={drawings} />
           <svg className="rig-cables" viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
-            {/* audio first, under the MIDI */}
-            <Cable kind="audio" on d="M750 100 C 675 190, 595 250, 520 290" />
-            <Cable kind="audio" on d="M780 226 C 700 270, 600 295, 520 305" />
-            <Cable kind="audio" on d="M700 345 C 660 345, 580 325, 520 320" />
-            <Cable kind="audio" on d="M450 275 C 445 245, 435 231, 420 211" label="USB audio" lx={412} ly={262} />
+            <defs>
+              <marker id={jackId} viewBox="0 0 12 12" markerWidth="12" markerHeight="12"
+                markerUnits="userSpaceOnUse" refX="6" refY="6">
+                <circle className="rig-jack" cx="6" cy="6" r="4" />
+                <circle className="rig-jack-pin" cx="6" cy="6" r="1.3" />
+              </marker>
+            </defs>
+            {/* Audio connections sit below the MIDI traces. */}
+            <Cable jack={jack} kind="audio" on d="M740 100 C 675 190, 595 250, 520 290" />
+            <Cable jack={jack} kind="audio" on d="M780 226 C 700 270, 600 295, 520 305" />
+            <Cable jack={jack} kind="audio" on d="M700 345 C 660 345, 580 325, 520 320" />
+            <Cable jack={jack} kind="audio" on d="M450 275 C 442 246, 416 240, 401 221" label="USB audio" lx={412} ly={262} />
 
-            <Cable kind="midi" on={circuitOn} pulse={lastCircuit} d="M202 175 L 280 175" label="USB" lx={240} ly={166} />
-            <Cable kind="clock" on d="M100 230 C 100 270, 90 290, 85 300" label="DIN" lx={70} ly={275} />
-            <Cable
+            <Cable jack={jack} kind="midi" on={circuitOn} pulse={lastCircuit} d="M202 175 L 280 175" label="USB" lx={240} ly={166} />
+            <Cable jack={jack} kind="clock" on d="M54 231 C 51 258, 73 285, 85 300" label="DIN" lx={44} ly={273} />
+            <Cable jack={jack}
               kind="clock"
               on
-              d="M120 320 C 315 397, 937 416, 920 225 C 916 207, 889 201, 870 200"
+              d="M120 320 C 220 381, 430 397, 650 386 C 883 386, 942 387, 930 246 C 927 213, 896 200, 870 200"
               label="clock via thru"
               lx={590}
               ly={382}
             />
-            <Cable
-              kind="midi"
-              on={mpcOn}
-              pulse={snap.destActivity.mpc}
-              d="M428 150 C 480 150, 490 55, 520 55"
-              label="USB"
-              lx={470}
-              ly={95}
-            />
-            <Cable
-              kind="midi"
-              on={mpcOn}
-              pulse={snap.destActivity.mpc}
-              d="M620 55 L 740 55"
-              label={snap.clockToMpc ? 'DIN · notes+clock' : 'DIN · notes'}
-              lx={680}
-              ly={42}
-            />
-            <Cable
+            {viaScarlett || !mpcVia ? (
+              <>
+                <Cable jack={jack} kind="midi" on={mpcOn} pulse={snap.destActivity.mpc}
+                  d="M428 150 C 480 150, 490 55, 520 55" label="USB" lx={470} ly={95} />
+                <Cable jack={jack} kind="midi" on={mpcOn} pulse={snap.destActivity.mpc}
+                  d="M620 55 L 740 55" label={snap.clockToMpc ? 'DIN · notes+clock' : 'DIN · notes'} lx={680} ly={42} />
+              </>
+            ) : (
+              <Cable jack={jack} kind="midi" on={mpcOn} pulse={snap.destActivity.mpc}
+                d="M428 150 C 515 136, 630 122, 740 81" label="MPC MIDI" lx={645} ly={102} />
+            )}
+            <Cable jack={jack}
               kind="midi"
               on={spOn && (sends('sp') || snap.clockToSp)}
               pulse={snap.destActivity.sp}
@@ -223,7 +227,7 @@ export function RigMap() {
               lx={620}
               ly={176}
             />
-            <Cable
+            <Cable jack={jack}
               kind="midi"
               on={fm1On}
               pulse={snap.destActivity.fm1}
