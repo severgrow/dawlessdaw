@@ -3,7 +3,8 @@ import { buildNoteOff, buildNoteOn, parseMidiMessage } from '@dawlessdaw/core';
 import { buildControllerRoutes, myStudioPreset } from '@dawlessdaw/devices';
 import { MidiEventRecorder, MockMidiTransport, type MidiRecorderPosition } from '@dawlessdaw/midi';
 import { MidiRoutingEngine } from '@dawlessdaw/routing';
-import { canPlace, captureSongClips, loadSong, songEvents, type Song } from './song';
+import { canPlace, captureSongClips, loadSong, sectionClips, songEvents, type Song } from './song';
+import { songMidi } from './songMidi';
 import { SongPlayer } from './songPlayer';
 
 function recordedTake() {
@@ -137,4 +138,81 @@ describe('Circuit Song clips', () => {
     }
   });
 
+});
+
+it('quantizes only opt-in captures, retaining note length and dropping no independent pitches', () => {
+  const take = captureSongClips(recordedTake(), 'circuit', 2, true);
+  expect(take).toMatchObject({ clips: [
+    { track: 1, notes: [
+      { at: 0, end: 3.25, pitch: 36 },
+      { at: 0, end: 191.5, pitch: 42 },
+      { at: 186, end: 188, pitch: 45 },
+    ] },
+    { track: 3 },
+    { track: 8, notes: [{ at: 96, end: expect.closeTo(97.9), pitch: 57 }] },
+  ] });
+});
+
+it('extracts a section across lanes without changing the source notes', () => {
+  const clips: Song['clips'] = [
+    { id: 'a', track: 1, bar: 0, length: 2, notes: [
+      { at: 5, end: 7, pitch: 40, velocity: 120 },
+      { at: 100, end: 110, pitch: 41, velocity: 110 },
+    ] },
+    { id: 'b', track: 8, bar: 2, length: 2, notes: [
+      { at: 95.5, end: 98, pitch: 57, velocity: 85 },
+    ] },
+  ];
+  expect(sectionClips(clips, 1, 2)).toMatchObject([
+    { track: 1, bar: 1, length: 2, notes: [{ at: 4, end: 14, pitch: 41 }] },
+    { track: 8, bar: 1, length: 2, notes: [{ at: 191.5, end: 192, pitch: 57 }] },
+  ]);
+  expect(clips[1]?.notes[0]?.end).toBe(98);
+});
+
+it('loops the full section, releases its tail, and resets its playhead at exact bar boundaries', () => {
+  vi.useFakeTimers({ now: 0 });
+  try {
+    const send = vi.fn();
+    const release = vi.fn();
+    const player = new SongPlayer(send, release, () => {}, Date.now);
+    const song: Song = { bpm: 120, clips: [{
+      id: 'loop', track: 1, bar: 7, length: 2,
+      notes: [{ at: 0, end: 192, pitch: 36, velocity: 100 }],
+    }] };
+    expect(player.play(song, 7, 2)).toBe(true);
+    vi.advanceTimersByTime(2000);
+    expect(player.playingBar).toBe(8);
+    vi.advanceTimersByTime(2000);
+    expect(player.playingBar).toBe(7);
+    expect(send.mock.calls.map(([event, due]) => [event.velocity, due])).toEqual([
+      [100, 0], [0, 4000], [100, 4000],
+    ]);
+    player.stop();
+    expect(release).toHaveBeenCalledTimes(2);
+    expect(player.playingBar).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('exports tempo and separate, correctly numbered MIDI tracks for unmuted lanes', () => {
+  const note = { at: 0.25, end: 1.25, pitch: 40, velocity: 98 };
+  const bytes = songMidi({ bpm: 120, mutedTracks: [4], clips: [1, 4, 8].map((track) => ({
+    id: String(track), track, bar: 0, length: 1, notes: [note],
+  })) });
+  expect([...bytes.slice(0, 14)]).toEqual([77, 84, 104, 100, 0, 0, 0, 6, 0, 1, 0, 3, 9, 96]);
+  const view = new DataView(bytes.buffer);
+  let offset = 14;
+  const tracks = [];
+  while (offset < bytes.length) {
+    expect(String.fromCharCode(...bytes.slice(offset, offset + 4))).toBe('MTrk');
+    const end = offset + 8 + view.getUint32(offset + 4);
+    tracks.push([...bytes.slice(offset + 8, end)]);
+    offset = end;
+  }
+  expect(tracks).toHaveLength(3);
+  expect(tracks[0]?.slice(0, 7)).toEqual([0, 255, 81, 3, 7, 161, 32]);
+  expect(tracks[1]?.slice(0, 14)).toEqual([0, 255, 3, 2, 84, 49, 25, 0x90, 40, 98, 100, 0x80, 40, 0]);
+  expect(tracks[2]?.slice(0, 14)).toEqual([0, 255, 3, 2, 84, 56, 25, 0x97, 40, 98, 100, 0x87, 40, 0]);
 });

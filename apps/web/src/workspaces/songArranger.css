@@ -239,3 +239,23 @@
   min-width: 2px;
   background: var(--mint-4);
 }
+
+.song-controls .song-quantize {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  gap: 6px;
+}
+
+.song-controls .song-quantize input {
+  min-height: 0;
+  accent-color: var(--mint-6);
+}
+
+.app-premium-v4 .song-grid .song-ruler[data-section='true'] {
+  border-bottom: 2px solid var(--mint-3);
+}
+
+.song-section-actions {
+  margin-top: 12px;
+}

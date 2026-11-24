@@ -37,6 +37,7 @@ export function captureSongClips(
   events: readonly RecordedMidiEvent[],
   port: string,
   length: ClipLength,
+  quantize = false,
 ): Capture {
   const circuit = events.filter((event) =>
     event.source.kind === 'incoming' && event.source.portId === port,
@@ -103,6 +104,15 @@ export function captureSongClips(
     }
   }
   const clips = lanes.filter((lane) => lane.notes.length > 0);
+  if (quantize) {
+    const step = TICKS_PER_BAR / 16;
+    for (const clip of clips) {
+      clip.notes = capRetriggers(clip.notes.map((note) => {
+        const at = Math.min(span - step, Math.round(note.at / step) * step);
+        return { ...note, at, end: Math.min(span, at + note.end - note.at) };
+      }));
+    }
+  }
   if (!clips.length) return { error: 'No Circuit notes on channels 1–8 in those bars. Check Note Tx and the assigned Circuit MIDI input.' };
   return { bpm: Math.round(bpm * 10) / 10, clips };
 }
@@ -112,6 +122,35 @@ export function canPlace(clips: readonly SongClip[], candidate: SongClip): boole
     candidate.bar + candidate.length <= SONG_BARS &&
     clips.every((clip) => clip.id === candidate.id || clip.track !== candidate.track ||
       clip.bar + clip.length <= candidate.bar || candidate.bar + candidate.length <= clip.bar);
+}
+
+/** A new hit of the same pitch releases the last one first. */
+export function capRetriggers(notes: ClipNote[]): ClipNote[] {
+  const previous = new Map<number, ClipNote>();
+  for (const note of notes.sort((a, b) => a.at - b.at)) {
+    const held = previous.get(note.pitch);
+    if (held) held.end = Math.min(held.end, note.at);
+    previous.set(note.pitch, note);
+  }
+  return notes.filter((note) => note.end > note.at);
+}
+
+export function sectionClips(
+  clips: readonly SongClip[],
+  fromBar: number,
+  length: ClipLength,
+): SongClip[] {
+  const span = length * TICKS_PER_BAR;
+  return SONG_TRACKS.flatMap((track) => {
+    const notes = clips.filter((clip) => clip.track === track).flatMap((clip) => {
+      const offset = (clip.bar - fromBar) * TICKS_PER_BAR;
+      return clip.notes.flatMap((note) => {
+        const at = note.at + offset;
+        return at >= 0 && at < span ? [{ ...note, at, end: Math.min(span, note.end + offset) }] : [];
+      });
+    });
+    return notes.length ? [{ id: `section-${fromBar}-${track}`, track, bar: fromBar, length, notes }] : [];
+  });
 }
 
 export function songEvents(clips: readonly SongClip[], fromBar: number): SongEvent[] {

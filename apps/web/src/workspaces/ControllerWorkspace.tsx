@@ -249,11 +249,24 @@ function QuickKnobLearn({ trackNo, device }: { trackNo: number; device: CtrlDevi
 function CircuitRouteCheck({ trackNo }: { trackNo: number }) {
   const snap = useStudioStore();
   const { checkCircuitRoute } = useStudioActions();
-  const input = portsForRoles(snap.assignments).circuitIn;
+  const assigned = portsForRoles(snap.assignments);
+  const input = assigned.circuitIn;
+  const dest = snap.controller.tracks[trackNo - 1]?.dest;
+  const configured = songTrackOutputs(snap.routes, snap.ports, input, trackNo);
   const ready = snap.ports.some((port) => port.id === input && port.state === 'connected');
   const check = snap.routeCheck?.track === trackNo ? snap.routeCheck : null;
   const waiting = check?.state === 'waiting';
   const playing = snap.songPlayingBar != null;
+  function hardwareHint(out: { portId: string; channel: number; note: number }) {
+    const expected = dest?.device === 'mpc' ? assigned.mpcOut :
+      dest?.device === 'sp' ? assigned.spOut : dest?.device === 'fm1' ? assigned.fm1Out : undefined;
+    if (dest && out.portId === expected && destChannel(dest, snap.controller) === out.channel) {
+      const padHint = dest.device === 'sp' && (out.note < 36 || out.note > 51) ? ' Check the target pad’s note in the SP MIDI chart.' : '';
+      return destHowTo(dest, snap.controller) + padHint;
+    }
+    return `Set the receiving device to MIDI channel ${out.channel} and check its note mapping for ${out.note}.`;
+  }
+
   return (
     <div className="ctl-quick-control">
       <div className="row">
@@ -265,16 +278,23 @@ function CircuitRouteCheck({ trackNo }: { trackNo: number }) {
         </button>
       </div>
       <div role="status" className="muted small">
-        {waiting ? `Tap one pad on Circuit T${trackNo}. SPLOT will show where the note went.` :
+        {waiting ? `Tap one pad on Circuit T${trackNo}. SPLOT will show the MIDI it sends.` :
           check?.state === 'done' ? (
             <>
               <strong>Circuit T{trackNo} · Note {check.note}</strong>
               {check.outputs.length ? (
-                <ul>{check.outputs.map((out, i) => <li key={i}>→ {out.port} · ch {out.channel} · note {out.note}</li>)}</ul>
-              ) : <span> → No output sent</span>}
+                <ul>{check.outputs.map((out, i) => (
+                  <li key={i}>
+                    <strong>{out.port} · ch {out.channel} · note {out.note}</strong>
+                    <div>{hardwareHint(out)}</div>
+                  </li>
+                ))}</ul>
+              ) : <p>No output sent. {configured.length === 0 ? 'Choose a MIDI destination for this Circuit track.' :
+                configured.every((out) => !out.connected) ? 'Reconnect the assigned output or select an online MIDI port in Setup.' :
+                'Check the routing rules and note range for this track.'}</p>}
             </>
           ) : playing ? 'Stop Song playback to check live notes.' :
-          ready ? 'See the output port, channel, and note sent by SPLOT.' : 'Connect the Circuit MIDI input to check a route.'}
+          ready ? 'Check the output port, channel, and note SPLOT sends. Listen for the expected sound on the receiving device.' : 'Connect the Circuit MIDI input to check a route.'}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { CAPTURE_CLOCKS_PER_BAR as TICKS_PER_BAR } from '@dawlessdaw/midi';
-import { songEvents, type Song, type SongEvent } from './song';
+import { songEvents, type ClipLength, type Song, type SongEvent } from './song';
 
 export class SongPlayer {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -16,14 +16,14 @@ export class SongPlayer {
     return this.bar;
   }
 
-  play(song: Song, fromBar: number): boolean {
+  play(song: Song, fromBar: number, loopLength?: ClipLength): boolean {
     const events = songEvents(song.clips, fromBar);
     if (!events.length) return false;
     this.stop();
     const endBar = Math.max(...song.clips.map((clip) => clip.bar + clip.length));
-    const endTick = (endBar - fromBar) * TICKS_PER_BAR;
+    const endTick = (loopLength ?? endBar - fromBar) * TICKS_PER_BAR;
     const msPerTick = 240_000 / (song.bpm * TICKS_PER_BAR);
-    const startedAt = this.now();
+    let startedAt = this.now();
     let lastUpdate = startedAt;
     let i = 0;
     const flush = () => {
@@ -33,14 +33,24 @@ export class SongPlayer {
         return;
       }
       lastUpdate = now;
-      const tick = (now - startedAt) / msPerTick;
-      while (i < events.length && events[i]!.tick <= tick) {
-        const event = events[i++]!;
-        this.send(event, startedAt + event.tick * msPerTick);
-      }
+      let tick = (now - startedAt) / msPerTick;
+      const dispatch = (through: number) => {
+        while (i < events.length && events[i]!.tick <= through) {
+          const event = events[i++]!;
+          this.send(event, startedAt + event.tick * msPerTick);
+        }
+      };
+      dispatch(Math.min(tick, endTick));
       if (tick >= endTick) {
-        this.stop('Song finished');
-        return;
+        if (!loopLength) {
+          this.stop('Song finished');
+          return;
+        }
+        this.release();
+        startedAt += endTick * msPerTick;
+        tick = (now - startedAt) / msPerTick;
+        i = 0;
+        dispatch(tick);
       }
       const bar = fromBar + Math.floor(tick / TICKS_PER_BAR);
       if (bar !== this.bar) {
