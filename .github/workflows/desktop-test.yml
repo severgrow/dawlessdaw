@@ -1,0 +1,49 @@
+name: Desktop test build (Apple Silicon)
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-test-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  mac:
+    if: github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'mac-test-build')
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:desktop
+      - name: Package Apple Silicon installer
+        run: npm run dist:mac -w @dawlessdaw/desktop -- --arm64 --publish never -c.mac.identity=- -c.mac.hardenedRuntime=false -c.mac.notarize=false
+      - name: Verify disk image and app signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          for image in apps/desktop/release/*-arm64.dmg; do
+            hdiutil verify "$image"
+            mount_dir=$(mktemp -d)
+            hdiutil attach "$image" -readonly -nobrowse -mountpoint "$mount_dir"
+            trap 'hdiutil detach "$mount_dir"' EXIT
+            codesign --verify --deep --strict --verbose=2 "$mount_dir/Splot MIDI Brain.app"
+            hdiutil detach "$mount_dir"
+            trap - EXIT
+            rmdir "$mount_dir"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Splot-Mac-test-${{ github.event.pull_request.head.sha }}
+          path: apps/desktop/release/*-arm64.dmg
+          if-no-files-found: error

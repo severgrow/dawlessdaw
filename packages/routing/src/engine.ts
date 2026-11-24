@@ -7,9 +7,12 @@ import {
   isClockLike,
   parseMidiMessage,
 } from '@dawlessdaw/core';
-import type { StudioEventBus } from '@dawlessdaw/events';
+import type { MidiRouteTiming, StudioEventBus } from '@dawlessdaw/events';
 import type { HardwareTransport } from '@dawlessdaw/midi';
 import type { ActiveNoteKey, MidiRoute, RoutingPreset } from './types';
+
+type NoteTiming = Omit<Extract<MidiRouteTiming, { mode: 'live' }>, 'sentAtMs'> |
+  Omit<Extract<MidiRouteTiming, { mode: 'song' }>, 'sentAtMs'>;
 
 function noteKey(destPortId: PortId, channel: number, note: number): string {
   return `${destPortId}:${channel}:${note}`;
@@ -115,11 +118,11 @@ export class MidiRoutingEngine {
    * Inject a synthetic source message through the same route table
    * (used by the Dawlessdaw sequencer — no duplicate destination map).
    */
-  inject(message: MidiMessage): void {
-    this.handleIncoming(message, message.timestamp);
+  inject(message: MidiMessage, songDueAtMs?: number): void {
+    this.handleIncoming(message, message.timestamp, songDueAtMs);
   }
 
-  handleIncoming(message: MidiMessage, scheduledAt?: number): void {
+  handleIncoming(message: MidiMessage, scheduledAt?: number, songDueAtMs?: number): void {
     // Feedback loop prevention
     const lastOut = this.recentOut.get(message.portId);
     if (lastOut !== undefined && message.timestamp - lastOut < this.feedbackWindowMs) {
@@ -130,6 +133,12 @@ export class MidiRoutingEngine {
     if (message.kind === 'sysex' || message.kind === 'unknown') return;
 
     const clockLike = isClockLike(message.kind);
+    const isNote = message.kind === 'note-on' || message.kind === 'note-off';
+    const timing = isNote
+      ? songDueAtMs !== undefined
+        ? { mode: 'song' as const, source: message, dueAtMs: songDueAtMs }
+        : scheduledAt === undefined ? { mode: 'live' as const, source: message } : undefined
+      : undefined;
 
     for (const route of this.routes) {
       if (!route.enabled) continue;
@@ -167,7 +176,7 @@ export class MidiRoutingEngine {
 
         // Live input timestamps describe when MIDI arrived. Only injected
         // sequencer messages specify when the output should play.
-        this.sendOut(dest.portId, transformed, route.id, scheduledAt);
+        this.sendOut(dest.portId, transformed, route.id, scheduledAt, timing);
       }
     }
   }
@@ -250,8 +259,8 @@ export class MidiRoutingEngine {
     return data;
   }
 
-  private sendOut(portId: PortId, data: Uint8Array, routeId: string, timestamp?: number): void {
-    this.rawSend(portId, data, timestamp);
+  private sendOut(portId: PortId, data: Uint8Array, routeId: string, timestamp?: number, timing?: NoteTiming): void {
+    this.rawSend(portId, data, timestamp, routeId, timing);
 
     const parsedKind = data[0]!;
     const isNoteOn = (parsedKind & 0xf0) === 0x90 && (data[2] ?? 0) > 0;
@@ -277,7 +286,7 @@ export class MidiRoutingEngine {
     });
   }
 
-  private rawSend(portId: PortId, data: Uint8Array, timestamp?: number): void {
+  private rawSend(portId: PortId, data: Uint8Array, timestamp?: number, routeId?: string, timing?: NoteTiming): void {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     // Prefer scheduled timestamp (sequencer look-ahead); fall back to now.
     const ts =
@@ -292,6 +301,8 @@ export class MidiRoutingEngine {
     this.bus?.emit({
       type: 'midi:out',
       message: parseMidiMessage(data, ts, portId),
+      routeId,
+      timing: timing && { ...timing, sentAtMs: now },
     });
   }
 }

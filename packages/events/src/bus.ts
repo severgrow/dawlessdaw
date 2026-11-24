@@ -1,9 +1,13 @@
 import type { DeviceId, MidiMessage, FocusState, SceneId, SessionId } from '@dawlessdaw/core';
 import { isClockLike } from '@dawlessdaw/core';
 
+export type MidiRouteTiming = { source: MidiMessage; sentAtMs: number } & (
+  { mode: 'live' } | { mode: 'song'; dueAtMs: number }
+);
+
 export type StudioEvent =
   | { type: 'midi:in'; message: MidiMessage; deviceId?: DeviceId }
-  | { type: 'midi:out'; message: MidiMessage; deviceId?: DeviceId; routeId?: string }
+  | { type: 'midi:out'; message: MidiMessage; deviceId?: DeviceId; routeId?: string; timing?: MidiRouteTiming }
   | { type: 'midi:clock'; message: MidiMessage; deviceId?: DeviceId; direction?: 'in' | 'out' }
   | { type: 'device:connected'; deviceId: DeviceId }
   | { type: 'device:disconnected'; deviceId: DeviceId }

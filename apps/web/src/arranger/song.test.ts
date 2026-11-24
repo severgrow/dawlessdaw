@@ -104,4 +104,37 @@ describe('Circuit Song clips', () => {
       vi.useRealTimers();
     }
   });
+
+  it('reports scheduled times and releases active notes instead of bursting after a stall', () => {
+    vi.useFakeTimers();
+    try {
+      let now = 1000;
+      const sent = vi.fn();
+      const release = vi.fn();
+      const changed = vi.fn();
+      const player = new SongPlayer(sent, release, changed, () => now);
+      player.play({ bpm: 125, clips: [{
+        track: 1, bar: 0, id: 'clip', length: 1,
+        notes: [
+          { at: 0, end: 20, pitch: 36, velocity: 100 },
+          { at: 2, end: 5, pitch: 42, velocity: 100 },
+        ],
+      }] }, 0);
+      now = 1043;
+      vi.advanceTimersByTime(4);
+      expect(sent.mock.calls).toEqual([
+        [{ tick: 0, track: 1, pitch: 36, velocity: 100 }, 1000],
+        [{ tick: 2, track: 1, pitch: 42, velocity: 100 }, 1040],
+      ]);
+      now = 1243;
+      vi.advanceTimersByTime(4);
+      expect(sent).toHaveBeenCalledTimes(2);
+      expect(release).toHaveBeenCalledOnce();
+      expect(changed).toHaveBeenLastCalledWith('Song stopped after a playback delay');
+      expect(player.playingBar).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
 });

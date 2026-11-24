@@ -35,7 +35,8 @@ import {
   type SeqScheduledNote,
   type SeqStep,
 } from '@dawlessdaw/sequencer';
-import { StudioEventBus } from '@dawlessdaw/events';
+import { StudioEventBus, type StudioEvent } from '@dawlessdaw/events';
+import { MidiSendTiming, type MidiTimingStats } from '../timing/midiSendTiming';
 import {
   MidiEventRecorder,
   NativeBridgeTransport,
@@ -123,7 +124,6 @@ import {
   trackPreset,
   migrateClockForwarding,
   mpcClockPortAdvice,
-  MY_STUDIO_CHANNEL_REMAP,
   normalizePortId,
   portsForRoles,
   resolveSectionBridge,
@@ -269,7 +269,8 @@ export interface StudioRuntimeSnapshot {
   lastProject: { index: number; kind: string; matched: boolean; at: number } | null;
   benchResults: BenchTestResult[];
   benchDetections: string[];
-  latencyStats: { samples: number; meanMs: number; jitterMs: number; message: string } | null;
+  latencyStats: (MidiTimingStats & { message: string }) | null;
+  songTimingStats: MidiTimingStats | null;
   capturingSceneMidi: boolean;
   /** Throttled USB clock monitor (Circuit in → MPC/SP out when app forwarding is on). */
   clockActivity: {
@@ -436,13 +437,6 @@ function saveSpEffectNames(profile: SpEffectNameProfile): void {
   }
 }
 
-/** MPC channel (9–12) → Circuit track channel (1–4), from the My Studio remap. */
-const MPC_CHANNEL_TO_CIRCUIT: Readonly<Record<number, number>> = Object.fromEntries(
-  Object.entries(MY_STUDIO_CHANNEL_REMAP)
-    .filter(([from]) => Number(from) >= 1 && Number(from) <= 4)
-    .map(([from, to]) => [to, Number(from)]),
-);
-
 function loadSetup(): PersistedStudioSetup | null {
   try {
     if (typeof localStorage === 'undefined') return null;
@@ -587,9 +581,7 @@ export class StudioRuntime {
   private benchResults: BenchTestResult[] = emptyBenchResults();
   private benchDetections: string[] = [];
   private rawMidiLog: BenchExport['rawMidiLog'] = [];
-  private latencySamples: number[] = [];
-  private latencyStats: StudioRuntimeSnapshot['latencyStats'] = null;
-  private pendingNoteIns = new Map<string, number>();
+  private readonly midiSendTiming = new MidiSendTiming();
   private capturingSceneMidi = false;
   private captureTimer: ReturnType<typeof setTimeout> | null = null;
   private clockInTicks = 0;
@@ -676,11 +668,11 @@ export class StudioRuntime {
   });
 
   private readonly songPlayer = new SongPlayer(
-    ({ track, pitch, velocity }) => {
+    ({ track, pitch, velocity }, dueAtMs) => {
       const port = portsForRoles(this.assignments).circuitIn;
       if (!port) return;
       const data = velocity > 0 ? buildNoteOn(track, pitch, velocity) : buildNoteOff(track, pitch, 0);
-      this.routing.inject(parseMidiMessage(data, performance.now(), port));
+      this.routing.inject(parseMidiMessage(data, performance.now(), port), dueAtMs);
     },
     () => this.routing.allNotesOff(),
     (message) => {
@@ -793,6 +785,7 @@ export class StudioRuntime {
   }
 
   getSnapshot(): StudioRuntimeSnapshot {
+    const latency = this.midiSendTiming.stats('live');
     return {
       midiReady: this.midiReady,
       midiError: this.midiError,
@@ -856,7 +849,8 @@ export class StudioRuntime {
         detections: [...r.detections],
       })),
       benchDetections: [...this.benchDetections],
-      latencyStats: this.latencyStats ? { ...this.latencyStats } : null,
+      latencyStats: latency ? { ...latency, message: latencyVerdict(latency.meanMs, latency.jitterMs).message } : null,
+      songTimingStats: this.midiSendTiming.stats('song'),
       capturingSceneMidi: this.capturingSceneMidi,
       clockActivity: {
         lastInKind: this.lastClockInKind,
@@ -2801,10 +2795,20 @@ export class StudioRuntime {
   }
 
   exportBenchJson(): string {
-    const stamp = new Date().toISOString().slice(0, 10);
     const payload = buildBenchExport(this.benchResults, this.rawMidiLog.slice(-2000));
-    void stamp;
-    return JSON.stringify(payload, null, 2);
+    return JSON.stringify({
+      ...payload,
+      midiSendTiming: {
+        liveCircuitToMpc: this.midiSendTiming.stats('live'),
+        songDispatch: this.midiSendTiming.stats('song'),
+        events: this.midiSendTiming.exportTrace(),
+      },
+    }, null, 2);
+  }
+
+  resetMidiSendTiming(): void {
+    this.midiSendTiming.reset();
+    this.notify();
   }
 
   downloadBenchJson(): void {
@@ -2976,11 +2980,6 @@ export class StudioRuntime {
         this.pushBenchDetection(
           'circuit-notes-1-8',
           `note ch${message.channel} n${message.note}`,
-        );
-        if (this.pendingNoteIns.size > 256) this.pendingNoteIns.clear();
-        this.pendingNoteIns.set(
-          `${message.channel}:${message.note}`,
-          typeof performance !== 'undefined' ? performance.now() : Date.now(),
         );
       }
 
@@ -3359,42 +3358,13 @@ export class StudioRuntime {
     }
   }
 
-  /**
-   * Timing Circuit → app → MPC output. Called for every note-on the app sends.
-   * Only notes sent to the MPC's output port count, and the MPC's channel (9–12)
-   * is mapped back to the Circuit track channel (1–4) to find the matching note-in.
-   * This measures the Mac side only (USB in → Web MIDI send); the Scarlett's
-   * USB → DIN hop and the MPC itself are not included.
-   */
-  recordOutboundLatency(note: number, channel: number, portId: string): void {
-    const mpcOut = portsForRoles(this.assignments).mpcOut;
-    if (!mpcOut || portId !== mpcOut) return;
-    const sourceChannel = MPC_CHANNEL_TO_CIRCUIT[channel];
-    if (sourceChannel === undefined) return;
-    const key = `${sourceChannel}:${note}`;
-    const t0 = this.pendingNoteIns.get(key);
-    if (t0 === undefined) return;
-    this.pendingNoteIns.delete(key);
-    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const dt = now - t0;
-    this.latencySamples = [...this.latencySamples.slice(-63), dt];
-    const mean =
-      this.latencySamples.reduce((a, b) => a + b, 0) / this.latencySamples.length;
-    const variance =
-      this.latencySamples.reduce((a, b) => a + (b - mean) ** 2, 0) /
-      this.latencySamples.length;
-    const jitter = Math.sqrt(variance);
-    const v = latencyVerdict(mean, jitter);
-    this.latencyStats = {
-      samples: this.latencySamples.length,
-      meanMs: Math.round(mean * 10) / 10,
-      jitterMs: Math.round(jitter * 10) / 10,
-      message: v.message,
-    };
-    this.pushBenchDetection(
-      'timing-circuit-to-mpc',
-      `${this.latencyStats.meanMs}ms mean, ${this.latencyStats.jitterMs}ms jitter — ${v.band}`,
-    );
+  recordOutboundTiming(event: Extract<StudioEvent, { type: 'midi:out' }>): void {
+    const { timing, message, routeId } = event;
+    if (!timing || !routeId) return;
+    const ports = portsForRoles(this.assignments);
+    if (timing.source.portId !== ports.circuitIn) return;
+    this.midiSendTiming.record(timing, message, routeId,
+      timing.mode === 'song' || message.portId === ports.mpcOut);
   }
 
   private pushBenchDetection(id: string, line: string): void {
@@ -3448,14 +3418,12 @@ export function getStudioRuntime(): StudioRuntime {
     singleton = new StudioRuntime();
     singleton.bus.on('midi:out', (ev) => {
       if (ev.type !== 'midi:out') return;
+      singleton?.recordOutboundTiming(ev);
       const data = ev.message.data;
       if (!data.length) return;
       const status = data[0]!;
       if ((status & 0xf0) === 0x90 && (data[2] ?? 0) > 0) {
         singleton?.recordOutActivity(ev.message.portId);
-        const channel = (status & 0x0f) + 1;
-        const note = data[1] ?? 0;
-        singleton?.recordOutboundLatency(note, channel, ev.message.portId);
       }
       // Phase 3 — SP live ticks + pad lights from any SP-bound outbound MIDI.
       singleton?.observeSpOutbound(ev.message.portId, data);

@@ -6,7 +6,7 @@ export class SongPlayer {
   private bar: number | null = null;
 
   constructor(
-    private readonly send: (event: SongEvent) => void,
+    private readonly send: (event: SongEvent, dueAtMs: number) => void,
     private readonly release: () => void,
     private readonly changed: (message?: string) => void,
     private readonly now = () => performance.now(),
@@ -34,7 +34,10 @@ export class SongPlayer {
       }
       lastUpdate = now;
       const tick = (now - startedAt) / msPerTick;
-      while (i < events.length && events[i]!.tick <= tick) this.send(events[i++]!);
+      while (i < events.length && events[i]!.tick <= tick) {
+        const event = events[i++]!;
+        this.send(event, startedAt + event.tick * msPerTick);
+      }
       if (tick >= endTick) {
         this.stop('Song finished');
         return;
