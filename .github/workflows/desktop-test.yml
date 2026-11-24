@@ -27,6 +27,9 @@ jobs:
       - run: npm ci
       - run: npm run build:desktop
       - name: Package Apple Silicon installer
+        env:
+          # Only ad-hoc signing is enabled. This same-repo job receives no signing secrets.
+          CSC_FOR_PULL_REQUEST: 'true'
         run: npm run dist:mac -w @dawlessdaw/desktop -- --arm64 --publish never -c.mac.identity=- -c.mac.hardenedRuntime=false -c.mac.notarize=false
       - name: Verify disk image and app signature
         shell: bash
