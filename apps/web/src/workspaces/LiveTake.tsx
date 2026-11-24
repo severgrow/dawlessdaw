@@ -80,7 +80,7 @@ export function LiveTake() {
           <>
             <input aria-label="Part name" value={name} maxLength={40} placeholder="Part name (optional)"
               onChange={(event) => setName(event.target.value)} />
-            <button type="submit">Keep as Part</button>
+            <button type="submit" className={circuitPlaying ? 'console-primary' : ''}>Keep as Part</button>
           </>
         ))}
       </div>

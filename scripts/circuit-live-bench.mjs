@@ -273,6 +273,8 @@ try {
   const drawer = page.getByRole('button', { name: 'Parts · 2', exact: true });
   await drawer.waitFor();
   assert.equal(await drawer.getAttribute('aria-expanded'), 'false');
+  const lastLane = await timeline.getByRole('button', { name: 'Mute track 8', exact: true }).boundingBox();
+  assert(lastLane && lastLane.y + lastLane.height <= 880, 'show all eight lanes at 950×900 with Parts collapsed');
   await drawer.click();
   assert.equal(await page.getByRole('button', { name: 'Hide Parts · 2', exact: true }).getAttribute('aria-expanded'), 'true');
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));

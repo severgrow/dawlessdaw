@@ -439,3 +439,19 @@
   background: repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px calc(100% / var(--song-bars)));
 }
 .song-variation button[aria-pressed='true'] { box-shadow: inset 0 0 0 1px var(--mint-5); }
+
+@media (max-width: 1040px) {
+  .song-workbench[data-parts='closed'] { position: relative; }
+  .song-workbench[data-parts='closed'] .song-parts-column {
+    position: absolute;
+    inset: 0 auto auto 0;
+  }
+  .song-workbench[data-parts='closed'] .song-view-controls {
+    padding-inline-start: 126px;
+    flex-wrap: wrap;
+  }
+  .song-workbench[data-parts='closed'] .song-parts-toggle { margin: 0; }
+  .song-grid .song-row { grid-template-rows: minmax(44px, auto); }
+  .song-grid .song-lane { padding-block: 2px; }
+  .song-grid .song-lane button { min-height: 36px !important; }
+}

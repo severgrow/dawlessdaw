@@ -1012,6 +1012,8 @@
 .app-premium-v4 > .device-strip--compact .device-chip {
   display: inline-flex !important;
   flex: 0 1 auto;
+  flex-direction: row;
+  align-items: center;
   width: auto;
   min-width: 0;
   gap: 7px;
