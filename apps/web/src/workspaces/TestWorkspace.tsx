@@ -5,6 +5,7 @@ import {
   MPC_MUTE_LEARN_CHANNEL,
   type BenchVerdict,
 } from '@dawlessdaw/devices';
+import { CircuitTracksProbe } from './CircuitTracksProbe';
 import { CircuitDeepSyncBench } from '../circuit-deep-sync/CircuitDeepSyncBench';
 import { loadExperimentalUi } from '../nav/tabs';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
@@ -62,6 +63,8 @@ export function TestWorkspace() {
         </dl>
         <p className="muted small">Reset before a take. Export results includes recent inputs, sends, and the slowest send in each mode since reset.</p>
       </div>
+
+      <CircuitTracksProbe />
 
       {experimental ? (
         <CircuitDeepSyncBench />

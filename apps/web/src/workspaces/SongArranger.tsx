@@ -1,28 +1,33 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { CAPTURE_CLOCKS_PER_BAR } from '@dawlessdaw/midi';
 import { portsForRoles } from '@dawlessdaw/devices';
-import { canPlace, CLIP_LENGTHS, loadSong, sectionClips, SONG_BARS, SONG_STORAGE_KEY, SONG_TRACKS, type ClipLength, type SongClip } from '../arranger/song';
+import { CLIP_LENGTHS, sectionClips, SONG_BARS, SONG_TRACKS, type ClipLength, type Song, type SongClip, type SongPart } from '../arranger/song';
+import { accentPart, partClips, partFromTake, placePart, placementError, removePart, updatePart } from '../arranger/songParts';
+import { editSong, getSongSnapshot, subscribeSong, undoSong } from '../arranger/songStore';
+import { SongBackup } from './SongBackup';
+import { SongParts } from './SongParts';
 import { songMidi } from '../arranger/songMidi';
 import { songTrackOutputs } from '../arranger/songRoutes';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
 import './songArranger.css';
 
 export function SongArranger() {
-  const { getRuntime, seqStop } = useStudioActions();
+  const { getRuntime, seqStop, setWorkspace } = useStudioActions();
   const snap = useStudioStore();
-  const [song, setSong] = useState(() => loadSong(localStorage));
+  const { song, canUndo, canRedo } = useSyncExternalStore(subscribeSong, getSongSnapshot);
   const [length, setLength] = useState<ClipLength>(2);
   const [quantize, setQuantize] = useState(false);
-  const [looping, setLooping] = useState(false);
+  const [tempoDraft, setTempoDraft] = useState<string>();
   const [cue, setCue] = useState(0);
   const [selectedId, setSelectedId] = useState<string>();
   const mutedTracks = song.mutedTracks ?? [];
   const [feedback, setFeedback] = useState('');
-  const [saveFailed, setSaveFailed] = useState(false);
   const selected = song.clips.find((clip) => clip.id === selectedId);
   const pitches = [...new Set(selected?.notes.map((note) => note.pitch))].sort((a, b) => b - a);
-  const activeBar = snap.songPlayingBar;
-  const playing = activeBar != null;
+  const playing = snap.songPlayback != null;
+  const previewing = snap.songPlayback?.source === 'part';
+  const activeBar = snap.songPlayback?.source === 'song' || snap.songPlayback?.source === 'song-loop'
+    ? snap.songPlayingBar : null;
   const visibleLength = Math.min(length, SONG_BARS - cue);
   const section = useMemo(
     () => cue + length <= SONG_BARS ? sectionClips(song.clips, cue, length) : [],
@@ -31,14 +36,52 @@ export function SongArranger() {
   const playableSection = section.filter((clip) => !mutedTracks.includes(clip.track));
   const assigned = portsForRoles(snap.assignments);
 
-  useEffect(() => {
+  function commit(next: Song, message = '', select?: string): boolean {
     try {
-      localStorage.setItem(SONG_STORAGE_KEY, JSON.stringify(song));
-      setSaveFailed(false);
+      editSong(next);
+      if (select !== undefined) setSelectedId(select);
+      setFeedback(message);
+      return true;
     } catch {
-      setSaveFailed(true);
+      setFeedback('Could not save your changes. Your saved Song is still available.');
+      return false;
     }
-  }, [song]);
+  }
+
+  function history(redo: boolean) {
+    try {
+      undoSong(redo);
+      setSelectedId(undefined);
+      setFeedback(redo ? 'Change restored.' : 'Change undone.');
+    } catch {
+      setFeedback('Could not save your changes. Your saved Song is still available.');
+    }
+  }
+
+  function addPart(part: SongPart, linked: boolean) {
+    const result = placePart(song, part, cue, linked);
+    if ('error' in result) return setFeedback(result.error);
+    if (commit(result.song, `Placed ${part.name} at bar ${cue + 1}.`, result.clips[0]?.id)) setLength(part.length);
+  }
+
+  function previewPart(part: SongPart) {
+    if (previewing) {
+      seqStop();
+      setFeedback('');
+      return;
+    }
+    setFeedback(getRuntime().playSong({ bpm: part.bpm, clips: partClips(part, 0, false) }, 0, part.length, 'part') ?? `Previewing ${part.name}.`);
+  }
+
+  function replacePart(part: SongPart, withTake: boolean, name = part.name) {
+    const take = snap.liveTake;
+    if (withTake && !take) return;
+    const replacement = withTake && take
+      ? { ...partFromTake(take.song, take.length, name), id: part.id } : { ...part, name };
+    const result = updatePart(song, replacement);
+    if ('error' in result) return setFeedback(result.error);
+    commit(result.song, withTake ? `Replaced ${part.name} and updated its linked placements.` : `Renamed Part to ${name}.`);
+  }
 
   function capture() {
     const take = getRuntime().captureCircuitSong(length, quantize);
@@ -47,45 +90,43 @@ export function SongArranger() {
       return;
     }
     const clips = take.clips.map((clip) => ({ ...clip, id: crypto.randomUUID(), bar: cue }));
-    if (clips.some((clip) => !canPlace(song.clips, clip))) {
-      setFeedback('The take overlaps a clip or extends past bar 32. Pick another bar on the ruler.');
-      return;
-    }
-    setSong({ ...song, bpm: song.clips.length ? song.bpm : take.bpm, clips: [...song.clips, ...clips] });
-    setSelectedId(clips[0]?.id);
+    const error = placementError(song.clips, clips);
+    if (error) return setFeedback(error);
     const notes = clips.reduce((sum, clip) => sum + clip.notes.length, 0);
-    setFeedback(`Captured ${notes} notes across ${clips.length} of 8 lanes at ${take.bpm} BPM.`);
+    commit({ ...song, bpm: song.clips.length ? song.bpm : take.bpm, clips: [...song.clips, ...clips] },
+      `Captured ${notes} notes across ${clips.length} of 8 lanes at ${take.bpm} BPM.`, clips[0]?.id);
+  }
+
+  function placementFor(clip: SongClip) {
+    return clip.partId ? song.clips.filter((item) => item.bar === clip.bar && item.partId === clip.partId) : [clip];
   }
 
   function placeClip(clip: SongClip, copy: boolean) {
-    const placed = { ...clip, bar: cue, id: copy ? crypto.randomUUID() : clip.id };
-    if (!canPlace(song.clips, placed)) {
-      setFeedback('That clip overlaps another clip on this lane or extends past bar 32.');
-      return;
-    }
-    setSong({ ...song, clips: [...song.clips.filter((item) => item.id !== placed.id), placed] });
-    setSelectedId(placed.id);
-    setFeedback(`${copy ? 'Copied' : 'Moved'} T${clip.track} clip to bar ${cue + 1}.`);
+    const selection = placementFor(clip);
+    const existing = copy ? song.clips : song.clips.filter((item) => !selection.includes(item));
+    const placed = selection.map((item) => copy
+      ? { ...item, bar: cue, id: crypto.randomUUID(), partId: undefined }
+      : { ...item, bar: cue });
+    const error = placementError(existing, placed);
+    if (error) return setFeedback(error);
+    commit({ ...song, clips: [...existing, ...placed] },
+      `${copy ? 'Copied' : 'Moved'} ${clip.title ?? `T${clip.track} clip`} to bar ${cue + 1}.`,
+      placed.find((item) => item.track === clip.track)?.id);
   }
 
   function play(loop = false) {
     const clips = loop ? playableSection : song.clips.filter((clip) => !mutedTracks.includes(clip.track));
     const error = getRuntime().playSong({ ...song, clips }, cue, loop ? length : undefined);
-    setLooping(loop && !error);
     setFeedback(error ?? '');
   }
 
   function duplicateSection() {
     const target = cue + length;
     const clips = section.map((clip) => ({ ...clip, id: crypto.randomUUID(), bar: target }));
-    if (clips.some((clip) => !canPlace(song.clips, clip))) {
-      setFeedback('The next section overlaps a clip or extends past bar 32.');
-      return;
-    }
-    setSong({ ...song, clips: [...song.clips, ...clips] });
-    setSelectedId(clips[0]?.id);
-    setCue(target);
-    setFeedback(`Duplicated ${length} ${length === 1 ? 'bar' : 'bars'} across ${clips.length} of 8 lanes to bar ${target + 1}.`);
+    const error = placementError(song.clips, clips);
+    if (error) return setFeedback(error);
+    if (commit({ ...song, clips: [...song.clips, ...clips] },
+      `Duplicated ${length} ${length === 1 ? 'bar' : 'bars'} across ${clips.length} of 8 lanes to bar ${target + 1}.`, clips[0]?.id)) setCue(target);
   }
 
   function exportMidi() {
@@ -103,7 +144,7 @@ export function SongArranger() {
       <header className="song-head">
         <div>
           <h1 id="song-title">Song arranger</h1>
-          <p>Play Circuit with Clock Tx and Note Tx on. Let the next bar begin, then capture the last complete bars.</p>
+          <p>Cue a bar to place a saved Part or capture directly from Circuit.</p>
         </div>
         <div className="song-controls">
           <label>
@@ -116,7 +157,7 @@ export function SongArranger() {
             <input type="checkbox" checked={quantize} onChange={(event) => setQuantize(event.target.checked)} disabled={playing} />
             Quantize new takes to 1/16
           </label>
-          <button type="button" className="console-primary" onClick={capture} disabled={playing || cue + length > SONG_BARS}>Capture to bar {cue + 1}</button>
+          <button type="button" className={song.parts?.length ? '' : 'console-primary'} onClick={capture} disabled={playing || cue + length > SONG_BARS}>Capture to bar {cue + 1}</button>
         </div>
       </header>
       <div className="song-transport">
@@ -130,18 +171,40 @@ export function SongArranger() {
           <label className="song-bpm">
             Song BPM
             <input
-              type="number" min="20" max="400" step="0.1" value={song.bpm} disabled={playing}
-              onChange={(event) => {
-                const bpm = event.target.valueAsNumber;
-                if (Number.isFinite(bpm)) setSong({ ...song, bpm });
+              type="number" min="20" max="400" step="0.1" value={tempoDraft ?? song.bpm} disabled={playing}
+              onChange={(event) => setTempoDraft(event.target.value)}
+              onBlur={(event) => {
+                const value = event.target.valueAsNumber;
+                const bpm = Math.min(400, Math.max(20, value));
+                if (Number.isFinite(bpm) && bpm !== song.bpm) commit({ ...song, bpm });
+                setTempoDraft(undefined);
               }}
-              onBlur={() => setSong({ ...song, bpm: Math.min(400, Math.max(20, song.bpm)) })}
+              onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
             />
           </label>
         </div>
-        <span className="song-state">{playing
-          ? `${looping ? 'Looping' : 'Playing'} bar ${activeBar + 1}`
-          : visibleLength === 1 ? `Section · Bar ${cue + 1}` : `Section · Bars ${cue + 1}–${cue + visibleLength}`}</span>
+        <span className="song-state">{activeBar != null
+          ? `${snap.songPlayback?.source === 'song-loop' ? 'Looping' : 'Playing'} bar ${activeBar + 1}`
+          : previewing ? 'Previewing Part' : playing ? 'Live take looping' : visibleLength === 1 ? `Section · Bar ${cue + 1}` : `Section · Bars ${cue + 1}–${cue + visibleLength}`}</span>
+      </div>
+      <SongParts parts={song.parts ?? []} cue={cue} busy={playing} previewing={previewing} hasTake={!!snap.liveTake}
+        onPlace={addPart} onPreview={previewPart} onRename={(part, name) => replacePart(part, false, name)}
+        onAccent={(part, track) => {
+          const variation = accentPart(part, track);
+          if (commit({ ...song, parts: [variation, ...(song.parts ?? [])] }, `Saved accent variation on T${track}.`)) return variation.id;
+        }}
+        onReplace={(part) => replacePart(part, true)}
+        onRemove={(part) => commit(removePart(song, part), `Removed ${part.name} from Parts. Its Song clips are now independent.`)}
+        onGoLive={() => setWorkspace('controller')} />
+      <p className="song-feedback" role="status">{feedback ||
+        (activeBar == null && snap.statusLine.startsWith('Song ') ? snap.statusLine : '')}</p>
+      <div className="song-controls song-section-actions">
+        <button type="button" disabled={playing || !canUndo} onClick={() => history(false)}>Undo</button>
+        <button type="button" disabled={playing || !canRedo} onClick={() => history(true)}>Redo</button>
+        <button type="button" disabled={playing || !section.length || cue + length * 2 > SONG_BARS}
+          onClick={duplicateSection}>Duplicate section</button>
+        <button type="button" disabled={!song.clips.some((clip) => !mutedTracks.includes(clip.track))}
+          onClick={exportMidi}>Export MIDI</button>
       </div>
       <div className="song-scroll" tabIndex={0} role="region" aria-label="Eight-track song timeline">
         <div className="song-grid" style={{ '--song-bars': SONG_BARS } as CSSProperties}>
@@ -165,18 +228,19 @@ export function SongArranger() {
                 <div className="song-lane">
                   <div title={routing}><strong className="mono">T{track}</strong><span>{routing}</span></div>
                   <button type="button" aria-label={`Mute track ${track}`} aria-pressed={muted} disabled={playing}
-                    onClick={() => setSong({ ...song, mutedTracks: muted ? mutedTracks.filter((item) => item !== track) : [...mutedTracks, track] })}>M</button>
+                    onClick={() => commit({ ...song, mutedTracks: muted ? mutedTracks.filter((item) => item !== track) : [...mutedTracks, track] })}>M</button>
                 </div>
-                <div className="song-cue" data-playhead={playing} style={{ gridColumn: activeBar != null ? activeBar + 2 : cue + 2 }} />
+                <div className="song-cue" data-playhead={activeBar != null} style={{ gridColumn: activeBar != null ? activeBar + 2 : cue + 2 }} />
                 {song.clips.filter((clip) => clip.track === track).map((clip) => (
                   <button type="button" key={clip.id} className="song-clip"
                     style={{ gridColumn: `${clip.bar + 2} / span ${clip.length}` }}
                     aria-pressed={selectedId === clip.id}
-                    aria-label={`Track ${track}, bar ${clip.bar + 1}, ${clip.length} bars, ${clip.notes.length} notes`}
+                    aria-label={`${clip.title ? `${clip.title}, ` : ''}Track ${track}, bar ${clip.bar + 1}, ${clip.length} bars, ${clip.notes.length} notes`}
                     data-muted={muted}
+                    data-linked={!!clip.partId}
                     onClick={() => setSelectedId(clip.id)}>
-                    <span>{clip.length} {clip.length === 1 ? 'bar' : 'bars'}</span>
-                    <small>{clip.notes.length} notes</small>
+                    <span>{clip.title ?? `${clip.length} ${clip.length === 1 ? 'bar' : 'bars'}`}</span>
+                    <small>{clip.partId ? 'Linked · ' : ''}{clip.notes.length} notes</small>
                   </button>
                 ))}
               </div>
@@ -184,24 +248,18 @@ export function SongArranger() {
           })}
         </div>
       </div>
-      <div className="song-controls song-section-actions">
-        <button type="button" disabled={playing || !section.length || cue + length * 2 > SONG_BARS}
-          onClick={duplicateSection}>Duplicate section</button>
-        <button type="button" disabled={!song.clips.some((clip) => !mutedTracks.includes(clip.track))}
-          onClick={exportMidi}>Export MIDI</button>
-      </div>
       <div className="song-inspector">
         {selected ? (
           <>
-            <span><strong>T{selected.track} · Bar {selected.bar + 1}</strong> · {selected.notes.length} notes</span>
+            <span><strong>{selected.title ? `${selected.title} · ` : ''}T{selected.track} · Bar {selected.bar + 1}</strong> · {selected.notes.length} notes</span>
             <div className="song-controls">
-              <button type="button" disabled={playing || cue === selected.bar} onClick={() => placeClip(selected, false)}>Move to cue</button>
-              <button type="button" disabled={playing || cue === selected.bar} onClick={() => placeClip(selected, true)}>Copy to cue</button>
+              <button type="button" disabled={playing || cue === selected.bar} onClick={() => placeClip(selected, false)}>{selected.partId ? 'Move Part to cue' : 'Move to cue'}</button>
+              <button type="button" disabled={playing || cue === selected.bar} onClick={() => placeClip(selected, true)}>{selected.partId ? 'Copy Part to cue' : 'Copy to cue'}</button>
               <button type="button" className="danger" disabled={playing} onClick={() => {
-                setSong({ ...song, clips: song.clips.filter((clip) => clip.id !== selected.id) });
-                setSelectedId(undefined);
-                setFeedback('Clip deleted.');
-              }}>Delete clip</button>
+                const placement = placementFor(selected);
+                commit({ ...song, clips: song.clips.filter((clip) => !placement.includes(clip)) },
+                  selected.partId ? 'Part placement removed.' : 'Clip deleted.', '');
+              }}>{selected.partId ? 'Remove placement' : 'Delete clip'}</button>
             </div>
           </>
         ) : <span>Select a clip to move, copy or delete it. The ruler sets the cue for capture and playback.</span>}
@@ -224,9 +282,7 @@ export function SongArranger() {
           })}
         </div>
       )}
-      <p className="song-feedback" role="status">{saveFailed ? 'Local save failed. Your clips are only available in this window.' :
-        feedback || (activeBar == null && snap.statusLine.startsWith('Song ') ? snap.statusLine :
-          'Stop Circuit before playing the Song. Song playback sends MIDI notes through your assigned outputs.')}</p>
+      <SongBackup song={song} busy={playing} onRestore={(backup) => commit(backup, 'Backup restored.', '')} />
       {assigned.mpcOut && <p className="song-hint">On MPC, choose a program for each track, set its MIDI input to the lane’s channel, and set monitoring to In.</p>}
     </section>
   );

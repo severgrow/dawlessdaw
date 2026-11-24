@@ -34,7 +34,7 @@ export function CircuitTempo({
 
   const bpm = playback ? playback.bpm : view.bpm;
   const bpmText = formatCircuitBpm(bpm == null ? null : Math.round(bpm));
-  const label = playback ? (playback.source === 'song' ? 'SPLOT · Song playing' : 'SPLOT · Looping')
+  const label = playback ? (playback.source === 'song' ? 'SPLOT · Song playing' : playback.source === 'part' ? 'SPLOT · Part preview' : 'SPLOT · Looping')
     : view.phase === 'live' ? (health.position?.transport === 'playing' ? 'Circuit · Live' : 'Circuit · Locked')
       : view.label;
 

@@ -19,11 +19,21 @@ export interface SongClip {
   bar: number;
   length: ClipLength;
   notes: ClipNote[];
+  title?: string;
+  partId?: string;
+}
+export interface SongPart {
+  id: string;
+  name: string;
+  bpm: number;
+  length: ClipLength;
+  lanes: Pick<SongClip, 'track' | 'notes'>[];
 }
 export interface Song {
   bpm: number;
   clips: SongClip[];
   mutedTracks?: number[];
+  parts?: SongPart[];
 }
 export interface SongEvent {
   tick: number;
@@ -177,29 +187,66 @@ export function songEvents(clips: readonly SongClip[], fromBar: number): SongEve
   ).sort((a, b) => a.tick - b.tick || Number(a.velocity > 0) - Number(b.velocity > 0));
 }
 
+function validNotes(notes: ClipNote[], length: ClipLength): ClipNote[] {
+  if (!Array.isArray(notes)) return [];
+  return notes.filter((note) => note && Number.isFinite(note.at) &&
+    note.at >= 0 && Number.isFinite(note.end) && note.end > note.at &&
+    note.end <= length * TICKS_PER_BAR && Number.isInteger(note.pitch) &&
+    note.pitch >= 0 && note.pitch <= 127 && Number.isInteger(note.velocity) &&
+    note.velocity >= 1 && note.velocity <= 127);
+}
+
+function validBpm(bpm: number): boolean {
+  return Number.isFinite(bpm) && bpm >= 20 && bpm <= 400;
+}
+
+function loadParts(data: Song['parts']): SongPart[] {
+  const parts: SongPart[] = [];
+  if (!Array.isArray(data)) return parts;
+  for (const part of data) {
+    if (!part || typeof part.id !== 'string' || !part.id || parts.some((item) => item.id === part.id) ||
+        typeof part.name !== 'string' || !part.name.trim() || !validBpm(part.bpm) ||
+        !CLIP_LENGTHS.includes(part.length) || !Array.isArray(part.lanes)) continue;
+    const lanes: SongPart['lanes'] = [];
+    for (const lane of part.lanes) {
+      if (!lane || !SONG_TRACKS.some((track) => track === lane.track) ||
+          lanes.some((item) => item.track === lane.track)) continue;
+      const notes = validNotes(lane.notes, part.length);
+      if (notes.length) lanes.push({ track: lane.track, notes });
+    }
+    if (lanes.length) parts.push({ ...part, name: part.name.trim().slice(0, 40), lanes });
+  }
+  return parts;
+}
+
 export function loadSong(storage: Pick<Storage, 'getItem'>): Song {
   const empty = { bpm: 120, clips: [] };
   try {
     const saved: Song | null = JSON.parse(storage.getItem(SONG_STORAGE_KEY) ?? 'null');
-    if (!saved || !Number.isFinite(saved.bpm) || saved.bpm < 20 || saved.bpm > 400 ||
-        !Array.isArray(saved.clips)) return empty;
+    if (!saved || !validBpm(saved.bpm) || !Array.isArray(saved.clips)) return empty;
+    const parts = loadParts(saved.parts);
     const clips: SongClip[] = [];
     for (const clip of saved.clips) {
       if (!clip || typeof clip.id !== 'string' || clips.some((other) => other.id === clip.id) ||
         !SONG_TRACKS.some((track) => track === clip.track) || !CLIP_LENGTHS.includes(clip.length) ||
-        !canPlace(clips, clip) || !Array.isArray(clip.notes) || !clip.notes.length) continue;
-      const notes = clip.notes.filter((note) => note && Number.isFinite(note.at) &&
-        note.at >= 0 && Number.isFinite(note.end) && note.end > note.at &&
-        note.end <= clip.length * TICKS_PER_BAR && Number.isInteger(note.pitch) &&
-        note.pitch >= 0 && note.pitch <= 127 && Number.isInteger(note.velocity) &&
-        note.velocity >= 1 && note.velocity <= 127);
-      if (notes.length) clips.push({ ...clip, notes });
+        !canPlace(clips, clip)) continue;
+      const notes = validNotes(clip.notes, clip.length);
+      if (!notes.length) continue;
+      const part = parts.find((item) => item.id === clip.partId);
+      const lane = part?.length === clip.length && part.lanes.find((item) => item.track === clip.track);
+      const clean = { id: clip.id, bar: clip.bar, track: clip.track, length: clip.length, notes: lane ? lane.notes : notes };
+      const title = lane ? part?.name : typeof clip.title === 'string' ? clip.title.slice(0, 40) : undefined;
+      clips.push({ ...clean, ...(title ? { title } : {}), ...(lane && part ? { partId: part.id } : {}) });
     }
     const mutedTracks = Array.isArray(saved.mutedTracks)
       ? SONG_TRACKS.filter((track) => saved.mutedTracks!.includes(track))
       : [];
-    return { bpm: saved.bpm, clips, mutedTracks };
+    return { bpm: saved.bpm, clips, mutedTracks, ...(parts.length ? { parts } : {}) };
   } catch {
     return empty;
   }
+}
+
+export function saveSong(storage: Pick<Storage, 'setItem'>, song: Song): void {
+  storage.setItem(SONG_STORAGE_KEY, JSON.stringify(song));
 }
