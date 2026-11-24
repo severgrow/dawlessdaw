@@ -70,6 +70,8 @@ export function SectionsWorkspace() {
   return (
     <div className="section-enter">
       <SongArranger />
+      <details className="song-bridge">
+        <summary>Hardware Section Bridge · {bridge.enabled ? 'On' : 'Off'}</summary>
       <div className="page-head">
         <h2>Section Bridge</h2>
         <button
@@ -240,6 +242,7 @@ export function SectionsWorkspace() {
           </p>
         </MoreInfo>
       </div>
+      </details>
     </div>
   );
 }

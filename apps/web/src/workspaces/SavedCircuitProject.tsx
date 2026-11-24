@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
 import { parseNcsSession, type ParsedSession } from '@dawlessdaw/devices';
 import { circuitPatternClips, CIRCUIT_RATE_LABELS } from '../arranger/circuitImport';
-import { canPlace, loadSong, SONG_BARS, SONG_STORAGE_KEY, SONG_TRACKS } from '../arranger/song';
+import { canPlace, SONG_BARS, SONG_TRACKS } from '../arranger/song';
 import { useStudioActions, useStudioStore } from '../store/useStudioStore';
+import { editSong, getSongSnapshot } from '../arranger/songStore';
 import './savedCircuitProject.css';
 
 export function SavedCircuitProject({ onUseAsSource }: { onUseAsSource: (patterns: ParsedSession['patterns']) => void }) {
@@ -38,7 +39,7 @@ export function SavedCircuitProject({ onUseAsSource }: { onUseAsSource: (pattern
 
   function addToSong() {
     try {
-      const song = loadSong(localStorage);
+      const { song } = getSongSnapshot();
       const clips = patterns.flatMap((pattern) => circuitPatternClips(pattern, cue - 1));
       if (!clips.length) {
         setMessage('There are no playable hits inside the selected pattern ranges.');
@@ -48,7 +49,7 @@ export function SavedCircuitProject({ onUseAsSource }: { onUseAsSource: (pattern
         setMessage('The import overlaps a clip or extends past bar 32. Choose another start bar.');
         return;
       }
-      localStorage.setItem(SONG_STORAGE_KEY, JSON.stringify({ ...song, clips: [...song.clips, ...clips] }));
+      editSong({ ...song, clips: [...song.clips, ...clips] });
       setMessage(`Added ${clips.length} MIDI ${clips.length === 1 ? 'clip' : 'clips'} to Song from bar ${cue}.`);
       setAdded(true);
     } catch {

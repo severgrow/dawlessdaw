@@ -36,6 +36,7 @@ import {
   type SeqStep,
 } from '@dawlessdaw/sequencer';
 import { StudioEventBus, type StudioEvent } from '@dawlessdaw/events';
+import { circuitTracksNote } from '../timing/circuitTracksProbe';
 import { MidiSendTiming, type MidiTimingStats } from '../timing/midiSendTiming';
 import {
   MidiEventRecorder,
@@ -198,7 +199,7 @@ type RouteCheck =
   | { track: number; state: 'done'; note: number; outputs: { port: string; portId: string; channel: number; note: number }[] };
 
 type LiveTake = { length: ClipLength; song: Song };
-type SongPlayback = { bpm: number; source: 'take' | 'song-loop' | 'song' };
+type SongPlayback = { bpm: number; source: 'take' | 'part' | 'song-loop' | 'song' };
 
 export interface StudioRuntimeSnapshot {
   /** True once Chrome granted Web MIDI access. */
@@ -1499,6 +1500,7 @@ export class StudioRuntime {
     if (!this.midiReady || !port) return 'Connect and assign Circuit MIDI In in Setup.';
     if (this.clockService.getMusicalTime()?.transport === 'playing' &&
         this.transport.listPorts().some((input) => input.id === port && input.state === 'connected')) {
+      if (source === 'part') return 'Stop Circuit before previewing the Part.';
       return source === 'take' ? 'Stop Circuit before looping the take.' : 'Stop the Circuit transport before playing the Song.';
     }
     const tracks = new Set(song.clips.filter((clip) => clip.bar + clip.length > fromBar).map((clip) => clip.track));
@@ -1517,7 +1519,8 @@ export class StudioRuntime {
       this.songPlayback = null;
       return 'Place a clip at or after the selected bar.';
     }
-    this.setStatus(source === 'take' ? 'Looping captured take through Circuit routes' : 'Playing Song through Circuit track routes');
+    this.setStatus(source === 'part' ? 'Previewing Part through Circuit routes'
+      : source === 'take' ? 'Looping captured take through Circuit routes' : 'Playing Song through Circuit track routes');
     this.notify();
     return null;
   }
@@ -2916,6 +2919,17 @@ export class StudioRuntime {
       'Sent test Start / 24 clocks / Stop → MPC Out. The MPC should start and stop once.',
     );
     this.notify();
+  }
+
+  recentCircuitTracksNotes(portId: string) {
+    const notes: NonNullable<ReturnType<typeof circuitTracksNote>>[] = [];
+    for (let i = this.rawMidiLog.length - 1; i >= 0 && notes.length < 12; i--) {
+      const message = this.rawMidiLog[i]!;
+      if (message.portId !== portId) continue;
+      const note = circuitTracksNote(message.data);
+      if (note) notes.push(note);
+    }
+    return notes;
   }
 
   exportBenchJson(): string {

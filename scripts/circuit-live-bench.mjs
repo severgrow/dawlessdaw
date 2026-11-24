@@ -160,8 +160,90 @@ try {
   assert.equal(report.midiSendTiming.session.received, 9);
   assert.equal(report.midiSendTiming.session.live.sends, 8);
   assert(report.midiSendTiming.session.worstSends.song.delayMs <= 5);
+  await page.getByText('Circuit Tracks MIDI preview', { exact: true }).click();
+  await midi([0x93, 57, 90]);
+  await midi([0x99, 60, 100]);
+  await midi([0x99, 65, 80]);
+  await page.getByText('MIDI 2 · Ch 4 · Note 57 · Velocity 90', { exact: true }).waitFor();
+  await page.getByText('Drums 1–4 · Shared · Ch 10 · Note 60 · Velocity 100', { exact: true }).waitFor();
+  await page.getByText('Drums 1–4 · Shared · Ch 10 · Note 65 · Velocity 80', { exact: true }).waitFor();
+
+  await tab('Play');
+  await tab('Live');
+  await page.getByRole('textbox', { name: 'Part name' }).fill('Break A');
+  await button('Keep as Part');
+  await page.getByText('Saved to Parts · Break A', { exact: true }).waitFor();
+  await button('Open Parts in Song');
+  await button('Preview Part');
+  const transport = page.getByRole('region', { name: 'Transport', exact: true });
+  await transport.getByRole('status', { name: '110 BPM · SPLOT · Part preview' }).waitFor();
+  await button('Stop preview');
+
+  await button('Add to bar 1');
+  await button('Cue bar 5');
+  await button('Add to bar 5');
+  await button('Cue bar 9');
+  await button('Place independent copy');
+  await page.getByText('Manage Part', { exact: true }).click();
+  await button('Rename');
+  await page.getByRole('textbox', { name: 'New Part name' }).fill('Main Break');
+  await button('Save name');
+  const timeline = page.getByRole('region', { name: 'Eight-track song timeline' });
+  const clip = (name, bar) => timeline.getByRole('button', { name: new RegExp(`^${name}, Track 1, bar ${bar},`) });
+  await clip('Main Break', 1).waitFor();
+  await clip('Main Break', 5).waitFor();
+  await clip('Break A', 9).waitFor();
+  await button('Add to bar 9');
+  await page.getByText(/Track 1 is occupied/).waitFor();
+  await button('Undo');
+  await clip('Break A', 5).waitFor();
+  await button('Redo');
+  await clip('Main Break', 5).waitFor();
+
+  await page.getByRole('combobox', { name: 'Accent lane' }).selectOption('7');
+  await button('Make accent variation');
+  await page.getByText('Saved accent variation on T7.', { exact: true }).waitFor();
+  const verifyStored = () => page.evaluate(() => JSON.parse(localStorage.getItem('dawlessdaw.song.v1')));
+  let stored = await verifyStored();
+  assert.equal(stored.parts.length, 2);
+  assert.equal(stored.parts[0].lanes.find(({ track }) => track === 7).notes[0].velocity, 82);
+  assert.equal(stored.parts[1].lanes.find(({ track }) => track === 7).notes[0].velocity, 72);
+  assert(Math.abs(stored.parts[1].lanes.find(({ track }) => track === 7).notes[0].at - 13.4) < 0.001);
+
+  const midiDownload = page.waitForEvent('download');
+  await button('Export MIDI');
+  const file = await readFile(await (await midiDownload).path());
+  assert.equal(file.toString('ascii', 0, 4), 'MThd');
+  assert.equal(file.readUInt16BE(10), 4);
+  await page.getByText('Song backup', { exact: true }).click();
+  const backupDownload = page.waitForEvent('download');
+  await button('Download backup');
+  const backup = await readFile(await (await backupDownload).path());
+  await button('Undo');
+  assert.equal((await verifyStored()).parts.length, 1);
+  await page.getByLabel('Open backup', { exact: true }).setInputFiles({
+    name: 'splot-song-backup.json', mimeType: 'application/json', buffer: backup,
+  });
+  await page.getByText(/Restoring replaces the current Song and Parts/).waitFor();
+  assert.equal((await verifyStored()).parts.length, 1);
+  await button('Restore backup');
+  assert.equal((await verifyStored()).parts.length, 2);
+  await button('Undo');
+  assert.equal((await verifyStored()).parts.length, 1);
+  await button('Redo');
+  await page.reload();
+  await tab('Build');
+  await tab('Song');
+  await clip('Main Break', 1).waitFor();
+  await clip('Main Break', 5).waitFor();
+  await clip('Break A', 9).waitFor();
+  stored = await verifyStored();
+  assert.equal(stored.bpm, 110);
+  assert.equal(stored.clips.length, 9);
+  assert.equal(stored.clips.filter(({ partId }) => partId).length, 6);
+
   assert.deepEqual(errors, []);
-  console.log('Circuit live bench passed: 110 BPM, three routes, preserved groove, clean wrap, stop, hot-plug, and timing export.');
+  console.log('Circuit live bench passed: 110 BPM, three routes, preserved groove, clean wrap, stop, hot-plug, timing export, Tracks observation, and Parts save, preview, placement, undo, export, backup restore and reload.');
 } finally {
   await browser.close();
 }

@@ -256,6 +256,130 @@
   border-bottom: 2px solid var(--mint-3);
 }
 
+.song-parts {
+  border: 1px solid var(--line-hard);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  overflow: hidden;
+}
+.song-parts header,
+.song-parts-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+.song-parts header {
+  border-bottom: 1px solid var(--line);
+}
+.song-parts header h2,
+.song-parts p {
+  margin: 0;
+}
+.song-parts header span,
+.song-parts p,
+.song-part-list small,
+.song-part-tools summary {
+  color: var(--text-dim);
+}
+.song-parts-body {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(0, 3fr);
+}
+.song-part-list {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  max-height: 228px;
+  overflow: auto;
+  padding: var(--space-2);
+  border-inline-end: 1px solid var(--line);
+}
+.song-part-list button {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 10px;
+  text-align: start;
+  border: 1px solid var(--line);
+}
+.song-part-list button[aria-pressed='true'] {
+  border-color: var(--mint-5);
+  background: var(--surface-2);
+}
+.song-part-list strong,
+.song-clip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.song-part-rhythm {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 2px;
+  height: 5px;
+}
+.song-part-rhythm i {
+  background: var(--mint-5);
+  border-radius: 1px;
+}
+.song-part-editor {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-3);
+}
+.song-part-tools summary,
+.song-bridge summary {
+  cursor: pointer;
+}
+.song-part-tools > .song-controls {
+  margin-top: var(--space-2);
+}
+.song-grid .song-clip[data-linked='true'] {
+  border-inline-start: 3px solid var(--mint-5);
+}
+.song-feedback {
+  margin-block: var(--space-1);
+}
+.song-feedback:empty {
+  min-height: var(--space-2);
+}
+.song-bridge > summary {
+  padding: var(--space-2) 0;
+  color: var(--text-dim);
+}
+@media (max-width: 720px) {
+  .song-parts-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .song-part-list {
+    display: flex;
+    padding-block-end: var(--space-2);
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--line);
+  }
+  .song-part-list button {
+    min-width: 152px;
+  }
+}
+
+.song-files {
+  margin-block: var(--space-3);
+  color: var(--text-dim);
+}
+.song-files summary {
+  cursor: pointer;
+}
+.song-files .song-controls {
+  margin-top: var(--space-2);
+}
+.song-files p {
+  margin: 0;
+}
+
 .song-section-actions {
-  margin-top: 12px;
+  margin: 0 0 var(--space-2);
 }
