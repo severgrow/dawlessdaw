@@ -10,6 +10,7 @@ import {
   destHowTo,
   destPad1Note,
   knobTarget,
+  portsForRoles,
   slotLabel,
   slotLabelText,
   targetsFor,
@@ -19,6 +20,7 @@ import {
   type CtrlTrack,
   type KnobSlot,
 } from '@dawlessdaw/devices';
+import { songTrackOutputs } from '../arranger/songRoutes';
 import { DeviceArt } from '../components/DeviceArt';
 import { MoreInfo } from '../components/MoreInfo';
 import { setUiSelection, useUiSelection } from '../nav/uiSelection';
@@ -34,6 +36,16 @@ const DEVICE_BLURB: Record<CtrlDevice, string> = {
   fm1: 'Skiff tracks 1–6 · synth knobs',
   mpc: 'Tracks 1–8 · learnable knobs',
 };
+
+function availableSlot(preset: ControllerPreset, track: number, device: CtrlDevice): number | undefined {
+  const current = preset.tracks[track - 1]?.dest;
+  if (current?.device === device) return current.slot;
+  const used = new Set(preset.tracks.flatMap((entry, index) =>
+    index !== track - 1 && entry.dest?.device === device ? [destChannel(entry.dest, preset)] : [],
+  ));
+  return Array.from({ length: SLOT_COUNT[device] }, (_, i) => i + 1)
+    .find((slot) => !used.has(destChannel({ device, slot }, preset)));
+}
 
 function devClass(d: CtrlDevice | null | undefined) {
   return d ? `dev-${d}` : 'dev-off';
@@ -134,6 +146,7 @@ function KnobRow({
             onChange={(e) => set({ cc: Math.max(0, Math.min(119, Math.round(Number(e.target.value) || 0))) })}
           />
         ) : null}
+        {slot.pickup ? <span className="kr-hint">Pickup on</span> : null}
         {tgt?.hint ? <span className="kr-hint">{tgt.hint}</span> : null}
         {advanced ? (
           <span className="kr-hint mono">
@@ -190,6 +203,83 @@ function KnobRow({
   );
 }
 
+function QuickKnobLearn({ trackNo, device }: { trackNo: number; device: CtrlDevice }) {
+  const snap = useStudioStore();
+  const actions = useStudioActions();
+  const [target, setTarget] = useState('');
+  const learn = snap.controllerLearn;
+  const learning = learn?.kind === 'target' && learn.track === trackNo;
+  const mapped = snap.learnedKnob;
+  const saved = mapped?.track === trackNo &&
+    snap.controller.tracks[trackNo - 1]?.knobs[mapped.knob]?.target === mapped.target ? mapped : null;
+  const source = portsForRoles(snap.assignments).circuitIn;
+  const ready = snap.ports.some((port) => port.id === source && port.state === 'connected');
+  const notesOnly = device === 'fm1' && snap.fm1Firmware === 'h1';
+
+  return (
+    <div className="ctl-quick-control">
+      <h3>Knob Learn</h3>
+      <div className="row">
+        <label>
+          <span className="sr-only">Knob Learn target</span>
+          <select className="select-inline" value={target} disabled={learning || notesOnly} onChange={(event) => setTarget(event.target.value)}>
+            <option value="">Choose a parameter…</option>
+            {targetsFor(device).filter((item) => item.kind === 'cc').map((item) => (
+              <option key={item.id} value={item.id}>{item.label}</option>
+            ))}
+          </select>
+        </label>
+        <button type="button" className={learning ? 'active' : 'console-primary'}
+          disabled={!learning && (!target || !ready || notesOnly)}
+          onClick={() => learning ? actions.cancelControllerLearn() : actions.beginKnobLearn(trackNo, target)}>
+          {learning ? 'Cancel learn' : 'Learn knob'}
+        </button>
+      </div>
+      <p className="muted small" role="status">
+        {learning ? `Select T${trackNo} on Circuit and turn the knob you want to use.` :
+          saved ? `T${trackNo} · Knob ${saved.knob + 1} → ${knobTarget(saved.target)?.label}. Pickup on.` :
+          notesOnly ? 'This FM1 profile sends notes only.' :
+          !ready ? 'Connect the Circuit MIDI input to learn a knob.' :
+          'Choose a parameter and turn a knob on the Circuit to save it.'}
+      </p>
+    </div>
+  );
+}
+
+function CircuitRouteCheck({ trackNo }: { trackNo: number }) {
+  const snap = useStudioStore();
+  const { checkCircuitRoute } = useStudioActions();
+  const input = portsForRoles(snap.assignments).circuitIn;
+  const ready = snap.ports.some((port) => port.id === input && port.state === 'connected');
+  const check = snap.routeCheck?.track === trackNo ? snap.routeCheck : null;
+  const waiting = check?.state === 'waiting';
+  const playing = snap.songPlayingBar != null;
+  return (
+    <div className="ctl-quick-control">
+      <div className="row">
+        <h3>Route check</h3>
+        <button type="button" disabled={!waiting && (!ready || playing)}
+          className={waiting ? 'active' : ''}
+          onClick={() => checkCircuitRoute(waiting ? null : trackNo)}>
+          {waiting ? 'Cancel check' : 'Check route'}
+        </button>
+      </div>
+      <div role="status" className="muted small">
+        {waiting ? `Tap one pad on Circuit T${trackNo}. SPLOT will show where the note went.` :
+          check?.state === 'done' ? (
+            <>
+              <strong>Circuit T{trackNo} · Note {check.note}</strong>
+              {check.outputs.length ? (
+                <ul>{check.outputs.map((out, i) => <li key={i}>→ {out.port} · ch {out.channel} · note {out.note}</li>)}</ul>
+              ) : <span> → No output sent</span>}
+            </>
+          ) : playing ? 'Stop Song playback to check live notes.' :
+          ready ? 'See the output port, channel, and note sent by SPLOT.' : 'Connect the Circuit MIDI input to check a route.'}
+      </div>
+    </div>
+  );
+}
+
 function TrackPanel({ trackNo, advanced }: { trackNo: number; advanced: boolean }) {
   const snap = useStudioStore();
   const a = useStudioActions();
@@ -207,19 +297,22 @@ function TrackPanel({ trackNo, advanced }: { trackNo: number; advanced: boolean 
 
       <h3>Destination</h3>
       <div className="dest-choice" role="radiogroup" aria-label="Destination device">
-        {CTRL_DEVICES.map((d) => (
-          <button
+        {CTRL_DEVICES.map((d) => {
+          const slot = availableSlot(preset, trackNo, d);
+          return <button
             key={d}
             type="button"
             role="radio"
             aria-checked={dest?.device === d}
             className={`dest-btn ${devClass(d)}${dest?.device === d ? ' active' : ''}`}
-            onClick={() => a.setControllerTrack(trackNo, { dest: { device: d, slot: dest?.device === d ? dest.slot : Math.min(trackNo, SLOT_COUNT[d]) } })}
+            disabled={slot == null}
+            title={slot == null ? 'All channels for this device are assigned' : undefined}
+            onClick={() => slot != null && a.setControllerTrack(trackNo, { dest: { device: d, slot } })}
           >
             <DeviceArt kind={d} className="dest-art" />
             {DEVICE_NAME[d]}
-          </button>
-        ))}
+          </button>;
+        })}
         <button
           type="button"
           role="radio"
@@ -243,7 +336,7 @@ function TrackPanel({ trackNo, advanced }: { trackNo: number; advanced: boolean 
               {Array.from({ length: SLOT_COUNT[dest.device] }, (_, i) => i + 1).map((n) => (
                 <option key={n} value={n}>
                   {slotLabel({ device: dest.device, slot: n })}
-                  {advanced ? ` · ch${destChannel({ device: dest.device, slot: n }, preset)}` : ''}
+                  {` · ch ${destChannel({ device: dest.device, slot: n }, preset)}`}
                 </option>
               ))}
             </select>
@@ -253,6 +346,11 @@ function TrackPanel({ trackNo, advanced }: { trackNo: number; advanced: boolean 
       ) : (
         <p className="muted">Off — the app sends nothing for this track.</p>
       )}
+
+      <div className="ctl-quick-controls">
+        <CircuitRouteCheck trackNo={trackNo} />
+        {dest ? <QuickKnobLearn key={`${trackNo}-${dest.device}`} trackNo={trackNo} device={dest.device} /> : null}
+      </div>
 
       {dest && destPad1Note(dest) != null ? (
         <>
@@ -419,6 +517,10 @@ export function ControllerWorkspace() {
   });
 
   const setSelected = (t: number) => {
+    if (t !== selected) {
+      if (snap.routeCheck?.state === 'waiting') a.checkCircuitRoute(null);
+      if (snap.controllerLearn?.kind === 'target') a.cancelControllerLearn();
+    }
     setSelectedLocal(t);
     const tr = preset.tracks[t - 1];
     const badge = destBadge(tr?.dest ?? null);
@@ -459,6 +561,7 @@ export function ControllerWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const circuitPort = portsForRoles(snap.assignments).circuitIn;
   const circuitTrack = snap.activeCircuitTrack;
   const knobTrack = circuitTrack ?? selected;
   const knobPage = preset.tracks[knobTrack - 1]!;
@@ -468,9 +571,9 @@ export function ControllerWorkspace() {
   const last = snap.ctrlEvents[0];
 
   const assignDevice = (t: number, d: CtrlDevice) => {
-    const used = preset.tracks.filter((tr, i) => i !== t - 1 && tr.dest?.device === d).map((tr) => tr.dest!.slot);
-    const free = Array.from({ length: SLOT_COUNT[d] }, (_, i) => i + 1).find((n) => !used.includes(n)) ?? 1;
-    a.setControllerTrack(t, { dest: { device: d, slot: free } });
+    const slot = availableSlot(preset, t, d);
+    if (slot == null) return;
+    a.setControllerTrack(t, { dest: { device: d, slot } });
     setSelected(t);
   };
 
@@ -509,6 +612,9 @@ export function ControllerWorkspace() {
             {preset.tracks.map((tr, i) => {
               const t = i + 1;
               const hit = snap.trackActivity[t] ?? 0;
+              const out = songTrackOutputs(snap.routes, snap.ports, circuitPort, t);
+              const channel = tr.dest ? destChannel(tr.dest, preset) : null;
+              const offline = tr.dest && !out.some((entry) => entry.connected);
               return (
                 <button
                   key={t}
@@ -532,7 +638,10 @@ export function ControllerWorkspace() {
                   <span key={hit} className={`ct-pad${hit ? ' hit' : ''}`}>
                     T{t}
                   </span>
-                  <span className="ct-badge">{destBadge(tr.dest)}</span>
+                  <span className="ct-badge">
+                    {destBadge(tr.dest)}
+                    {channel != null ? <span className="ct-channel mono">ch {channel}{offline ? ' · no send' : ''}</span> : null}
+                  </span>
                 </button>
               );
             })}

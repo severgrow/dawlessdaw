@@ -142,6 +142,8 @@ export function useStudioActions() {
     saveControllerPresetAs: (name: string) => runtime.saveControllerPresetAs(name),
     renameControllerPreset: (id: string, name: string) => runtime.renameControllerPreset(id, name),
     deleteControllerPreset: (id: string) => runtime.deleteControllerPreset(id),
+    beginKnobLearn: (track: number, target: string) => runtime.beginKnobLearn(track, target),
+    checkCircuitRoute: (track: number | null) => runtime.checkCircuitRoute(track),
     learnFirstNote: (t: number) => runtime.learnFirstNote(t),
     twistToPick: (t: number, k: number) => runtime.twistToPick(t, k),
     cancelControllerLearn: () => runtime.cancelControllerLearn(),

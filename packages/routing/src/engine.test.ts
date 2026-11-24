@@ -73,6 +73,35 @@ describe('MidiRoutingEngine', () => {
     expect(sent[0]!.data[0]).toBe(0x94); // ch5
   });
 
+  it('picks up learned CCs on a return to the track without delaying notes', () => {
+    const port = 'mock-circuit-in';
+    engine.setRoutes([{
+      id: 'bass',
+      name: 'Circuit → FM1',
+      enabled: true,
+      sourcePortId: port,
+      destinations: [{ portId: 'mock-fm1-out' }],
+      channel: { allow: [5], remap: { 5: 1 } },
+      cc: { map: { 27: 74 }, pickup: [27], dropUnmapped: true },
+    }]);
+    const twist = (value: number, at: number) =>
+      engine.handleIncoming(parseMidiMessage(Uint8Array.of(0xb4, 27, value), at, port));
+    engine.selectPickupBank(port, 5);
+    twist(64, 10);
+
+    engine.selectPickupBank(port, 6);
+    engine.selectPickupBank(port, 5);
+    twist(100, 20);
+    engine.handleIncoming(parseMidiMessage(Uint8Array.of(0x94, 36, 90), 22, port));
+    twist(80, 30);
+    twist(60, 40);
+    twist(20, 500); // New gesture can start at another physical position.
+    twist(60, 510);
+    expect(transport.getSent().map((entry) => [...entry.data])).toEqual([
+      [0xb0, 74, 64], [0x90, 36, 90], [0xb0, 74, 60], [0xb0, 74, 60],
+    ]);
+  });
+
   it('supports multi-destination', () => {
     engine.setRoutes([
       {

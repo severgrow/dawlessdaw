@@ -193,6 +193,10 @@ export type WorkspaceId =
   | 'timing'
   | 'macros';
 
+type RouteCheck =
+  | { track: number; state: 'waiting' }
+  | { track: number; state: 'done'; note: number; outputs: { port: string; channel: number; note: number }[] };
+
 export interface StudioRuntimeSnapshot {
   /** True once Chrome granted Web MIDI access. */
   midiReady: boolean;
@@ -241,7 +245,10 @@ export interface StudioRuntimeSnapshot {
   controllerDirty: boolean;
   controllerUndoCount: number;
   /** What the app is waiting for: the first note of a track, or a knob twist. */
-  controllerLearn: { kind: 'first-note'; track: number } | { kind: 'twist'; track: number; knob: number } | null;
+  controllerLearn: { kind: 'first-note'; track: number } | { kind: 'twist'; track: number; knob: number } |
+    { kind: 'target'; track: number; target: string } | null;
+  learnedKnob: { track: number; knob: number; target: string } | null;
+  routeCheck: RouteCheck | null;
   /** Last value seen from each Circuit macro knob, per track (index track-1, knob). */
   knobValues: number[][];
   /** Last knob moved: track 1–8, knob 0–7, time. */
@@ -558,6 +565,10 @@ export class StudioRuntime {
   private controllerSavedId = BUILTIN_PRESETS[0]!.id; // Ploe Live v1
   private controllerHistory: ControllerPreset[] = [];
   private controllerLearn: StudioRuntimeSnapshot['controllerLearn'] = null;
+  private learnedKnob: StudioRuntimeSnapshot['learnedKnob'] = null;
+  private learningGesture: { track: number; cc: number; at: number } | null = null;
+  private routeCheck: RouteCheck | null = null;
+  private routeCheckOutputs = new WeakMap<MidiMessage, Extract<RouteCheck, { state: 'done' }>['outputs']>();
   private knobValues: number[][] = Array.from({ length: 8 }, () => Array(8).fill(0));
   private lastKnob: StudioRuntimeSnapshot['lastKnob'] = null;
   private activeCircuitTrack: number | null = null;
@@ -823,6 +834,8 @@ export class StudioRuntime {
       controllerDirty: this.controllerDirty(),
       controllerUndoCount: this.controllerHistory.length,
       controllerLearn: this.controllerLearn,
+      learnedKnob: this.learnedKnob,
+      routeCheck: this.routeCheck,
       knobValues: this.knobValues.map((r) => [...r]),
       lastKnob: this.lastKnob ? { ...this.lastKnob } : null,
       activeCircuitTrack: this.activeCircuitTrack,
@@ -932,11 +945,15 @@ export class StudioRuntime {
       this.notify();
       return;
     }
-    this.routing.start((message) =>
-      this.songPlayer.playingBar == null ||
-      (message.kind !== 'note-on' && message.kind !== 'note-off') ||
-      message.portId !== portsForRoles(this.assignments).circuitIn,
-    );
+    this.routing.start((message) => {
+      if (message.portId !== portsForRoles(this.assignments).circuitIn) return true;
+      if (this.isCircuitMacro(message)) {
+        this.routing.selectPickupBank(message.portId, message.channel!);
+        if (this.isLearningMacro(message)) return false;
+      }
+      return this.songPlayer.playingBar == null ||
+        (message.kind !== 'note-on' && message.kind !== 'note-off');
+    });
     this.syncLivePorts(this.transport.listPorts());
     this.applyMyStudioRoutes();
 
@@ -952,6 +969,14 @@ export class StudioRuntime {
         if (fromCircuit && !echo && (isClockLike(message.kind) ||
           message.kind === 'note-on' || message.kind === 'note-off')) {
           this.circuitCapture.recordIncoming(message);
+        }
+        if (fromCircuit && !echo && this.routeCheck?.state === 'waiting' &&
+          message.kind === 'note-on' && message.channel === this.routeCheck.track && message.note != null) {
+          this.routeCheck = {
+            track: this.routeCheck.track, state: 'done', note: message.note,
+            outputs: this.routeCheckOutputs.get(message) ?? [],
+          };
+          this.notify();
         }
         this.handleIncoming(message, deviceId, echo);
       }),
@@ -1029,6 +1054,9 @@ export class StudioRuntime {
 
   async stop(): Promise<void> {
     this.songPlayer.stop();
+    this.learningGesture = null;
+    if (this.controllerLearn?.kind === 'target') this.controllerLearn = null;
+    if (this.routeCheck?.state === 'waiting') this.routeCheck = null;
     for (const u of this.unsubs) u();
     this.unsubs = [];
     if (this.captureTimer) clearTimeout(this.captureTimer);
@@ -1060,6 +1088,10 @@ export class StudioRuntime {
   }
 
   setWorkspace(workspace: WorkspaceId): void {
+    if (this.workspace === 'controller' && workspace !== 'controller') {
+      if (this.controllerLearn?.kind === 'target') this.controllerLearn = null;
+      if (this.routeCheck?.state === 'waiting') this.routeCheck = null;
+    }
     this.workspace = workspace;
     this.notify();
   }
@@ -1805,6 +1837,7 @@ export class StudioRuntime {
   private changeController(next: ControllerPreset, status?: string): void {
     this.pushControllerHistory();
     this.controller = next;
+    if (this.controllerLearn?.kind === 'target') this.controllerLearn = null;
     this.applyMyStudioRoutes();
     this.persistSetup();
     // Keep the open glass in sync with the new mapping (same control, fresh detail).
@@ -1935,6 +1968,35 @@ export class StudioRuntime {
 
   private presetName(id: string): string {
     return [...BUILTIN_PRESETS, ...this.controllerPresets].find((p) => p.id === id)?.name ?? 'Preset';
+  }
+
+  beginKnobLearn(track: number, target: string): void {
+    const dest = this.controller.tracks[track - 1]?.dest;
+    const control = knobTarget(target);
+    if (!dest || control?.device !== dest.device || control.kind !== 'cc') return;
+    if (dest.device === 'fm1' && this.fm1Firmware === 'h1') return;
+    this.dismissMidiLearnGlass();
+    this.genericLearn = null;
+    this.learnedKnob = null;
+    this.controllerLearn = { kind: 'target', track, target };
+    this.notify();
+  }
+
+  checkCircuitRoute(track: number | null): void {
+    this.routeCheck = track == null ? null : { track, state: 'waiting' };
+    this.notify();
+  }
+
+  private isCircuitMacro(message: MidiMessage): boolean {
+    return message.kind === 'cc' && message.channel != null && message.channel >= 1 && message.channel <= 8 &&
+      CIRCUIT_MACRO_CCS.some((cc) => cc === message.controller);
+  }
+
+  private isLearningMacro(message: MidiMessage): boolean {
+    if (this.controllerLearn?.kind === 'target' && this.controllerLearn.track === message.channel) return true;
+    const gesture = this.learningGesture;
+    return gesture != null && gesture.track === message.channel && gesture.cc === message.controller &&
+      performance.now() - gesture.at < 220;
   }
 
   /** Wait for the next note on this track: it becomes the first note (pad 1). */
@@ -2128,6 +2190,23 @@ export class StudioRuntime {
 
     const t = message.channel ?? 0;
     if (t < 1 || t > 8) return;
+    if (this.isCircuitMacro(message) && this.isLearningMacro(message)) {
+      const learn = this.controllerLearn;
+      this.learningGesture = { track: t, cc: message.controller!, at: performance.now() };
+      if (learn?.kind === 'target' && learn.track === t) {
+        const knob = CIRCUIT_MACRO_CCS.findIndex((cc) => cc === message.controller);
+        this.controllerLearn = null;
+        this.learnedKnob = { track: t, knob, target: learn.target };
+        const next = clonePreset(this.controller);
+        const track = next.tracks[t - 1]!;
+        track.knobs = track.knobs.map((slot, index) => {
+          if (index === knob) return { target: learn.target, min: 0, max: 127, pickup: true };
+          return slot.target === learn.target ? { target: null, min: 0, max: 127 } : slot;
+        });
+        this.changeController(next);
+      }
+      return;
+    }
     const isNote = message.kind === 'note-on' && (message.velocity ?? 0) > 0;
     // MIDI-guided FLIP: observe note-ons during capture (no MIDI playback).
     if (isNote && message.note != null) {
@@ -2188,7 +2267,7 @@ export class StudioRuntime {
       this.controllerLearn = null;
       this.setControllerTrack(t, { firstNote: message.note });
       this.setStatus(`Learned: Circuit note ${message.note} on T${t} is the first note`);
-    } else if (learn?.kind === 'twist' && knob >= 0) {
+    } else if (learn?.kind === 'twist' && knob >= 0 && t === learn.track) {
       this.controllerLearn = null;
       if (this.midiLearnGlass) {
         this.midiLearnGlass = { ...this.midiLearnGlass, learnReassign: false };
@@ -2230,7 +2309,9 @@ export class StudioRuntime {
     }
 
     // Glass: macros + mixer only (not notes — pads would spam while playing).
-    if (resolved) this.queueMidiLearnGlass(resolved);
+    if (resolved && (knob < 0 || !this.controller.tracks[t - 1]?.knobs[knob]?.pickup)) {
+      this.queueMidiLearnGlass(resolved);
+    }
 
     if (knob >= 0 && now - this.ctrlNotifyAt < 33) return;
     this.ctrlNotifyAt = now;
@@ -2644,6 +2725,8 @@ export class StudioRuntime {
   }
 
   panic(): void {
+    if (this.controllerLearn?.kind === 'target') this.controllerLearn = null;
+    if (this.routeCheck?.state === 'waiting') this.routeCheck = null;
     this.songPlayer.stop();
     this.sequencer.stop();
     const outs = [
@@ -3363,6 +3446,16 @@ export class StudioRuntime {
     if (!timing || !routeId) return;
     const ports = portsForRoles(this.assignments);
     if (timing.source.portId !== ports.circuitIn) return;
+    if (this.routeCheck?.state === 'waiting' && timing.mode === 'live' && timing.source.kind === 'note-on' &&
+        timing.source.channel === this.routeCheck.track && message.kind === 'note-on' &&
+        message.channel != null && message.note != null) {
+      const port = this.transport.listPorts().find((item) => item.id === message.portId && item.state === 'connected');
+      if (port) {
+        const outputs = this.routeCheckOutputs.get(timing.source) ?? [];
+        outputs.push({ port: port.name, channel: message.channel, note: message.note });
+        this.routeCheckOutputs.set(timing.source, outputs);
+      }
+    }
     this.midiSendTiming.record(timing, message, routeId,
       timing.mode === 'song' || message.portId === ports.mpcOut);
   }

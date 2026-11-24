@@ -920,3 +920,33 @@
     z-index: 4;
   }
 }
+
+.ctl-quick-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: var(--control-gap);
+  margin-block: var(--section-gap);
+}
+.ctl-quick-control {
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--line-hard);
+  border-radius: var(--control-corner);
+  background: var(--surface-1);
+}
+.ctl-quick-control h3 {
+  margin: 0 0 var(--space-1);
+}
+.ctl-quick-control p {
+  margin: var(--space-1) 0 0;
+}
+.ctl-quick-control ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.controller .ct-channel {
+  display: block;
+  color: var(--text-dim);
+  white-space: normal;
+}

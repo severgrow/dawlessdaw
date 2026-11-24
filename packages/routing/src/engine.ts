@@ -6,10 +6,13 @@ import {
   cloneMidiData,
   isClockLike,
   parseMidiMessage,
+  reachedMidiPickup,
 } from '@dawlessdaw/core';
 import type { MidiRouteTiming, StudioEventBus } from '@dawlessdaw/events';
 import type { HardwareTransport } from '@dawlessdaw/midi';
 import type { ActiveNoteKey, MidiRoute, RoutingPreset } from './types';
+
+const PICKUP_IDLE_MS = 350;
 
 type NoteTiming = Omit<Extract<MidiRouteTiming, { mode: 'live' }>, 'sentAtMs'> |
   Omit<Extract<MidiRouteTiming, { mode: 'song' }>, 'sentAtMs'>;
@@ -30,6 +33,8 @@ export class MidiRoutingEngine {
   private lastKnobProgram = new Map<string, number>();
   /** Ports that recently received our output — suppress echo. */
   private recentOut = new Map<PortId, number>();
+  private readonly lastCc = new Map<PortId, Map<number, number>>();
+  private readonly pickupBanks = new Map<PortId, { channel: number; controls: Map<string, { previous: number; caught: boolean; at: number }> }>();
   private feedbackWindowMs = 8;
   private unsub: (() => void) | null = null;
 
@@ -48,6 +53,8 @@ export class MidiRoutingEngine {
     this.unsub?.();
     this.unsub = null;
     this.allNotesOff();
+    this.lastCc.clear();
+    this.pickupBanks.clear();
   }
 
   setRoutes(routes: MidiRoute[]): void {
@@ -55,10 +62,18 @@ export class MidiRoutingEngine {
     // table changes mid-hold (note-off would miss the old dest transform).
     if (this.activeNotes.size > 0) this.allNotesOff();
     this.lastKnobProgram.clear();
+    this.pickupBanks.clear();
     this.routes = routes.map((r) => ({
       ...r,
       destinations: r.destinations.map((d) => ({ ...d })),
     }));
+  }
+
+  /** Remember the hardware's selected knob bank, even if this CC has no mapping. */
+  selectPickupBank(port: PortId, channel: number): void {
+    if (this.pickupBanks.get(port)?.channel !== channel) {
+      this.pickupBanks.set(port, { channel, controls: new Map() });
+    }
   }
 
   getRoutes(): MidiRoute[] {
@@ -107,6 +122,8 @@ export class MidiRoutingEngine {
    * Leaves notes on other destinations sounding.
    */
   releaseNotesForPort(portId: PortId): void {
+    this.lastCc.delete(portId);
+    this.pickupBanks.clear();
     for (const [key, note] of [...this.activeNotes]) {
       if (note.destPortId !== portId) continue;
       this.rawSend(note.destPortId, buildNoteOff(note.channel, note.note, 0));
@@ -248,6 +265,18 @@ export class MidiRoutingEngine {
       if (route.cc?.range) {
         value = clamp(value, route.cc.range.min, route.cc.range.max);
       }
+      if (route.cc?.pickup?.includes(message.controller ?? -1)) {
+        const last = this.lastCc.get(destPortId)?.get(channel * 128 + controller);
+        const bank = this.pickupBanks.get(message.portId);
+        if (bank) {
+          const key = JSON.stringify([destPortId, route.id, message.controller]);
+          const previous = bank.controls.get(key);
+          const state = previous && message.timestamp - previous.at <= PICKUP_IDLE_MS ? previous : null;
+          const caught = state?.caught || last === undefined || reachedMidiPickup(state?.previous ?? null, value, last);
+          bank.controls.set(key, { previous: value, caught, at: message.timestamp });
+          if (!caught) return null;
+        }
+      }
       return buildCc(channel, controller, value);
     }
 
@@ -297,6 +326,11 @@ export class MidiRoutingEngine {
     // Live MIDI and system realtime must leave immediately.
     if (realtime || timestamp === undefined) this.transport.send(portId, data);
     else this.transport.send(portId, data, ts);
+    if ((status & 0xf0) === 0xb0 && data.length >= 3) {
+      const values = this.lastCc.get(portId) ?? new Map<number, number>();
+      values.set(((status & 0x0f) + 1) * 128 + data[1]!, data[2]!);
+      this.lastCc.set(portId, values);
+    }
     // Parse kind so outbound clock/start/stop partition into midi:clock (not UI flood)
     this.bus?.emit({
       type: 'midi:out',

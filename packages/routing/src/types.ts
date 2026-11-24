@@ -28,6 +28,8 @@ export interface CcRemap {
    * Used so only translated knob CCs reach a destination (e.g. Circuit macros → Skiff).
    */
   dropUnmapped?: boolean;
+  /** Source CCs that wait for pickup after changing the source track. */
+  pickup?: number[];
   /**
    * Turn one incoming CC (an absolute knob, 0–127) into Program Change on the
    * same (remapped) channel. The knob range is split into `steps` equal zones;

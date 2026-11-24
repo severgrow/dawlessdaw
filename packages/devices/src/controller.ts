@@ -41,6 +41,8 @@ export interface KnobSlot {
   max: number;
   /** Only for target 'custom'. */
   cc?: number;
+  /** Hold this learned mapping at its last routed output until picked up. */
+  pickup?: boolean;
 }
 
 export interface CtrlTrack {
@@ -383,6 +385,7 @@ export function sanitizePreset(raw: unknown): ControllerPreset | null {
           target,
           min: int(s.min, 0, 127) ?? 0,
           max: int(s.max, 0, 127) ?? 127,
+          ...(s.pickup === true ? { pickup: true } : {}),
           ...(target === 'custom' && int(s.cc, 0, 119) != null ? { cc: s.cc as number } : {}),
         };
       });
@@ -423,6 +426,7 @@ export function buildControllerRoutes(
     const notesOnly = dest.device === 'fm1' && opts.fm1Firmware === 'h1';
     const map: Record<number, number> = {};
     const scale: Record<number, { min: number; max: number }> = {};
+    const pickup: number[] = [];
     let toProgramChange: { controller: number; steps: number } | undefined;
     if (!notesOnly) {
       track.knobs.forEach((slot, k) => {
@@ -435,6 +439,7 @@ export function buildControllerRoutes(
         const cc = slotCc(slot);
         if (cc == null) return;
         map[src] = cc;
+        if (slot.pickup) pickup.push(src);
         if (slot.min !== 0 || slot.max !== 127) scale[src] = { min: slot.min, max: slot.max };
       });
       // Mixer Level/Pan (CC29/30) → Volume/Pan on the destination — same as My Studio layout.
@@ -454,6 +459,7 @@ export function buildControllerRoutes(
       cc: {
         map,
         dropUnmapped: true,
+        ...(pickup.length ? { pickup } : {}),
         ...(Object.keys(scale).length ? { scale } : {}),
         ...(toProgramChange ? { toProgramChange } : {}),
       },
