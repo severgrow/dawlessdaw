@@ -322,8 +322,69 @@ try {
   assert.equal(stored.clips.length, 9);
   assert.equal(stored.clips.filter(({ partId }) => partId).length, 6);
 
+  await tab('Play');
+  await tab('Live');
+  await button('Check Rig');
+  const rig = page.getByRole('region', { name: 'Check Rig', exact: true });
+  const rigButton = (name) => rig.getByRole('button', { name, exact: true });
+  const confirmSound = rigButton('I heard the right sound');
+  await midi([0xfa]);
+  assert(await rigButton('Listen for note').isDisabled());
+  await midi([0xfc]);
+  await setPort('mpc', 'disconnected');
+  await rigButton('Listen for note').click();
+  await midi([0x90, 37, 100]);
+  await rig.getByText(/No output sent/).waitFor();
+  assert(await confirmSound.isDisabled());
+  await setPort('mpc', 'connected');
+  assert(await confirmSound.isDisabled());
+
+  const destinations = [
+    ['mpc', 9], ['mpc', 10], ['mpc', 11], ['mpc', 12],
+    ['fm1', 1], ['fm1', 2], ['sp', 1], ['sp', 2],
+  ];
+  for (const [index, [port, channel]] of destinations.entries()) {
+    assert.equal(await rigButton(`T${index + 1} unchecked`).getAttribute('aria-pressed'), 'true');
+    await rigButton('Listen for note').click();
+    if (index === 0) {
+      await midi([0x94, 43, 100]);
+      assert(await confirmSound.isDisabled(), 'a note on another lane cannot confirm the selected lane');
+      await midi([0x84, 43, 0]);
+    }
+    if (index === 6) {
+      await midi([0x96, 80, 100]);
+      await midi([0x86, 80, 0]);
+      await rig.getByText(/outside the SP pad range/).waitFor();
+      assert(await confirmSound.isDisabled());
+      await rigButton('Try another note').click();
+    }
+    const note = port === 'sp' ? 60 : 37;
+    const targetNote = port === 'sp' ? 36 : note;
+    await clear();
+    await midi([0x90 + index, note, 100]);
+    await midi([0x80 + index, note, 0]);
+    assert.deepEqual((await sent()).map(([id, data]) => [id, data]), [
+      [port, [0x8f + channel, targetNote, 100]], [port, [0x7f + channel, targetNote, 0]],
+    ]);
+    if (port === 'sp') await rig.getByText(new RegExp(`SP Mode A · ${index === 6 ? 'A01' : 'B01'}`)).waitFor();
+    await confirmSound.click();
+  }
+  await rig.getByText('8/8 heard', { exact: true }).waitFor();
+  await page.reload();
+  await tab('Live');
+  await button('Check Rig');
+  await rig.getByText('8/8 heard', { exact: true }).waitFor();
+  await page.setViewportSize({ width: 950, height: 900 });
+  const panelWidth = await rig.boundingBox();
+  assert(panelWidth && panelWidth.x + panelWidth.width <= 950);
+  await page.getByRole('listbox', { name: 'Tracks', exact: true }).getByRole('option', { name: /^T1 .*MPC/ }).click();
+  const sound = page.getByRole('textbox', { name: 'T1 sound' });
+  await sound.fill('Kick');
+  await sound.press('Enter');
+  await rig.getByText('7/8 heard', { exact: true }).waitFor();
+
   assert.deepEqual(errors, []);
-  console.log('Circuit live bench passed: 110 BPM, three routes, preserved groove, clean wrap, stop, hot-plug, timing export, Tracks observation, and Parts save, preview, placement, undo, export, backup restore, reload and a 16-bar UI-scroll loop soak.');
+  console.log('Circuit live bench passed: 110 BPM capture and loop, timing export, Parts workflow, 16-bar loop soak, and eight guided rig checks with persistence and mapping invalidation.');
 } finally {
   await browser.close();
 }

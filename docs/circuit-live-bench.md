@@ -1,5 +1,16 @@
 # Circuit live bench
 
+## Check the eight-track rig
+
+1. Connect Circuit Rhythm to the Mac over USB. In Circuit Setup, enable Note Tx (pad 26) and Clock Tx (pad 32). Disable Clock Rx (pad 31) so Circuit owns tempo. Use only one MIDI note path to each destination. On the MPC, the DIN input can receive notes from the Scarlett MIDI Out if that's your SPLOT route.
+2. Use **Ploe Live v1** in **Play → Live** as the starting map. On the MPC One, make four tracks with distinct sounds. Use the actual MIDI input port, channels 9, 10, 11 and 12 respectively, and monitor **In** where available. Save the matching project on the MPC. This exposes an MPC track still set to receive all channels.
+3. For the FM1, confirm T5 first. Hold and release a bass note. Try T6 on its own channel after T5 works. The starting map sends FM1 lanes on channels 1 and 2. Adjust them to the receive channels on your firmware.
+4. On the SP-404MKII, select MIDI Mode A. The starting map uses bank A for T7 and B for T8. In **Check Rig**, play the Circuit pad you want to audition. The check displays the actual outgoing MIDI note and its Mode A pad address. Name the sounds you want to keep using in Live, then save your routing changes with **Routing preset → Save as…**.
+5. With playback stopped, open **Play → Live → Check Rig**. Select **Listen for note**, tap one pad on the indicated Circuit track, and check the output port, channel and note. Confirm after hearing the intended sound once. Each confirmation is saved locally against that lane's mapping. SPLOT can see the MIDI it sent. Your ears verify the receiving hardware.
+6. After confirming lanes, play a 16-bar pattern at 110 BPM. Listen for stable timing, clean stops, the right sound on each lane and one hit per step. Capture the last four bars, stop Circuit and loop the take. Check that it starts on beat one and that FM1 releases its notes.
+
+## Timing and capture
+
 Use the stock Ploe Live v1 preset or route the following three tracks in Play → Live. Confirm the actual port, channel and note with **Check route** on each track.
 
 | Circuit lane | Destination | What to play |
