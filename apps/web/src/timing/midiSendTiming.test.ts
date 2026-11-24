@@ -53,3 +53,23 @@ describe('MIDI send timing', () => {
     }
   });
 });
+
+it('keeps the session worst even after newer sends roll the trace out of memory', () => {
+  const timing = new MidiSendTiming();
+  const note = parseMidiMessage(buildNoteOn(1, 36, 103), 5, 'circuit');
+  const output = parseMidiMessage(buildNoteOn(9, 36, 103), 10, 'sp');
+  timing.recordInput(note);
+  timing.record({ mode: 'live', source: note, sentAtMs: 3005 }, output, 'sp', false);
+  for (let i = 0; i < 300; i++) {
+    timing.record({ mode: 'live', source: note, sentAtMs: 10 }, output, 'sp', false);
+  }
+  expect(timing.exportTrace()).toHaveLength(256);
+  expect(timing.exportSession()).toMatchObject({
+    received: 1,
+    live: { sends: 301, maxMs: 3000 },
+    recentInputs: [{ port: 'circuit', channel: 1, note: 36, velocity: 103, atMs: 5 }],
+    worstSends: { live: { delayMs: 3000, output: { port: 'sp', channel: 9 } } },
+  });
+  timing.reset();
+  expect(timing.summary().live).toEqual({ sends: 0, maxMs: null });
+});

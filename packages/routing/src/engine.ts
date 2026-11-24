@@ -289,7 +289,7 @@ export class MidiRoutingEngine {
   }
 
   private sendOut(portId: PortId, data: Uint8Array, routeId: string, timestamp?: number, timing?: NoteTiming): void {
-    this.rawSend(portId, data, timestamp, routeId, timing);
+    if (!this.rawSend(portId, data, timestamp, routeId, timing)) return;
 
     const parsedKind = data[0]!;
     const isNoteOn = (parsedKind & 0xf0) === 0x90 && (data[2] ?? 0) > 0;
@@ -315,17 +315,19 @@ export class MidiRoutingEngine {
     });
   }
 
-  private rawSend(portId: PortId, data: Uint8Array, timestamp?: number, routeId?: string, timing?: NoteTiming): void {
+  private rawSend(portId: PortId, data: Uint8Array, timestamp?: number, routeId?: string, timing?: NoteTiming): boolean {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     // Prefer scheduled timestamp (sequencer look-ahead); fall back to now.
     const ts =
       timestamp != null && Number.isFinite(timestamp) && timestamp >= now - 5 ? timestamp : now;
-    this.recentOut.set(portId, now);
     const status = data[0] ?? 0;
     const realtime = status >= 0xf8 && status <= 0xff;
     // Live MIDI and system realtime must leave immediately.
-    if (realtime || timestamp === undefined) this.transport.send(portId, data);
-    else this.transport.send(portId, data, ts);
+    const sent = realtime || timestamp === undefined
+      ? this.transport.send(portId, data)
+      : this.transport.send(portId, data, ts);
+    if (sent === false) return false;
+    this.recentOut.set(portId, now);
     if ((status & 0xf0) === 0xb0 && data.length >= 3) {
       const values = this.lastCc.get(portId) ?? new Map<number, number>();
       values.set(((status & 0x0f) + 1) * 128 + data[1]!, data[2]!);
@@ -338,6 +340,7 @@ export class MidiRoutingEngine {
       routeId,
       timing: timing && { ...timing, sentAtMs: now },
     });
+    return true;
   }
 }
 

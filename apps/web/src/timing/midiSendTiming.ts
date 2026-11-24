@@ -11,26 +11,52 @@ export interface MidiTimingStats {
   maxMs: number;
 }
 
+const describe = ({ portId, channel, note, velocity }: MidiMessage) => ({ port: portId, channel, note, velocity });
+
+type SendSample = {
+  mode: MidiRouteTiming['mode'];
+  referenceAtMs: number;
+  sentAtMs: number;
+  delayMs: number;
+  routeId: string;
+  input: ReturnType<typeof describe>;
+  output: ReturnType<typeof describe>;
+  kind: MidiMessage['kind'];
+};
+
 export class MidiSendTiming {
   private live: number[] = [];
   private song: number[] = [];
-  private trace: {
-    mode: MidiRouteTiming['mode'];
-    referenceAtMs: number;
-    sentAtMs: number;
-    delayMs: number;
-    routeId: string;
-    input: { port: string; channel?: number; note?: number };
-    output: { port: string; channel?: number; note?: number };
-    kind: MidiMessage['kind'];
-  }[] = [];
+  private trace: SendSample[] = [];
+  private inputs: (ReturnType<typeof describe> & { atMs: number; kind: MidiMessage['kind'] })[] = [];
+  private received = 0;
+  private sends = { live: 0, song: 0 };
+  private worst: Record<MidiRouteTiming['mode'], SendSample | null> = { live: null, song: null };
+
+  recordInput(message: MidiMessage): void {
+    this.inputs.push({ ...describe(message), atMs: message.timestamp, kind: message.kind });
+    if (this.inputs.length > TRACE_LIMIT) this.inputs.shift();
+    if (message.kind === 'note-on') this.received++;
+  }
+
+  summary() {
+    const maxMs = (sample: SendSample | null) => sample && Math.round(sample.delayMs * 100) / 100;
+    return {
+      received: this.received,
+      live: { sends: this.sends.live, maxMs: maxMs(this.worst.live) },
+      song: { sends: this.sends.song, maxMs: maxMs(this.worst.song) },
+    };
+  }
+
+  exportSession() {
+    return { ...this.summary(), recentInputs: [...this.inputs], worstSends: { ...this.worst } };
+  }
 
   record(timing: MidiRouteTiming, output: MidiMessage, routeId: string, includeInStats: boolean): void {
     const referenceAtMs = timing.mode === 'song' ? timing.dueAtMs : timing.source.timestamp;
     const delayMs = timing.sentAtMs - referenceAtMs;
     if (!Number.isFinite(delayMs) || delayMs < 0) return;
-    const describe = ({ portId, channel, note }: MidiMessage) => ({ port: portId, channel, note });
-    this.trace.push({
+    const sample = {
       mode: timing.mode,
       referenceAtMs,
       sentAtMs: timing.sentAtMs,
@@ -39,9 +65,14 @@ export class MidiSendTiming {
       input: describe(timing.source),
       output: describe(output),
       kind: output.kind,
-    });
+    };
+    this.trace.push(sample);
     if (this.trace.length > TRACE_LIMIT) this.trace.shift();
-    if (!includeInStats || output.kind !== 'note-on') return;
+    if (output.kind !== 'note-on') return;
+    this.sends[timing.mode]++;
+    const worst = this.worst[timing.mode];
+    if (!worst || delayMs > worst.delayMs) this.worst[timing.mode] = sample;
+    if (!includeInStats) return;
     const samples = timing.mode === 'live' ? this.live : this.song;
     samples.push(delayMs);
     if (samples.length > SAMPLE_LIMIT) samples.shift();
@@ -64,5 +95,9 @@ export class MidiSendTiming {
     this.live = [];
     this.song = [];
     this.trace = [];
+    this.inputs = [];
+    this.received = 0;
+    this.sends = { live: 0, song: 0 };
+    this.worst = { live: null, song: null };
   }
 }

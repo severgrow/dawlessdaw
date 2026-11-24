@@ -20,6 +20,7 @@ import {
   type CtrlTrack,
   type KnobSlot,
 } from '@dawlessdaw/devices';
+import { LiveTake } from './LiveTake';
 import { songTrackOutputs } from '../arranger/songRoutes';
 import { DeviceArt } from '../components/DeviceArt';
 import { MoreInfo } from '../components/MoreInfo';
@@ -581,7 +582,8 @@ export function ControllerWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const circuitPort = portsForRoles(snap.assignments).circuitIn;
+  const outputPorts = portsForRoles(snap.assignments);
+  const circuitPort = outputPorts.circuitIn;
   const circuitTrack = snap.activeCircuitTrack;
   const knobTrack = circuitTrack ?? selected;
   const knobPage = preset.tracks[knobTrack - 1]!;
@@ -615,13 +617,7 @@ export function ControllerWorkspace() {
           </>
         </span>
       </div>
-      <p className="lead ctl-flow-lead">
-        <span>1 Track</span>
-        <span className="setup-tier-sep">→</span>
-        <span>2 Destination</span>
-        <span className="setup-tier-sep">→</span>
-        <span>3 Shape</span>
-      </p>
+      <LiveTake />
 
       <PresetBar advanced={advanced} setAdvanced={setAdvanced} />
 
@@ -633,8 +629,13 @@ export function ControllerWorkspace() {
               const t = i + 1;
               const hit = snap.trackActivity[t] ?? 0;
               const out = songTrackOutputs(snap.routes, snap.ports, circuitPort, t);
-              const channel = tr.dest ? destChannel(tr.dest, preset) : null;
-              const offline = tr.dest && !out.some((entry) => entry.connected);
+              const sent = snap.trackSendActivity[t] ?? 0;
+              const destinations = out.map((entry) => {
+                const name = entry.portId === outputPorts.mpcOut ? 'MPC' : entry.portId === outputPorts.spOut
+                  ? 'SP‑404' : entry.portId === outputPorts.fm1Out ? 'FM1' : entry.name;
+                return `${name} · ch ${entry.channel}${entry.connected ? '' : ' · offline'}`;
+              });
+              const routeLabel = destinations.join(' / ') || (tr.dest ? 'No MIDI output' : 'Off');
               return (
                 <button
                   key={t}
@@ -660,7 +661,11 @@ export function ControllerWorkspace() {
                   </span>
                   <span className="ct-badge">
                     {destBadge(tr.dest)}
-                    {channel != null ? <span className="ct-channel mono">ch {channel}{offline ? ' · no send' : ''}</span> : null}
+                    <span className="ct-channel mono" title={routeLabel}>{routeLabel}</span>
+                    <span className="ct-midi-activity" aria-hidden="true">
+                      <span key={`in-${hit}`} data-pulse={!!hit} title="MIDI received">IN</span>
+                      <span key={`out-${sent}`} data-pulse={!!sent} title="MIDI sent">OUT</span>
+                    </span>
                   </span>
                 </button>
               );
