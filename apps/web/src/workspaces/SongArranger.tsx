@@ -80,7 +80,7 @@ export function SongArranger() {
               {CLIP_LENGTHS.map((bars) => <option value={bars} key={bars}>{bars} {bars === 1 ? 'bar' : 'bars'}</option>)}
             </select>
           </label>
-          <button type="button" onClick={capture} disabled={playing}>Capture to bar {cue + 1}</button>
+          <button type="button" className="console-primary" onClick={capture} disabled={playing}>Capture to bar {cue + 1}</button>
         </div>
       </header>
       <div className="song-transport">
@@ -107,7 +107,7 @@ export function SongArranger() {
         <div className="song-grid" style={{ '--song-bars': SONG_BARS } as CSSProperties}>
           <span className="song-lane song-grid-label">Circuit lanes</span>
           {Array.from({ length: SONG_BARS }, (_, bar) => (
-            <button type="button" key={bar} className="song-ruler" aria-label={`Cue bar ${bar + 1}`}
+            <button type="button" key={bar} className={`song-ruler${bar % 4 === 0 ? ' grid-divider' : ''}`} aria-label={`Cue bar ${bar + 1}`}
               aria-pressed={cue === bar} data-playhead={bar === activeBar} disabled={playing}
               onClick={() => setCue(bar)}>{bar + 1}</button>
           ))}
@@ -123,11 +123,11 @@ export function SongArranger() {
             return (
               <div className="song-row" key={track} style={{ gridRow: track + 1 }}>
                 <div className="song-lane">
-                  <div title={routing}><strong>T{track}</strong><span>{routing}</span></div>
+                  <div title={routing}><strong className="mono">T{track}</strong><span>{routing}</span></div>
                   <button type="button" aria-label={`Mute track ${track}`} aria-pressed={muted} disabled={playing}
                     onClick={() => setSong({ ...song, mutedTracks: muted ? mutedTracks.filter((item) => item !== track) : [...mutedTracks, track] })}>M</button>
                 </div>
-                <div className="song-cue" style={{ gridColumn: activeBar != null ? activeBar + 2 : cue + 2 }} />
+                <div className="song-cue" data-playhead={playing} style={{ gridColumn: activeBar != null ? activeBar + 2 : cue + 2 }} />
                 {song.clips.filter((clip) => clip.track === track).map((clip) => (
                   <button type="button" key={clip.id} className="song-clip"
                     style={{ gridColumn: `${clip.bar + 2} / span ${clip.length}` }}

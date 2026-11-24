@@ -67,12 +67,21 @@ export function TransportStrip({
           Panic
         </button>
         {onOpenJam ? (
-          <button type="button" className="ts-btn ts-jam jam" onClick={onOpenJam} title="Jam (J)">
+          <button type="button" className="ts-btn ts-jam jam ts-jam-wide" onClick={onOpenJam} title="Jam (J)">
             Jam
           </button>
         ) : null}
       </div>
       <CircuitTempo size="strip" showBarBeat={next.kind === 'ready'} />
+      {onOpenJam ? (
+        <details className="ts-more">
+          <summary aria-label="More transport controls">More</summary>
+          <button type="button" onClick={(event) => {
+            event.currentTarget.closest('details')?.removeAttribute('open');
+            onOpenJam();
+          }}>Jam</button>
+        </details>
+      ) : null}
       {showConnect ? (
         <button
           type="button"

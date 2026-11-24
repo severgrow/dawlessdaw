@@ -416,7 +416,7 @@ export function SetupWorkspace({
   return (
     <div className="section-enter setup-workspace">
       <div className="page-head">
-        <h1>ports &amp; devices</h1>
+        <h1>Ports &amp; devices</h1>
         {!portsBlocked ? (
           <button type="button" onClick={() => void rescanMidiPorts()}>
             Rescan
@@ -445,7 +445,7 @@ export function SetupWorkspace({
             </p>
             <div className="row">
               {onReopenWizard ? (
-                <button type="button" className="setup-cta" onClick={onReopenWizard}>
+                <button type="button" className="setup-cta console-primary" onClick={onReopenWizard}>
                   {next.cta || 'Connect'}
                 </button>
               ) : null}
