@@ -14,7 +14,7 @@ export function StatusBar({ onOpenConnect }: { onOpenConnect: () => void }) {
       <div className="splot-brand">
         <picture>
           <source media="(forced-colors: active) and (prefers-color-scheme: light)" srcSet={splotWordmarkBlack} />
-          <img className="splot-wordmark" src={splotWordmark} width="1050" height="620" alt="SPLOT" />
+          <img className="splot-wordmark" src={splotWordmark} width="1562" height="795" alt="SPLOT" />
         </picture>
         <span className="splot-descriptor">MIDI Brain</span>
       </div>
