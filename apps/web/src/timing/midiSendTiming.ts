@@ -3,6 +3,7 @@ import type { MidiRouteTiming } from '@dawlessdaw/events';
 
 const SAMPLE_LIMIT = 64;
 const TRACE_LIMIT = 256;
+const PERCENTILE_LIMIT = 1024;
 
 export interface MidiTimingStats {
   samples: number;
@@ -30,6 +31,8 @@ export class MidiSendTiming {
   private trace: SendSample[] = [];
   private inputs: (ReturnType<typeof describe> & { atMs: number; kind: MidiMessage['kind'] })[] = [];
   private received = 0;
+  private recentDelays = { live: [] as number[], song: [] as number[] };
+  private failed = { live: 0, song: 0 };
   private sends = { live: 0, song: 0 };
   private worst: Record<MidiRouteTiming['mode'], SendSample | null> = { live: null, song: null };
 
@@ -37,6 +40,23 @@ export class MidiSendTiming {
     this.inputs.push({ ...describe(message), atMs: message.timestamp, kind: message.kind });
     if (this.inputs.length > TRACE_LIMIT) this.inputs.shift();
     if (message.kind === 'note-on') this.received++;
+  }
+
+  recordFailed(timing: MidiRouteTiming): void {
+    this.failed[timing.mode]++;
+  }
+
+  routeSignal(channel: number, port: string) {
+    const input = this.inputs.slice().reverse().find((event) => event.channel === channel && event.port === port && event.kind === 'note-on');
+    const outputs = input ? this.trace.filter((event) => event.mode === 'live' && event.kind === 'note-on' &&
+      event.referenceAtMs === input.atMs && event.input.port === input.port &&
+      event.input.channel === channel && event.input.note === input.note).map((event) => event.output) : [];
+    return { input, outputs };
+  }
+
+  percentile(mode: MidiRouteTiming['mode']): number | null {
+    const values = this.recentDelays[mode].slice().sort((a, b) => a - b);
+    return values.length ? Math.round(values[Math.ceil(values.length * .95) - 1]! * 100) / 100 : null;
   }
 
   summary() {
@@ -48,8 +68,12 @@ export class MidiSendTiming {
     };
   }
 
+  health() {
+    return { p95Ms: { live: this.percentile('live'), song: this.percentile('song') }, failedNoteSends: { ...this.failed } };
+  }
+
   exportSession() {
-    return { ...this.summary(), recentInputs: [...this.inputs], worstSends: { ...this.worst } };
+    return { ...this.summary(), ...this.health(), recentInputs: [...this.inputs], worstSends: { ...this.worst } };
   }
 
   record(timing: MidiRouteTiming, output: MidiMessage, routeId: string, includeInStats: boolean): void {
@@ -70,6 +94,9 @@ export class MidiSendTiming {
     if (this.trace.length > TRACE_LIMIT) this.trace.shift();
     if (output.kind !== 'note-on') return;
     this.sends[timing.mode]++;
+    const recent = this.recentDelays[timing.mode];
+    recent.push(delayMs);
+    if (recent.length > PERCENTILE_LIMIT) recent.shift();
     const worst = this.worst[timing.mode];
     if (!worst || delayMs > worst.delayMs) this.worst[timing.mode] = sample;
     if (!includeInStats) return;
@@ -98,6 +125,8 @@ export class MidiSendTiming {
     this.inputs = [];
     this.received = 0;
     this.sends = { live: 0, song: 0 };
+    this.failed = { live: 0, song: 0 };
+    this.recentDelays = { live: [], song: [] };
     this.worst = { live: null, song: null };
   }
 }

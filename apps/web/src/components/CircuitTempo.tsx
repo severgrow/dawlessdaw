@@ -11,9 +11,11 @@ export type CircuitTempoSize = 'strip' | 'panel' | 'jam';
 export function CircuitTempo({
   size = 'strip',
   showBarBeat = true,
+  song,
 }: {
   size?: CircuitTempoSize;
   showBarBeat?: boolean;
+  song?: { bpm: number; ready: boolean; hasClips: boolean; waiting: boolean };
 }) {
   // Store subscription for re-render; display reads shared ClockService seam.
   const health = useStudioStore((s) => s.clockHealth);
@@ -32,19 +34,21 @@ export function CircuitTempo({
     [getRuntime, midiReady, estimatedBpm, health],
   );
 
-  const bpm = playback ? playback.bpm : view.bpm;
+  const activePlayback = size !== 'panel' ? playback : null;
+  const bpm = activePlayback?.bpm ?? song?.bpm ?? view.bpm;
   const bpmText = formatCircuitBpm(bpm == null ? null : Math.round(bpm));
-  const label = playback ? (playback.source === 'song' ? 'SPLOT · Song playing' : playback.source === 'part' ? 'SPLOT · Part preview' : 'SPLOT · Looping')
+  const label = activePlayback ? (activePlayback.source === 'song' ? 'SPLOT · Song playing' : activePlayback.source === 'part' ? 'SPLOT · Part preview' : 'SPLOT · Looping')
+    : song ? (song.waiting ? 'Song · Stop Circuit' : song.ready ? 'Song · Ready' : song.hasClips ? 'Song · Connect output' : 'Song · Cue a clip')
     : view.phase === 'live' ? (health.position?.transport === 'playing' ? 'Circuit · Live' : 'Circuit · Locked')
       : view.label;
 
   return (
     <div
-      className={`circuit-tempo ct-size-${size} phase-${playback ? 'live' : view.phase}`}
+      className={`circuit-tempo ct-size-${size} phase-${activePlayback || (song?.ready && !song.waiting) ? 'live' : song ? 'waiting' : view.phase}`}
       role="status"
       aria-live="polite"
       aria-label={`${bpmText} BPM · ${label}`}
-      title={playback ? 'SPLOT is playing MIDI through Circuit track routes.' : view.detail}
+      title={activePlayback ? 'SPLOT is playing MIDI through Circuit track routes.' : song ? 'Song playback tempo' : view.detail}
     >
       <div className="circuit-tempo-main">
         <span className="circuit-tempo-bpm">{bpmText}</span>
@@ -52,7 +56,7 @@ export function CircuitTempo({
       </div>
       <div className="circuit-tempo-meta">
         <span className="circuit-tempo-label">{label}</span>
-        {!playback && showBarBeat && view.barBeat ? (
+        {!activePlayback && !song && showBarBeat && view.barBeat ? (
           <span className="circuit-tempo-bar mono">{view.barBeat}</span>
         ) : null}
         {size !== 'strip' ? (

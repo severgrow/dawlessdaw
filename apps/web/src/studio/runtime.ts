@@ -39,6 +39,7 @@ import { StudioEventBus, type StudioEvent } from '@dawlessdaw/events';
 import { circuitTracksNote } from '../timing/circuitTracksProbe';
 import { MidiSendTiming, type MidiTimingStats } from '../timing/midiSendTiming';
 import {
+  CAPTURE_CLOCKS_PER_BAR,
   MidiEventRecorder,
   NativeBridgeTransport,
   WebMidiTransport,
@@ -220,8 +221,12 @@ export interface StudioRuntimeSnapshot {
   workspace: WorkspaceId;
   statusLine: string;
   songPlayingBar: number | null;
+  circuitTransportActive: boolean;
+  captureBarsReady: number;
+  captureFirstBar: number | null;
   songPlayback: SongPlayback | null;
   liveTake: LiveTake | null;
+  queuedPartName: string | null;
   trackSendActivity: readonly number[];
   midiTimingSummary: ReturnType<MidiSendTiming['summary']>;
   recentUiEvents: { type: string; summary: string; at: number }[];
@@ -686,8 +691,12 @@ export class StudioRuntime {
     capacity: 16_384,
   });
 
+  private queuedPartName: string | null = null;
   private songPlayback: SongPlayback | null = null;
   private liveTake: LiveTake | null = null;
+  private captureStartTick: number | null = null;
+  private captureLastTick: number | null = null;
+  private captureLastClockAt: number | null = null;
   private trackSendActivity: number[] = Array(9).fill(0);
 
   private readonly songPlayer = new SongPlayer(
@@ -699,7 +708,10 @@ export class StudioRuntime {
     },
     () => this.routing.allNotesOff(),
     (message) => {
-      if (this.songPlayer.playingBar == null) this.songPlayback = null;
+      if (this.songPlayer.playingBar == null) {
+        this.songPlayback = null;
+        this.queuedPartName = null;
+      }
       if (message) this.setStatus(message);
       this.notify();
     },
@@ -827,8 +839,13 @@ export class StudioRuntime {
       workspace: this.workspace,
       statusLine: this.statusLine,
       songPlayingBar: this.songPlayer.playingBar,
+      circuitTransportActive: this.circuitTransportActive(),
+      captureFirstBar: this.captureStartTick == null ? null : Math.ceil(this.captureStartTick / CAPTURE_CLOCKS_PER_BAR) + 1,
+      captureBarsReady: this.captureStartTick == null || this.captureLastTick == null ? 0 :
+        Math.max(0, Math.floor(this.captureLastTick / CAPTURE_CLOCKS_PER_BAR) - Math.ceil(this.captureStartTick / CAPTURE_CLOCKS_PER_BAR)),
       songPlayback: this.songPlayback,
       liveTake: this.liveTake,
+      queuedPartName: this.queuedPartName,
       trackSendActivity: [...this.trackSendActivity],
       midiTimingSummary: this.midiSendTiming.summary(),
       recentUiEvents: [...this.recentUiEvents],
@@ -989,6 +1006,20 @@ export class StudioRuntime {
         if (fromCircuit && !echo && (isClockLike(message.kind) ||
           message.kind === 'note-on' || message.kind === 'note-off')) {
           this.circuitCapture.recordIncoming(message);
+          if (message.kind === 'start' || message.kind === 'continue') {
+            this.captureStartTick = this.captureLastTick = this.captureLastClockAt = null;
+          } else if (message.kind === 'clock') {
+            const position = this.clockService.getMusicalTime();
+            if (position?.transport === 'playing') {
+              const tick = position.tickCount - 1;
+              const bpm = this.clockHealth.getSnapshot().bpm ?? 110;
+              const gapLimit = Math.max(100, 6 * 60_000 / (Math.max(20, bpm) * 24));
+              const gap = this.captureLastClockAt != null && message.timestamp - this.captureLastClockAt > gapLimit;
+              if (this.captureStartTick == null || gap) this.captureStartTick = tick;
+              this.captureLastTick = tick;
+              this.captureLastClockAt = message.timestamp;
+            }
+          }
         }
         if (fromCircuit && !echo && this.routeCheck?.state === 'waiting' &&
           message.kind === 'note-on' && message.channel === this.routeCheck.track && message.note != null) {
@@ -1492,14 +1523,47 @@ export class StudioRuntime {
     return this.playSong(this.liveTake.song, 0, this.liveTake.length, 'take');
   }
 
+  queuePart(song: Song, length: ClipLength, name: string): string | null {
+    if (this.songPlayback?.source !== 'part' || this.circuitTransportActive()) return 'Preview a Part with Circuit stopped first.';
+    const port = portsForRoles(this.assignments).circuitIn;
+    const routes = this.routing.getRoutes();
+    const ports = this.transport.listPorts();
+    if (!song.clips.some((clip) => songTrackOutputs(routes, ports, port, clip.track).some((out) => out.connected))) {
+      return 'Assign a connected output to a lane in this Part.';
+    }
+    if (!this.songPlayer.queueLoop(song, length, () => {
+      this.queuedPartName = null;
+      this.setStatus(`Now previewing ${name}.`);
+      this.notify();
+    })) return 'This Part has no playable notes.';
+    this.queuedPartName = name;
+    this.notify();
+    return null;
+  }
+
+  cancelQueuedPart(): void {
+    this.songPlayer.cancelQueuedLoop();
+    this.queuedPartName = null;
+    this.notify();
+  }
+
+  songPlayheadFraction(): number { return this.songPlayer.barFraction; }
+
+  secondsUntilPartSwitch(): number | null { return this.songPlayer.secondsUntilSwitch(); }
+
+  private circuitTransportActive(): boolean {
+    const port = portsForRoles(this.assignments).circuitIn;
+    return this.clockService.getMusicalTime()?.transport === 'playing' &&
+      this.transport.listPorts().some((input) => input.id === port && input.state === 'connected');
+  }
+
   playSong(song: Song, fromBar: number, loopLength?: ClipLength, source: SongPlayback['source'] = loopLength ? 'song-loop' : 'song'): string | null {
     if (!Number.isFinite(song.bpm) || song.bpm < 20 || song.bpm > 400) {
       return 'Set Song BPM between 20 and 400.';
     }
     const port = portsForRoles(this.assignments).circuitIn;
     if (!this.midiReady || !port) return 'Connect and assign Circuit MIDI In in Setup.';
-    if (this.clockService.getMusicalTime()?.transport === 'playing' &&
-        this.transport.listPorts().some((input) => input.id === port && input.state === 'connected')) {
+    if (this.circuitTransportActive()) {
       if (source === 'part') return 'Stop Circuit before previewing the Part.';
       return source === 'take' ? 'Stop Circuit before looping the take.' : 'Stop the Circuit transport before playing the Song.';
     }
@@ -2921,15 +2985,23 @@ export class StudioRuntime {
     this.notify();
   }
 
-  recentCircuitTracksNotes(portId: string) {
-    const notes: NonNullable<ReturnType<typeof circuitTracksNote>>[] = [];
+  recentCircuitTracksNotes(portId: string, after: number, channel?: number) {
+    const notes: (NonNullable<ReturnType<typeof circuitTracksNote>> & { at: number })[] = [];
     for (let i = this.rawMidiLog.length - 1; i >= 0 && notes.length < 12; i--) {
       const message = this.rawMidiLog[i]!;
-      if (message.portId !== portId) continue;
+      if (message.at <= after || message.portId !== portId) continue;
       const note = circuitTracksNote(message.data);
-      if (note) notes.push(note);
+      if (note && (channel == null || channel === note.channel)) notes.push({ ...note, at: message.at });
     }
     return notes;
+  }
+
+  midiBenchHealth() {
+    return { ...this.midiSendTiming.health(), heldNotes: this.routing.heldNoteCount };
+  }
+
+  circuitRouteSignal(track: number) {
+    return this.midiSendTiming.routeSignal(track, portsForRoles(this.assignments).circuitIn ?? '');
   }
 
   exportBenchJson(): string {
@@ -2940,7 +3012,7 @@ export class StudioRuntime {
         liveCircuitToMpc: this.midiSendTiming.stats('live'),
         songDispatch: this.midiSendTiming.stats('song'),
         events: this.midiSendTiming.exportTrace(),
-        session: this.midiSendTiming.exportSession(),
+        session: { ...this.midiSendTiming.exportSession(), heldNotesAtExport: this.routing.heldNoteCount },
       },
     }, null, 2);
   }
@@ -2965,6 +3037,7 @@ export class StudioRuntime {
   // —— internals ——
 
   private syncLivePorts(ports: ReturnType<HardwareTransport['listPorts']>): void {
+    const previousCircuit = portsForRoles(this.assignments).circuitIn;
     const connectedIds = new Set(
       ports.filter((p) => p.state === 'connected').map((p) => p.id),
     );
@@ -2982,6 +3055,10 @@ export class StudioRuntime {
 
     // Empty / dash / mock previous slots must not block Felucca → FM1 (and peers).
     this.assignments = matchPortsToRoles(ports, this.assignments);
+    const circuit = portsForRoles(this.assignments).circuitIn;
+    if (circuit !== previousCircuit || !circuit || !connectedIds.has(circuit)) {
+      this.captureStartTick = this.captureLastTick = this.captureLastClockAt = null;
+    }
     // Role claims win so Felucca bound to FM1 is m-vave-fm1, not generic-midi.
     this.registry.syncFromPorts(ports, this.assignments);
     this.registry.ensureZed();
@@ -3497,6 +3574,10 @@ export class StudioRuntime {
     }
   }
 
+  recordFailedMidiSend(timing: NonNullable<Extract<StudioEvent, { type: 'midi:out' }>['timing']>): void {
+    if (timing.source.portId === portsForRoles(this.assignments).circuitIn) this.midiSendTiming.recordFailed(timing);
+  }
+
   recordOutboundTiming(event: Extract<StudioEvent, { type: 'midi:out' }>): void {
     const { timing, message, routeId } = event;
     if (!timing || !routeId) return;
@@ -3569,6 +3650,9 @@ let singleton: StudioRuntime | null = null;
 export function getStudioRuntime(): StudioRuntime {
   if (!singleton) {
     singleton = new StudioRuntime();
+    singleton.bus.on('midi:send-failed', (ev) => {
+      if (ev.type === 'midi:send-failed') singleton?.recordFailedMidiSend(ev.timing);
+    });
     singleton.bus.on('midi:out', (ev) => {
       if (ev.type !== 'midi:out') return;
       singleton?.recordOutboundTiming(ev);

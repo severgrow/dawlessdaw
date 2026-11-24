@@ -5,6 +5,7 @@ import {
   MPC_MUTE_LEARN_CHANNEL,
   type BenchVerdict,
 } from '@dawlessdaw/devices';
+import { RouteSignal } from './RouteSignal';
 import { CircuitTracksProbe } from './CircuitTracksProbe';
 import { CircuitDeepSyncBench } from '../circuit-deep-sync/CircuitDeepSyncBench';
 import { loadExperimentalUi } from '../nav/tabs';
@@ -21,6 +22,7 @@ export function TestWorkspace() {
   const snap = useStudioStore();
   const actions = useStudioActions();
   const timing = snap.midiTimingSummary;
+  const health = actions.getRuntime().midiBenchHealth();
   const experimental = loadExperimentalUi();
   const verdict = (id: string): BenchVerdict =>
     snap.benchResults.find((r) => r.id === id)?.verdict ?? 'pending';
@@ -32,15 +34,12 @@ export function TestWorkspace() {
       <div className="page-head">
         <h1>tests</h1>
         <div className="row">
-          <span className="readout">
-            done <b>{done}</b>/{BENCH_TESTS.length} · pass <b>{passed}</b>
-          </span>
           <button type="button" onClick={() => actions.downloadBenchJson()}>
             Export results
           </button>
         </div>
       </div>
-      <p className="lead">Open a card · follow steps · mark pass / fail. App only shows MIDI it heard.</p>
+      <RouteSignal />
 
       <div className="panel" aria-label="MIDI send timing" role="region">
         <div className="row">
@@ -51,7 +50,7 @@ export function TestWorkspace() {
         <dl>
           <dt>Live Circuit · all outputs</dt>
           <dd>{timing.received} note-ons received · {timing.live.sends} sent
-            {timing.live.maxMs != null && ` · ${timing.live.maxMs} ms worst since reset`}</dd>
+            {timing.live.maxMs != null && ` · ${health.p95Ms.live} ms p95 · ${timing.live.maxMs} ms worst since reset`}</dd>
           <dt>Live Circuit → MPC · recent sends</dt>
           <dd>{snap.latencyStats
             ? `${snap.latencyStats.samples} sends · ${snap.latencyStats.meanMs} ms average · ${snap.latencyStats.maxMs} ms worst · ${snap.latencyStats.jitterMs} ms jitter`
@@ -60,6 +59,8 @@ export function TestWorkspace() {
           <dd>{snap.songTimingStats
             ? `${snap.songTimingStats.samples} sends · ${snap.songTimingStats.meanMs} ms average late · ${snap.songTimingStats.maxMs} ms worst · ${snap.songTimingStats.jitterMs} ms jitter`
             : 'Play a Song clip to measure how closely notes hit their scheduled times.'}</dd>
+          <dt>Send failures and held notes</dt>
+          <dd>{health.failedNoteSends.live + health.failedNoteSends.song} failed routed note messages · {health.heldNotes} notes currently tracked as held</dd>
         </dl>
         <p className="muted small">Reset before a take. Export results includes recent inputs, sends, and the slowest send in each mode since reset.</p>
       </div>
@@ -74,6 +75,7 @@ export function TestWorkspace() {
         </p>
       )}
 
+      <p className="muted small">Bench checks · {done}/{BENCH_TESTS.length} completed · {passed} passed</p>
       {BENCH_GROUPS.map((g) => {
         const tests = BENCH_TESTS.filter((t) => t.group === g.id);
         if (!tests.length) return null;

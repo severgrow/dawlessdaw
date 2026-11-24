@@ -73,3 +73,12 @@ it('keeps the session worst even after newer sends roll the trace out of memory'
   timing.reset();
   expect(timing.summary().live).toEqual({ sends: 0, maxMs: null });
 });
+
+it('reports rolling p95 and sends refused by the transport separately', () => {
+  const metric = new MidiSendTiming();
+  const note = parseMidiMessage(buildNoteOn(1, 36, 100), 100, 'circuit');
+  const output = parseMidiMessage(buildNoteOn(9, 36, 100), 120, 'mpc');
+  for (let i = 1; i <= 20; i++) metric.record({ mode: 'live', source: note, sentAtMs: 100 + i }, output, 'route', true);
+  metric.recordFailed({ mode: 'live', source: note, sentAtMs: 122 });
+  expect(metric.health()).toEqual({ p95Ms: { live: 19, song: null }, failedNoteSends: { live: 1, song: 0 } });
+});

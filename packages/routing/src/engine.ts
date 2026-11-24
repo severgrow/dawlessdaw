@@ -199,6 +199,8 @@ export class MidiRoutingEngine {
   }
 
   /** Force-send note-offs for all tracked sounding notes. */
+  get heldNoteCount(): number { return this.activeNotes.size; }
+
   allNotesOff(): void {
     for (const [, key] of this.activeNotes) {
       const data = buildNoteOff(key.channel, key.note, 0);
@@ -326,7 +328,12 @@ export class MidiRoutingEngine {
     const sent = realtime || timestamp === undefined
       ? this.transport.send(portId, data)
       : this.transport.send(portId, data, ts);
-    if (sent === false) return false;
+    if (sent === false) {
+      if (timing) this.bus?.emit({
+        type: 'midi:send-failed', message: parseMidiMessage(data, ts, portId), timing: { ...timing, sentAtMs: now },
+      });
+      return false;
+    }
     this.recentOut.set(portId, now);
     if ((status & 0xf0) === 0xb0 && data.length >= 3) {
       const values = this.lastCc.get(portId) ?? new Map<number, number>();

@@ -216,3 +216,37 @@ it('exports tempo and separate, correctly numbered MIDI tracks for unmuted lanes
   expect(tracks[1]?.slice(0, 14)).toEqual([0, 255, 3, 2, 84, 49, 25, 0x90, 40, 98, 100, 0x80, 40, 0]);
   expect(tracks[2]?.slice(0, 14)).toEqual([0, 255, 3, 2, 84, 56, 25, 0x97, 40, 98, 100, 0x87, 40, 0]);
 });
+
+it('switches a preview on the next downbeat, releases first, and can cancel a queued Part', () => {
+  vi.useFakeTimers({ now: 0 });
+  try {
+    const calls: Array<[string, number]> = [];
+    const sample = (pitch: number): Song => ({
+      bpm: 120,
+      clips: [{
+        track: 1, bar: 0, id: String(pitch), length: 2,
+        notes: [{ at: 0, end: 150, pitch, velocity: 100 }, { at: 96, end: 98, pitch: pitch + 1, velocity: 90 }],
+      }],
+    });
+    const player = new SongPlayer((event, time) => calls.push([`${event.pitch}:${event.velocity}`, time]),
+      () => calls.push(['release', Date.now()]), () => {}, Date.now);
+    const activated = vi.fn();
+    expect(player.play(sample(36), 0, 2)).toBe(true);
+    vi.advanceTimersByTime(120);
+    expect(player.queueLoop(sample(44), 2, activated)).toBe(true);
+    expect(player.secondsUntilSwitch()).toBeCloseTo(1.88);
+    vi.advanceTimersByTime(1876);
+    expect(calls).toEqual([['36:100', 0]]);
+    vi.advanceTimersByTime(4);
+    expect(calls).toEqual([['36:100', 0], ['release', 2000], ['44:100', 2000]]);
+    expect(activated).toHaveBeenCalledOnce();
+    player.queueLoop(sample(52), 2, activated);
+    player.cancelQueuedLoop();
+    vi.advanceTimersByTime(2000);
+    expect(calls.at(-1)).toEqual(['45:90', 4000]);
+    expect(activated).toHaveBeenCalledOnce();
+    player.stop();
+  } finally {
+    vi.useRealTimers();
+  }
+});
